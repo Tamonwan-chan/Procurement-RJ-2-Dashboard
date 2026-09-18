@@ -1,0 +1,4 @@
+# Real hospital data files — never commit these, they contain real pricing/inventory data
+*.xlsx
+*.xls
+!mockup/*.xlsx

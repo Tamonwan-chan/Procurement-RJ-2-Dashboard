@@ -1,6 +1,7 @@
 <title>Dashboard จัดซื้อ พี่โอม</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Taviraj:wght@400;500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#F7F5F0;
@@ -63,15 +64,47 @@
   a{ color:var(--accent); }
 
   /* ---- masthead ---- */
-  .masthead{ display:flex; flex-wrap:wrap; gap:16px 24px; justify-content:space-between; align-items:flex-end; margin-bottom:22px; }
+  .masthead{ display:flex; flex-wrap:wrap; gap:16px 24px; justify-content:space-between; align-items:flex-end; margin-bottom:18px; }
   .masthead h1{ font-size:clamp(24px,3.4vw,32px); color:var(--ink); }
   .masthead .sub{ color:var(--ink-muted); font-size:14.5px; margin-top:6px; }
+
+  /* ---- drop zone ---- */
+  .dropzone{
+    border:1.5px dashed var(--border-strong); border-radius:var(--radius); background:var(--surface);
+    padding:22px 22px; text-align:center; cursor:pointer; margin-bottom:16px; transition:border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag{ border-color:var(--accent); background:var(--accent-soft); }
+  .dropzone .dz-title{ font-size:15px; font-weight:500; }
+  .dropzone .dz-hint{ font-size:12.5px; color:var(--ink-faint); margin-top:5px; }
+  .dropzone input[type="file"]{ display:none; }
+
+  .sourcebar{
+    display:none; flex-wrap:wrap; gap:8px 18px; align-items:center; justify-content:space-between;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:10px 16px; margin-bottom:16px; font-size:12.5px; color:var(--ink-muted);
+  }
+  .sourcebar.show{ display:flex; }
+  .sourcebar .file{ color:var(--ink); font-weight:500; }
+  .sourcebar button{
+    font-family:inherit; font-size:12.5px; background:none; border:1px solid var(--border-strong); color:var(--ink);
+    border-radius:99px; padding:5px 12px; cursor:pointer;
+  }
+  .sourcebar button:hover{ border-color:var(--accent); color:var(--accent); }
+  .sourcebar .stats{ display:flex; flex-wrap:wrap; gap:4px 14px; }
+
+  .errorbar{
+    display:none; background:var(--critical-soft); color:var(--critical); border-radius:8px; padding:10px 14px;
+    font-size:13px; margin-bottom:16px;
+  }
+  .errorbar.show{ display:block; }
+
   .mock-badge{
     display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-muted);
     background:var(--surface-2); border:1px solid var(--border); border-radius:99px; padding:6px 12px 6px 10px;
     white-space:nowrap;
   }
   .mock-badge .dot{ width:7px; height:7px; border-radius:50%; background:var(--warning); flex:none; }
+  .mock-badge.real .dot{ background:var(--good); }
 
   /* ---- filter chips ---- */
   .filterbar{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:26px; }
@@ -89,6 +122,9 @@
     background-image:repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--surface) 6px 12px);
   }
   .chip.planned:hover{ border-color:var(--border-strong); }
+  .toggle2{ display:inline-flex; border:1px solid var(--border-strong); border-radius:99px; overflow:hidden; font-size:12.5px; }
+  .toggle2 button{ font-family:inherit; font-size:inherit; border:none; background:var(--surface); color:var(--ink-muted); padding:6px 12px; cursor:pointer; }
+  .toggle2 button.active{ background:var(--accent); color:var(--accent-ink); font-weight:500; }
 
   /* ---- kpi row ---- */
   .kpi-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:34px; }
@@ -110,23 +146,18 @@
   .panel > header{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:8px 20px; margin-bottom:4px; }
   .panel h2{ font-size:19px; }
   .panel .hint{ font-size:12.5px; color:var(--ink-faint); }
-  .panel .desc{ font-size:13.5px; color:var(--ink-muted); margin:4px 0 18px; max-width:64ch; }
+  .panel .desc{ font-size:13.5px; color:var(--ink-muted); margin:4px 0 18px; max-width:70ch; }
   .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
   @media (max-width:760px){ .two-col{ grid-template-columns:1fr; } }
   .subhead{ font-size:13.5px; font-weight:600; color:var(--ink-muted); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
 
   /* ---- bar rows ---- */
   .barlist{ display:flex; flex-direction:column; gap:9px; }
-  .barrow{ display:grid; grid-template-columns:120px 1fr 84px; align-items:center; gap:10px; }
+  .barrow{ display:grid; grid-template-columns:130px 1fr 96px; align-items:center; gap:10px; }
   .barrow .rlabel{ font-size:12.5px; color:var(--ink-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .track{ background:var(--surface-2); border-radius:5px; height:16px; position:relative; overflow:hidden; }
   .fill{ height:100%; border-radius:5px 0 0 5px; cursor:default; transition:width .35s ease; }
   .barrow .rvalue{ font-size:12.5px; text-align:right; color:var(--ink); }
-
-  /* ---- legend ---- */
-  .legend{ display:flex; flex-wrap:wrap; gap:14px; margin:14px 0 4px; }
-  .legend .item{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); }
-  .legend .sw{ width:10px; height:10px; border-radius:3px; flex:none; }
 
   /* ---- proportion bar (ED/NED) ---- */
   .prop-bar{ display:flex; height:34px; border-radius:8px; overflow:hidden; border:1px solid var(--border); }
@@ -146,7 +177,9 @@
 
   /* ---- table ---- */
   .table-scroll{ overflow-x:auto; border:1px solid var(--border); border-radius:8px; }
-  table{ border-collapse:collapse; width:100%; font-size:12.5px; min-width:1080px; }
+  .table-scroll.tall{ max-height:420px; overflow-y:auto; }
+  table{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  table.wide{ min-width:1080px; }
   thead th{
     text-align:left; font-weight:600; color:var(--ink-muted); background:var(--surface-2);
     padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap; position:sticky; top:0;
@@ -155,9 +188,13 @@
   tbody tr:last-child td{ border-bottom:none; }
   tbody tr:hover{ background:var(--surface-2); }
   td.mono, th.mono{ font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
-  .pill{ font-size:11px; padding:2px 8px; border-radius:99px; font-weight:500; }
+  .pill{ font-size:11px; padding:2px 8px; border-radius:99px; font-weight:500; white-space:nowrap; }
   .pill.ed{ background:var(--good-soft); color:var(--good); }
   .pill.ned{ background:var(--surface-2); color:var(--ink-muted); }
+  .pill.status-high{ background:var(--critical-soft); color:var(--critical); }
+  .pill.status-low{ background:var(--warning-soft); color:var(--warning); }
+  .pill.status-normal{ background:var(--good-soft); color:var(--good); }
+  .table-note{ font-size:12px; color:var(--ink-faint); margin-top:8px; }
 
   /* ---- open questions ---- */
   ol.qlist{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:14px; }
@@ -187,9 +224,21 @@
 <div class="masthead">
   <div>
     <h1>Dashboard จัดซื้อ พี่โอม</h1>
-    <div class="sub">คลังยาและการจัดซื้อห้องยา — mockup สำหรับรีวิวก่อนเริ่มพัฒนาจริง</div>
+    <div class="sub">คลังยาและการจัดซื้อห้องยา — ลากไฟล์ Excel มาวางเพื่อดูข้อมูลจริง</div>
   </div>
-  <div class="mock-badge"><span class="dot"></span>ข้อมูลตัวอย่างทั้งหมด ยังไม่ใช่ข้อมูลจริงจากรพ. · นำเข้าล่าสุด 18 ก.ย. 2569</div>
+  <div class="mock-badge" id="mode-badge"><span class="dot"></span>กำลังแสดงข้อมูลตัวอย่าง 15 รายการ — ลากไฟล์จริงมาวางเพื่อแทนที่</div>
+</div>
+
+<div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือกไฟล์">
+  <div class="dz-title">ลากไฟล์ Excel มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</div>
+  <div class="dz-hint">รองรับไฟล์ .xlsx ที่มีชีต "รายการต้องจัดซื้อ" (และ คงคลัง / ชั้น G / ชั้น 1 / จัดหา ถ้ามี จะยิ่งครบ)</div>
+  <input type="file" id="file-input" accept=".xlsx,.xls">
+</div>
+<div class="errorbar" id="errorbar"></div>
+<div class="sourcebar" id="sourcebar">
+  <div>นำเข้าแล้ว: <span class="file" id="src-filename"></span></div>
+  <div class="stats" id="src-stats"></div>
+  <button id="btn-reset">เปลี่ยนไฟล์ / กลับไปดูตัวอย่าง</button>
 </div>
 
 <div class="filterbar">
@@ -202,13 +251,13 @@
 
 <div class="kpi-row">
   <div class="kpi">
-    <div class="label">คลังกลางรวม (หน่วยจัดหา)</div>
-    <div class="value num" id="kpi-central">–<span class="unit">กล่อง</span></div>
+    <div class="label">รายการมีสต็อกคลังกลาง</div>
+    <div class="value num" id="kpi-central">–<span class="unit">รายการ</span></div>
     <div class="foot">ไม่แยกตามห้อง — คลังกลางมีจุดเดียว</div>
   </div>
   <div class="kpi">
-    <div class="label">หน่วยย่อยรวม (เทียบหน่วยจัดหา)</div>
-    <div class="value num" id="kpi-floor">–<span class="unit">กล่องเทียบเท่า</span></div>
+    <div class="label">รายการมีสต็อกหน่วยย่อย</div>
+    <div class="value num" id="kpi-floor">–<span class="unit">รายการ</span></div>
     <div class="foot" id="kpi-floor-foot">รวมชั้น G + ชั้น 1</div>
   </div>
   <div class="kpi">
@@ -226,16 +275,16 @@
 <section class="panel">
   <header>
     <h2>คงคลังยา</h2>
-    <span class="hint">หน่วยจัดหา (Box/unit) · ตอบสนองตัวเลือกห้องด้านบน</span>
+    <span class="hint">หน่วยนับตามที่แต่ละรายการจัดหาจริง (กล่อง/ขวด/แผง ฯลฯ)</span>
   </header>
-  <p class="desc">แยกสองส่วนตาม PRD — คลังกลางไม่ผูกกับห้องยา ส่วนหน่วยย่อยคำนวณจากยอดชั้น G และชั้น 1 แปลงเป็นหน่วยจัดหาโดยใช้ "จำนวนต่อหน่วยจัดหา" ต่อรายการ</p>
+  <p class="desc">แยกสองส่วนตาม PRD — คลังกลางไม่ผูกกับห้องยา ส่วนหน่วยย่อยตอบสนองตัวเลือกห้องด้านบน แสดงเป็นอันดับรายการที่มีสต็อกมากที่สุด (Top 8) เพราะหน่วยนับของแต่ละรายการไม่เท่ากัน (เม็ด/ขวด/กล่อง) จึงรวมเป็นตัวเลขเดียวข้ามรายการไม่ได้อย่างถูกต้อง</p>
   <div class="two-col">
     <div>
-      <div class="subhead">คลังกลาง แยกตามกลุ่มยา (GPSC)</div>
+      <div class="subhead">คลังกลาง — Top 8 รายการที่มีสต็อกมากที่สุด</div>
       <div class="barlist" id="chart-central"></div>
     </div>
     <div>
-      <div class="subhead" id="floor-subhead">หน่วยย่อย แยกตามรายการ (Top 8)</div>
+      <div class="subhead" id="floor-subhead">หน่วยย่อย — Top 8 รายการที่มีสต็อกมากที่สุด</div>
       <div class="barlist" id="chart-floor"></div>
     </div>
   </div>
@@ -246,72 +295,74 @@
     <h2>สัดส่วนบัญชียา ED / NED</h2>
     <span class="hint">นับต่อ 100 รายการ</span>
   </header>
-  <p class="desc">สัดส่วนรายการยาที่อยู่ในบัญชียาหลักแห่งชาติ (ED) เทียบกับนอกบัญชี (NED) จากทั้งหมด <span class="num" id="ed-total-items"></span> รายการในระบบ</p>
+  <p class="desc">สัดส่วนรายการยาที่อยู่ในบัญชียาหลักแห่งชาติ (ED) เทียบกับนอกบัญชี (NED) — สลับหน่วยนับได้ระหว่างรายการยา (hospcode) กับรหัส GPU</p>
+  <div class="toggle2" id="ed-toggle" style="margin-bottom:14px;">
+    <button data-mode="item" class="active">นับแบบรายการยา (hospcode)</button>
+    <button data-mode="gpu">นับแบบรหัส GPU</button>
+  </div>
   <div class="prop-bar" id="prop-bar"></div>
   <div class="prop-scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+  <div class="table-note" id="prop-footnote"></div>
   <div class="callout warn">
     <span class="badge">ต้องยืนยัน</span>
-    <p>PRD ระบุให้ "นับที่ GPU" — ยังไม่ชัดว่าหมายถึงรหัส GPU (Generic Product Unit) หรือพิมพ์คลาดเคลื่อนจากคำอื่น รอพี่โอมยืนยันหน่วยนับที่ถูกต้อง</p>
+    <p>PRD เขียนว่า "นับที่ GPU" — ในไฟล์จริงพบคอลัมน์ gpucode ในชีต "ทะเบียน" (Generic Product Unit) แต่มีแค่บางรายการที่ถูกกำหนดรหัสนี้ไว้ ด้านบนจึงทำเป็นตัวเลือกสลับได้ก่อน รอพี่โอมยืนยันว่าตัวเลขหลักที่จะใช้รายงานคือแบบไหน</p>
   </div>
 </section>
 
 <section class="panel">
   <header>
     <h2>อัตราการใช้ยา</h2>
-    <span class="hint">จากยอดเบิกจ่ายเฉลี่ยต่อเดือน</span>
+    <span class="hint">จากชีต "จัดหา" — lowrate / highrate / userate</span>
   </header>
-  <p class="desc">จัดอันดับรายการที่ใช้เร็ว (high rate) และใช้ช้า (low rate) เพื่อช่วยตัดสินใจแจ้งความต้องการจัดซื้อ</p>
-  <div class="two-col">
-    <div>
-      <div class="subhead"><span class="legend-sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--good)"></span>ใช้เร็ว (High rate) — Top 5</div>
-      <div class="barlist" id="chart-high"></div>
-    </div>
-    <div>
-      <div class="subhead"><span class="legend-sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--warning)"></span>ใช้ช้า (Low rate) — Top 5</div>
-      <div class="barlist" id="chart-low"></div>
-    </div>
+  <p class="desc">เทียบอัตราการใช้จริง (userate) กับเกณฑ์ต่ำสุด/สูงสุด (lowrate/highrate) ต่อรายการ — มีเฉพาะรายการที่อยู่ในรอบแจ้งความต้องการจัดซื้อรอบนี้</p>
+  <div class="legend" style="display:flex;gap:16px;margin-bottom:12px;font-size:12.5px;color:var(--ink-muted)" id="rate-summary"></div>
+  <div class="table-scroll tall">
+    <table>
+      <thead><tr><th>hospcode</th><th>ชื่อยา</th><th class="mono">lowrate</th><th class="mono">userate</th><th class="mono">highrate</th><th>สถานะ</th></tr></thead>
+      <tbody id="rate-table"></tbody>
+    </table>
   </div>
   <div class="callout warn">
     <span class="badge">ต้องยืนยัน</span>
-    <p>ยังไม่มีเกณฑ์ตัดสิน low/high rate ที่ชัดเจน (mockup นี้ใช้อันดับยอดเบิกจ่ายต่อเดือนสูงสุด/ต่ำสุดแทนไปก่อน) — รอพี่โอมกำหนดเกณฑ์ เช่น จำนวนเดือนคงคลัง หรือ % เทียบค่าเฉลี่ยกลุ่มยา</p>
+    <p>ตารางนี้ตั้งสมมติฐานว่า lowrate/highrate คือ "ช่วงเกณฑ์อัตราการใช้ที่ยอมรับได้" และ userate คืออัตราการใช้จริงปัจจุบัน (ต่ำกว่า lowrate = ใช้ช้ากว่าเกณฑ์, สูงกว่า highrate = ใช้เร็วกว่าเกณฑ์) รอพี่โอมยืนยันความหมายที่ถูกต้องของทั้งสามค่านี้</p>
   </div>
 </section>
 
 <section class="panel">
   <header>
-    <h2>มูลค่าคงคลังพัสดุ ตาม GPSC</h2>
+    <h2>มูลค่าคงคลังพัสดุ ตามกลุ่ม</h2>
     <span class="hint">ตอบสนองตัวเลือกห้องด้านบน</span>
   </header>
   <div class="value-headline">
     <span class="big num" id="value-total">–</span>
-    <span class="lbl">บาท มูลค่าคงคลังรวมทุกกลุ่มยา</span>
+    <span class="lbl">บาท มูลค่าคงคลังรวมทุกกลุ่ม</span>
   </div>
   <div class="barlist" id="chart-gpsc"></div>
   <div class="callout warn">
     <span class="badge">ต้องยืนยัน</span>
-    <p>คอลัมน์ import ปัจจุบันยังไม่มี "ราคาต่อหน่วย" — มูลค่าที่แสดงเป็นตัวเลขสมมติเพื่อสาธิตหน้าตาเท่านั้น ต้องเพิ่มคอลัมน์ราคาต่อหน่วยจึงจะคำนวณได้จริง</p>
+    <p>ไฟล์จริงยังไม่มีคอลัมน์ "gpscode" 14 หลักตามที่ระบุใน PRD — กราฟนี้จึงใช้ "ชื่อกลุ่ม" (A, B, C, ...) จากชีต "คงคลัง" ไปก่อน (มูลค่ารวม<span class="num" id="stock-group-total"></span>บาท ณ รายการที่มีอยู่ในชีตนั้น) รอพี่โอมยืนยันว่ากลุ่มตัวอักษรนี้คือกลุ่มเดียวกับที่จะใช้ผูกรหัส gpscode หรือไม่ หรือมีตารางแม่บท GPSC แยกต่างหากที่ต้องนำมาจับคู่เพิ่ม</p>
   </div>
 </section>
 
 <section class="panel">
   <header>
-    <h2>ตัวอย่างข้อมูลนำเข้า (Excel)</h2>
-    <span class="hint">เรียงตาม hospcode จากน้อยไปมาก</span>
+    <h2>ตัวอย่างข้อมูลนำเข้า</h2>
+    <span class="hint" id="import-hint">เรียงตาม hospcode จากน้อยไปมาก</span>
   </header>
-  <p class="desc">แก้ปัญหาที่ระบุใน PRD — เดิม sheet เรียงตามกลุ่มยาทำให้ track ยาก mockup นี้เรียงตาม hospcode คงที่ทุกครั้งที่ import ไม่ว่ายาใหม่จะเข้ากลุ่มไหน</p>
+  <p class="desc">แก้ปัญหาที่ระบุใน PRD — เดิม sheet เรียงตามกลุ่มยาทำให้ track ยาก มุมมองนี้เรียงตาม hospcode คงที่ทุกครั้งที่ import ไม่ว่ายาใหม่จะเข้ากลุ่มไหน</p>
   <div class="table-scroll">
-    <table>
+    <table class="wide">
       <thead>
         <tr>
-          <th>hospcode</th><th>generic</th><th>tradename</th><th>content</th><th>packsize</th>
-          <th class="mono">list want</th><th class="mono">inventory</th><th class="mono">total floor</th>
-          <th class="mono">ต่อหน่วยจัดหา</th><th class="mono">floor 1</th><th class="mono">floor G</th>
-          <th>distribute</th><th>manufact</th><th>ised</th><th>ndc24</th><th>gpscode</th>
+          <th>hospcode</th><th>generic</th><th>tradename</th><th>content</th><th class="mono">packsize</th>
+          <th class="mono">list want</th><th class="mono">คลังกลาง</th><th class="mono">ชั้น 1</th><th class="mono">ชั้น G</th>
+          <th>distribute</th><th>manufact</th><th>ised</th><th>กลุ่ม (คงคลัง)</th>
         </tr>
       </thead>
       <tbody id="import-table"></tbody>
     </table>
   </div>
+  <div class="table-note" id="import-note"></div>
 </section>
 
 <section class="panel">
@@ -319,62 +370,228 @@
   <ol class="qlist">
     <li><span class="qn">1</span><span class="qtext">Import ไฟล์ได้ทุกครั้งที่มีของใหม่ หรือต้อง fix โครงสร้างคอลัมน์ตายตัว เพื่อไม่ให้ hospcode สลับที่กันทุกรอบ<span class="from">อ้างอิง PRD: "หน้าหลักแสดงข้อมูล ตาม excel * Import ได้ทุกครั้งมั้ย หรือต้อง fix"</span></span></li>
     <li><span class="qn">2</span><span class="qtext">เผื่อห้องจ่ายยาเพิ่มปี 2570–71 กี่ห้อง และใช้ชื่อห้องว่าอะไร (mockup เตรียมปุ่มไว้ 1 ห้องเพิ่มก่อน)<span class="from">อ้างอิง PRD: "70 มีห้องจ่ายยาเพิ่มมั้ย" / "ห้องยาน่าจะได้เพิ่มอีกห้องในปี 70-71"</span></span></li>
-    <li><span class="qn">3</span><span class="qtext">สัดส่วน ED/NED ให้นับที่ระดับใด — "GPU" ในโจทย์หมายถึงรหัส Generic Product Unit หรือหมายถึงอย่างอื่น<span class="from">อ้างอิง PRD: "คิดเป็นสัดส่วน... โดยนับที่ GPU"</span></span></li>
-    <li><span class="qn">4</span><span class="qtext">ต้องเพิ่มคอลัมน์ "ราคาต่อหน่วย" ในไฟล์นำเข้า เพื่อคำนวณมูลค่าคงคลังตาม gpscode ให้ตรงจริง<span class="from">อ้างอิง PRD: "มูลค่าคงคลัง 900,000.00 บาท"</span></span></li>
-    <li><span class="qn">5</span><span class="qtext">เกณฑ์ตัดสิน low rate / high rate ใช้ตัวเลขอะไร (เช่น จำนวนเดือนคงคลังคงเหลือ หรือเทียบ % ค่าเฉลี่ยกลุ่มยา)<span class="from">อ้างอิง PRD: "อัตราการใช้ยา lowrate, highrate (อยู่ใน แจ้งความต้องการซื้อ)"</span></span></li>
-    <li><span class="qn">6</span><span class="qtext">drug cat — ต้องการให้ key เข้าเองในระบบอย่างเดียว หรือรองรับ import ทับบัญชีเดิมด้วย<span class="from">อ้างอิง PRD: "drug cat (Key เข้า หรือ import update บัญชีได้)"</span></span></li>
+    <li><span class="qn">3</span><span class="qtext">สัดส่วน ED/NED ให้นับที่ระดับใด — รายการยา (hospcode) หรือรหัส GPU (ในไฟล์จริงพบว่ามีรหัส GPU ให้แค่บางรายการในชีต "ทะเบียน")<span class="from">อ้างอิง PRD: "คิดเป็นสัดส่วน... โดยนับที่ GPU"</span></span></li>
+    <li><span class="qn">4</span><span class="qtext">"ชื่อกลุ่ม" (A, B, C, ...) ในชีต "คงคลัง" คือกลุ่มเดียวกับที่จะใช้เป็นรหัส gpscode หรือไม่ ถ้าไม่ใช่ ต้องขอตารางแม่บท gpscode มาจับคู่เพิ่ม<span class="from">อ้างอิง PRD: "เพิ่มอีก column ต่อท้าย gpscode... มูลค่าคงคลัง 900,000.00 บาท"</span></span></li>
+    <li><span class="qn">5</span><span class="qtext">คอลัมน์ lowrate / highrate / userate ในชีต "จัดหา" หมายถึงอะไรกันแน่ (เกณฑ์อัตราการใช้ต่ำสุด-สูงสุด กับอัตราการใช้จริง ตามที่ mockup นี้ตั้งสมมติฐานไว้ ใช่หรือไม่)<span class="from">อ้างอิง PRD: "อัตราการใช้ยา lowrate, highrate (อยู่ใน แจ้งความต้องการซื้อ)"</span></span></li>
+    <li><span class="qn">6</span><span class="qtext">คลังกลางและหน่วยย่อยมีหน่วยนับต่างกันตามแต่ละรายการ (เม็ด/ขวด/กล่อง) — ต้องการให้แปลงเป็น "หน่วยจัดหา" เดียวกันทั้งระบบหรือไม่ หรือแสดงตามหน่วยจริงของแต่ละรายการแบบนี้ต่อไป<span class="from">อ้างอิง PRD: "ใช้หน่วยจัดหา (เป็น Box/unit)"</span></span></li>
+    <li><span class="qn">7</span><span class="qtext">drug cat — ต้องการให้ key เข้าเองในระบบอย่างเดียว หรือรองรับ import ทับบัญชีเดิม (ชีต "drugcat" ในไฟล์จริงมี 4,335 รายการ มากกว่ารายการต้องจัดซื้อ)<span class="from">อ้างอิง PRD: "drug cat (Key เข้า หรือ import update บัญชีได้)"</span></span></li>
   </ol>
 </section>
 
-<footer>Dashboard จัดซื้อ พี่โอม · mockup เพื่อรีวิวขอบเขตงาน · ข้อมูลทั้งหมดเป็นตัวอย่าง</footer>
+<footer>Dashboard จัดซื้อ พี่โอม · mockup เชื่อมกับไฟล์ Excel จริงได้แล้ว · ลองลากไฟล์มาวางด้านบน</footer>
 
 <script>
 (function(){
-  var GROUP_META = {
-    antibiotic:{ label:'ยาปฏิชีวนะ', color:'var(--cat-1)', gpsc:'99000051101500' },
-    cardio:    { label:'หัวใจและหลอดเลือด', color:'var(--cat-2)', gpsc:'99000051102500' },
-    endocrine: { label:'ต่อมไร้ท่อ/เบาหวาน', color:'var(--cat-3)', gpsc:'99000051103500' },
-    gi:        { label:'ทางเดินอาหาร', color:'var(--cat-4)', gpsc:'99000051104500' },
-    other:     { label:'อื่นๆ', color:'var(--cat-5)', gpsc:'99000051105500' }
-  };
+  var SAMPLE_ITEMS = (function(){
+    var g = { A:'A', B:'B', C:'C', D:'D', E:'E' };
+    function it(hospcode, generic, tradename, content, packsize, unitprice, listWant, distribute, manufact, isedRaw, ndc24, group, centralQty, floorGQty, floor1Qty, costrate, lowrate, highrate, userate, gpucode){
+      return {
+        hospcode:hospcode, generic:generic, tradename:tradename, content:content, packsize:packsize, unitprice:unitprice,
+        listWant:listWant, distribute:distribute, manufact:manufact, isedRaw:isedRaw, ndc24:ndc24,
+        central: centralQty!=null ? { qty:centralQty, unitPrice:unitprice, value:centralQty*unitprice, group:group, name:tradename } : null,
+        floorG: floorGQty!=null ? { qty:floorGQty, costrate:costrate, name:tradename } : null,
+        floor1: floor1Qty!=null ? { qty:floor1Qty, costrate:costrate, name:tradename } : null,
+        proc: lowrate!=null ? { lowrate:lowrate, highrate:highrate, userate:userate, sumqty:0 } : null,
+        gpucode: gpucode || ''
+      };
+    }
+    return [
+      it('10015','diclofenac sodium','Voltarol 25 mg','25 mg',1000,0.35,5,'บ.ยูนีซัน','Sandoz','NED','1234567890123','D',8,300,220,0.4,180,650,120,'GPU1015'),
+      it('10021','amoxicillin','Amoxil 500 mg','500 mg',500,1.2,15,'บ.เบอร์ลินฟาร์มา','GPO','b:basic list (EDก)','1234567890124','A',22,450,380,1.3,6200,15000,4300,'GPU1021'),
+      it('10034','enalapril maleate','Renitec 5 mg','5 mg',1000,0.5,8,'บ.ซิลลิค','MSD','b:basic list (EDก)','1234567890125','B',14,200,150,0.55,3100,9000,2900,''),
+      it('10048','cetirizine hcl','Zyrtec 10 mg','10 mg',1000,0.6,3,'บ.ซิลลิค','GSK','NED','1234567890126','D',6,90,60,0.65,650,2000,180,'GPU1048'),
+      it('10052','metformin hcl','Glucophage 500 mg','500 mg',1000,0.3,20,'บ.เมอร์ค','Merck','b:basic list (EDก)','1234567890127','B',30,520,410,0.32,8400,20000,7900,'GPU1052'),
+      it('10067','omeprazole','Losec 20 mg','20 mg',1000,1.5,10,'บ.แอสตร้าฯ','AstraZeneca','s:supplemental list (EDค)','1234567890128','C',18,260,190,1.6,4200,11000,3500,''),
+      it('10071','ciprofloxacin hcl','Ciprobay 500 mg','500 mg',100,3.2,12,'บ.ไบเออร์','Bayer','b:basic list (EDข)','1234567890129','A',25,140,95,3.4,1900,6000,750,'GPU1071'),
+      it('10089','ranitidine hcl','Zantac 150 mg','150 mg',1000,0.45,1,'บ.ซิลลิค','GSK','NED','1234567890130','C',4,40,25,0.5,180,900,650,''),
+      it('10093','simvastatin','Zocor 20 mg','20 mg',1000,0.9,14,'บ.เมอร์ค','MSD','b:basic list (EDก)','1234567890131','B',20,310,260,0.95,5100,13000,4800,'GPU1093'),
+      it('10105','glibenclamide','Daonil 5 mg','5 mg',1000,0.25,4,'บ.ซิลลิค','Sanofi','b:basic list (EDก)','1234567890132','B',9,110,70,0.28,900,4000,380,''),
+      it('10118','amlodipine besylate','Norvasc 5 mg','5 mg',1000,0.4,18,'บ.ไฟเซอร์','Pfizer','b:basic list (EDก)','1234567890133','B',28,480,390,0.42,7600,18000,7100,'GPU1118'),
+      it('10126','ceftriaxone sodium','Rocephin 1 g','1 g',10,48,25,'บ.โรช','Roche','ex:exclusive list (EDง)','1234567890134','A',45,60,45,50,980,3000,2600,''),
+      it('10139','salbutamol','Ventolin MDI 100 mcg','100 mcg',1,95,6,'บ.ซิลลิค','GSK','b:basic list (EDก)','1234567890135','E',12,25,18,98,140,600,95,'GPU1139'),
+      it('10144','insulin NPH','Humulin N 100 IU/ml','100 IU/ml',1,125,8,'บ.เอลี่ลิลลี่','Eli Lilly','b:basic list (EDข)','1234567890136','E',15,20,15,130,210,800,720,''),
+      it('10158','paracetamol','Sara 500 mg','500 mg',1000,0.2,35,'บ.เบอร์ลินฟาร์มา','GPO','b:basic list (EDก)','1234567890137','D',60,900,780,0.22,15200,25000,14800,'GPU1158')
+    ];
+  })();
 
-  var drugs = [
-    {hospcode:'10015', generic:'Diclofenac 25 mg', tradename:'Voltarol', content:'25 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'other', ed:false, listWant:5, inventory:8, floorG:300, floor1:220, usageMonth:1800, unitPrice:0.35, distribute:'บ.ยูนีซัน', manufact:'Sandoz', ised:'NED', ndc24:'12345678901234567890AB01'},
-    {hospcode:'10021', generic:'Amoxicillin 500 mg', tradename:'Amoxil', content:'500 mg', packsize:'500 แคปซูล/กล่อง', perPack:500, group:'antibiotic', ed:true, listWant:15, inventory:22, floorG:450, floor1:380, usageMonth:6200, unitPrice:1.2, distribute:'บ.เบอร์ลินฟาร์มา', manufact:'GPO', ised:'ED', ndc24:'12345678901234567890AB02'},
-    {hospcode:'10034', generic:'Enalapril 5 mg', tradename:'Renitec', content:'5 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'cardio', ed:true, listWant:8, inventory:14, floorG:200, floor1:150, usageMonth:3100, unitPrice:0.5, distribute:'บ.ซิลลิค', manufact:'MSD', ised:'ED', ndc24:'12345678901234567890AB03'},
-    {hospcode:'10048', generic:'Cetirizine 10 mg', tradename:'Zyrtec', content:'10 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'other', ed:false, listWant:3, inventory:6, floorG:90, floor1:60, usageMonth:650, unitPrice:0.6, distribute:'บ.ซิลลิค', manufact:'GSK', ised:'NED', ndc24:'12345678901234567890AB04'},
-    {hospcode:'10052', generic:'Metformin 500 mg', tradename:'Glucophage', content:'500 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'endocrine', ed:true, listWant:20, inventory:30, floorG:520, floor1:410, usageMonth:8400, unitPrice:0.3, distribute:'บ.เมอร์ค', manufact:'Merck', ised:'ED', ndc24:'12345678901234567890AB05'},
-    {hospcode:'10067', generic:'Omeprazole 20 mg', tradename:'Losec', content:'20 mg', packsize:'1000 แคปซูล/กล่อง', perPack:1000, group:'gi', ed:true, listWant:10, inventory:18, floorG:260, floor1:190, usageMonth:4200, unitPrice:1.5, distribute:'บ.แอสตร้าฯ', manufact:'AstraZeneca', ised:'ED', ndc24:'12345678901234567890AB06'},
-    {hospcode:'10071', generic:'Ciprofloxacin 500 mg', tradename:'Ciprobay', content:'500 mg', packsize:'100 เม็ด/กล่อง', perPack:100, group:'antibiotic', ed:true, listWant:12, inventory:25, floorG:140, floor1:95, usageMonth:1900, unitPrice:3.2, distribute:'บ.ไบเออร์', manufact:'Bayer', ised:'ED', ndc24:'12345678901234567890AB07'},
-    {hospcode:'10089', generic:'Ranitidine 150 mg', tradename:'Zantac', content:'150 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'gi', ed:false, listWant:1, inventory:4, floorG:40, floor1:25, usageMonth:180, unitPrice:0.45, distribute:'บ.ซิลลิค', manufact:'GSK', ised:'NED', ndc24:'12345678901234567890AB08'},
-    {hospcode:'10093', generic:'Simvastatin 20 mg', tradename:'Zocor', content:'20 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'cardio', ed:true, listWant:14, inventory:20, floorG:310, floor1:260, usageMonth:5100, unitPrice:0.9, distribute:'บ.เมอร์ค', manufact:'MSD', ised:'ED', ndc24:'12345678901234567890AB09'},
-    {hospcode:'10105', generic:'Glibenclamide 5 mg', tradename:'Daonil', content:'5 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'endocrine', ed:true, listWant:4, inventory:9, floorG:110, floor1:70, usageMonth:900, unitPrice:0.25, distribute:'บ.ซิลลิค', manufact:'Sanofi', ised:'ED', ndc24:'12345678901234567890AB10'},
-    {hospcode:'10118', generic:'Amlodipine 5 mg', tradename:'Norvasc', content:'5 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'cardio', ed:true, listWant:18, inventory:28, floorG:480, floor1:390, usageMonth:7600, unitPrice:0.4, distribute:'บ.ไฟเซอร์', manufact:'Pfizer', ised:'ED', ndc24:'12345678901234567890AB11'},
-    {hospcode:'10126', generic:'Ceftriaxone 1 g inj', tradename:'Rocephin', content:'1 g', packsize:'10 vial/กล่อง', perPack:10, group:'antibiotic', ed:true, listWant:25, inventory:45, floorG:60, floor1:45, usageMonth:980, unitPrice:48, distribute:'บ.โรช', manufact:'Roche', ised:'ED', ndc24:'12345678901234567890AB12'},
-    {hospcode:'10139', generic:'Salbutamol MDI 100 mcg', tradename:'Ventolin', content:'100 mcg', packsize:'1 หลอด/กล่อง', perPack:1, group:'other', ed:true, listWant:6, inventory:12, floorG:25, floor1:18, usageMonth:140, unitPrice:95, distribute:'บ.ซิลลิค', manufact:'GSK', ised:'ED', ndc24:'12345678901234567890AB13'},
-    {hospcode:'10144', generic:'Insulin NPH 100 IU/ml', tradename:'Humulin N', content:'100 IU/ml', packsize:'1 ขวด/กล่อง', perPack:1, group:'endocrine', ed:true, listWant:8, inventory:15, floorG:20, floor1:15, usageMonth:210, unitPrice:125, distribute:'บ.เอลี่ลิลลี่', manufact:'Eli Lilly', ised:'ED', ndc24:'12345678901234567890AB14'},
-    {hospcode:'10158', generic:'Paracetamol 500 mg', tradename:'Sara', content:'500 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'other', ed:true, listWant:35, inventory:60, floorG:900, floor1:780, usageMonth:15200, unitPrice:0.2, distribute:'บ.เบอร์ลินฟาร์มา', manufact:'GPO', ised:'ED', ndc24:'12345678901234567890AB15'}
-  ];
+  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', edCountMode:'item', fileName:'', meta:null };
 
-  drugs.forEach(function(d){
-    d.gpsc = GROUP_META[d.group].gpsc;
-    d.floorBoxEq = function(room){
-      var units = room === 'G' ? d.floorG : room === '1' ? d.floor1 : (d.floorG + d.floor1);
-      return units / d.perPack;
-    };
-  });
-
+  function num(v){
+    if(typeof v === 'number') return isFinite(v) ? v : 0;
+    var n = parseFloat(String(v==null?'':v).replace(/,/g,'').trim());
+    return isFinite(n) ? n : 0;
+  }
   function fmt(n){ return Math.round(n).toLocaleString('th-TH'); }
   function fmt1(n){ return n.toLocaleString('th-TH',{maximumFractionDigits:1}); }
   function fmtMoney(n){ return Math.round(n).toLocaleString('th-TH'); }
 
+  function classifyISED(raw){
+    var s = (raw||'').trim();
+    if(!s || s === '0' || s === 'ไม่ระบุ') return 'unclassified';
+    if(s === 'NED') return 'NED';
+    if(s.indexOf('เวชภัณฑ์มิใช่ยา') === 0) return 'nondrug';
+    return 'ED';
+  }
+
+  /* ---------------- Excel import ---------------- */
+  function normalizeRows(ws){
+    if(!ws) return [];
+    var rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+    return rows.map(function(r){
+      var o = {};
+      Object.keys(r).forEach(function(k){ o[String(k).trim().toLowerCase()] = r[k]; });
+      return o;
+    });
+  }
+
+  function buildFromWorkbook(wb){
+    var main = normalizeRows(wb.Sheets['รายการต้องจัดซื้อ']);
+    var stockRows = normalizeRows(wb.Sheets['คงคลัง']);
+    var floorGRows = normalizeRows(wb.Sheets['ชั้น G']);
+    var floor1Rows = normalizeRows(wb.Sheets['ชั้น 1']);
+    var procRows = normalizeRows(wb.Sheets['จัดหา']);
+    var regRows = normalizeRows(wb.Sheets['ทะเบียน']);
+
+    var stockMap = {};
+    stockRows.forEach(function(r){
+      var id = String(r['รหัสเวชภัณฑ์']||'').trim();
+      var name = String(r['ชื่อเวชภัณฑ์']||'').trim();
+      if(!id || id === '0' || !name) return;
+      stockMap[id] = { qty:num(r['จำนวน']), unitPrice:num(r['ราคาต่อหน่วย']), value:num(r['รวมมูลค่า']), group:String(r['ชื่อกลุ่ม']||'').trim(), name:name };
+    });
+    function buildFloorMap(rows){
+      var m = {};
+      rows.forEach(function(r){
+        var id = String(r.meditem||'').trim();
+        if(!id || id === '0') return;
+        m[id] = { qty:num(r.stkqty), costrate:num(r.costrate), name:String(r.medname||'').trim() };
+      });
+      return m;
+    }
+    var floorGMap = buildFloorMap(floorGRows);
+    var floor1Map = buildFloorMap(floor1Rows);
+    var procMap = {};
+    procRows.forEach(function(r){
+      var id = String(r.meditem||'').trim();
+      if(!id || id === '0') return;
+      procMap[id] = { lowrate:num(r.lowrate), highrate:num(r.highrate), userate:num(r.userate), sumqty:num(r.sumqty) };
+    });
+    var regMap = {};
+    regRows.forEach(function(r){
+      var id = String(r.hospdrugid||'').trim();
+      if(!id || id === '0') return;
+      regMap[id] = { gpucode:String(r.gpucode||'').trim() };
+    });
+
+    var items = main.map(function(r){
+      var id = String(r.hospcode||'').trim();
+      return {
+        hospcode:id,
+        generic:String(r.generic||'').trim(),
+        tradename:String(r.tradename||'').trim(),
+        content:String(r.content||'').trim(),
+        packsize:num(r.packsize),
+        unitprice:num(r.unitprice),
+        listWant:num(r['list want']),
+        distribute:String(r.distribute||'').trim(),
+        manufact:String(r.manufact||'').trim(),
+        isedRaw:String(r.ised||'').trim(),
+        ndc24:String(r.ndc24||'').trim(),
+        central: stockMap[id] || null,
+        floorG: floorGMap[id] || null,
+        floor1: floor1Map[id] || null,
+        proc: procMap[id] || null,
+        gpucode: regMap[id] ? regMap[id].gpucode : ''
+      };
+    }).filter(function(it){ return it.hospcode && it.hospcode !== '0'; });
+
+    var meta = {
+      totalItems: items.length,
+      centralMatched: items.filter(function(i){return i.central;}).length,
+      floorGMatched: items.filter(function(i){return i.floorG;}).length,
+      floor1Matched: items.filter(function(i){return i.floor1;}).length,
+      procMatched: items.filter(function(i){return i.proc;}).length
+    };
+    return { items:items, meta:meta };
+  }
+
+  function showError(msg){
+    var bar = document.getElementById('errorbar');
+    bar.textContent = msg; bar.classList.add('show');
+  }
+  function hideError(){ document.getElementById('errorbar').classList.remove('show'); }
+
+  function handleFile(file){
+    hideError();
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var wb = XLSX.read(e.target.result, { type:'array' });
+        if(!wb.Sheets['รายการต้องจัดซื้อ']){
+          showError('ไม่พบชีต "รายการต้องจัดซื้อ" ในไฟล์นี้ กรุณาตรวจสอบว่าเป็นไฟล์รูปแบบเดียวกับที่ใช้อยู่ (ชื่อชีตต้องตรงกัน)');
+          return;
+        }
+        var built = buildFromWorkbook(wb);
+        if(!built.items.length){
+          showError('อ่านไฟล์ได้ แต่ไม่พบแถวข้อมูลในชีต "รายการต้องจัดซื้อ"');
+          return;
+        }
+        state.mode = 'real'; state.items = built.items; state.meta = built.meta; state.fileName = file.name; state.room = 'all';
+        document.querySelectorAll('.chip[data-room]').forEach(function(c){ c.setAttribute('aria-pressed', c.getAttribute('data-room')==='all' ? 'true':'false'); });
+        updateSourceUI();
+        renderAll();
+      }catch(err){
+        showError('อ่านไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : String(err)));
+      }
+    };
+    reader.onerror = function(){ showError('อ่านไฟล์ไม่สำเร็จ กรุณาลองใหม่'); };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function updateSourceUI(){
+    var badge = document.getElementById('mode-badge');
+    var srcbar = document.getElementById('sourcebar');
+    if(state.mode === 'real'){
+      badge.classList.add('real');
+      badge.innerHTML = '<span class="dot"></span>ข้อมูลจริงจากไฟล์ที่นำเข้า';
+      srcbar.classList.add('show');
+      document.getElementById('src-filename').textContent = state.fileName;
+      var m = state.meta;
+      document.getElementById('src-stats').innerHTML =
+        '<span>' + fmt(m.totalItems) + ' รายการทั้งหมด</span>' +
+        '<span>จับคู่คลังกลาง ' + fmt(m.centralMatched) + '</span>' +
+        '<span>จับคู่ชั้น G ' + fmt(m.floorGMatched) + '</span>' +
+        '<span>จับคู่ชั้น 1 ' + fmt(m.floor1Matched) + '</span>' +
+        '<span>มีอัตราการใช้ ' + fmt(m.procMatched) + '</span>';
+    } else {
+      badge.classList.remove('real');
+      badge.innerHTML = '<span class="dot"></span>กำลังแสดงข้อมูลตัวอย่าง 15 รายการ — ลากไฟล์จริงมาวางเพื่อแทนที่';
+      srcbar.classList.remove('show');
+    }
+  }
+
+  document.getElementById('btn-reset').addEventListener('click', function(){
+    state.mode = 'sample'; state.items = SAMPLE_ITEMS; state.meta = null; state.fileName = ''; state.room = 'all';
+    document.querySelectorAll('.chip[data-room]').forEach(function(c){ c.setAttribute('aria-pressed', c.getAttribute('data-room')==='all' ? 'true':'false'); });
+    hideError(); updateSourceUI(); renderAll();
+  });
+
+  var dz = document.getElementById('dropzone');
+  var fileInput = document.getElementById('file-input');
+  dz.addEventListener('click', function(){ fileInput.click(); });
+  dz.addEventListener('keydown', function(e){ if(e.key==='Enter' || e.key===' ') fileInput.click(); });
+  fileInput.addEventListener('change', function(){ if(fileInput.files[0]) handleFile(fileInput.files[0]); });
+  ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.add('drag'); }); });
+  ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.remove('drag'); }); });
+  dz.addEventListener('drop', function(e){ var f = e.dataTransfer.files[0]; if(f) handleFile(f); });
+
+  /* ---------------- rendering ---------------- */
   var tooltip = document.getElementById('tooltip');
   function bindTooltip(el, text){
     el.addEventListener('mouseenter', function(){ tooltip.textContent = text; tooltip.classList.add('show'); });
     el.addEventListener('mousemove', function(e){ tooltip.style.left = e.clientX + 'px'; tooltip.style.top = (e.clientY - 10) + 'px'; });
     el.addEventListener('mouseleave', function(){ tooltip.classList.remove('show'); });
   }
-
   function barRow(label, value, max, color, valueText, tipText){
     var row = document.createElement('div'); row.className = 'barrow';
     var l = document.createElement('div'); l.className = 'rlabel'; l.textContent = label; l.title = label;
@@ -389,128 +606,213 @@
     return row;
   }
 
+  function groupColorMap(items){
+    var totals = {};
+    items.forEach(function(it){
+      if(!it.central) return;
+      var g = it.central.group || '';
+      totals[g] = (totals[g]||0) + it.central.value;
+    });
+    var keys = Object.keys(totals).filter(function(k){ return k !== ''; }).sort(function(a,b){ return totals[b]-totals[a]; });
+    var palette = ['var(--cat-1)','var(--cat-2)','var(--cat-3)','var(--cat-4)','var(--cat-5)'];
+    var map = {};
+    keys.slice(0,5).forEach(function(k,i){ map[k] = palette[i]; });
+    return map;
+  }
+
   function renderCentral(){
-    var box = document.getElementById('chart-central');
-    box.innerHTML = '';
-    var byGroup = {};
-    drugs.forEach(function(d){ byGroup[d.group] = (byGroup[d.group]||0) + d.inventory; });
-    var entries = Object.keys(byGroup).map(function(g){ return {g:g, v:byGroup[g]}; }).sort(function(a,b){ return b.v - a.v; });
-    var max = Math.max.apply(null, entries.map(function(e){ return e.v; }));
-    entries.forEach(function(e){
-      var meta = GROUP_META[e.g];
-      box.appendChild(barRow(meta.label, e.v, max, meta.color, fmt(e.v)+' กล่อง', meta.label + ' · ' + fmt(e.v) + ' กล่อง'));
+    var box = document.getElementById('chart-central'); box.innerHTML = '';
+    var withCentral = state.items.filter(function(it){ return it.central && it.central.qty > 0; })
+      .sort(function(a,b){ return b.central.qty - a.central.qty; }).slice(0,8);
+    if(!withCentral.length){ box.innerHTML = '<div class="table-note">ไม่มีข้อมูลคลังกลางที่จับคู่ได้</div>'; return; }
+    var max = withCentral[0].central.qty;
+    withCentral.forEach(function(it){
+      var label = it.tradename || it.generic;
+      box.appendChild(barRow(label, it.central.qty, max, 'var(--cat-1)', fmt1(it.central.qty), label + ' · ' + fmt1(it.central.qty) + ' (' + it.content + ')'));
     });
   }
 
   function renderFloor(room){
-    var box = document.getElementById('chart-floor');
-    box.innerHTML = '';
-    var items = drugs.map(function(d){ return {d:d, v:d.floorBoxEq(room)}; })
-      .sort(function(a,b){ return b.v - a.v; }).slice(0,8);
-    var max = Math.max.apply(null, items.map(function(i){ return i.v; }));
-    items.forEach(function(i){
-      var meta = GROUP_META[i.d.group];
-      box.appendChild(barRow(i.d.generic, i.v, max, meta.color, fmt1(i.v)+' กล่อง', i.d.generic + ' · ' + fmt1(i.v) + ' กล่องเทียบเท่า'));
+    var box = document.getElementById('chart-floor'); box.innerHTML = '';
+    var items = state.items.map(function(it){
+      var g = room === 'G' ? (it.floorG?it.floorG.qty:0) : room === '1' ? (it.floor1?it.floor1.qty:0) : ((it.floorG?it.floorG.qty:0)+(it.floor1?it.floor1.qty:0));
+      return { it:it, v:g };
+    }).filter(function(x){ return x.v > 0; }).sort(function(a,b){ return b.v-a.v; }).slice(0,8);
+    if(!items.length){ box.innerHTML = '<div class="table-note">ไม่มีข้อมูลหน่วยย่อยที่จับคู่ได้สำหรับมุมมองนี้</div>'; return; }
+    var max = items[0].v;
+    items.forEach(function(x){
+      var label = x.it.tradename || x.it.generic;
+      box.appendChild(barRow(label, x.v, max, 'var(--cat-2)', fmt1(x.v), label + ' · ' + fmt1(x.v) + ' (' + x.it.content + ')'));
     });
   }
 
   function renderProportion(){
-    var total = drugs.length;
-    var ed = drugs.filter(function(d){ return d.ed; }).length;
-    var ned = total - ed;
-    var edPct = Math.round((ed/total)*100);
+    var mode = state.edCountMode;
+    var buckets = { ED:0, NED:0, nondrug:0, unclassified:0 };
+    var edGpuSet = {}, nedGpuSet = {};
+    state.items.forEach(function(it){
+      var cls = classifyISED(it.isedRaw);
+      if(mode === 'item'){
+        buckets[cls] = (buckets[cls]||0) + 1;
+      } else {
+        if(!it.gpucode) return;
+        if(cls === 'ED') edGpuSet[it.gpucode] = 1;
+        else if(cls === 'NED') nedGpuSet[it.gpucode] = 1;
+      }
+    });
+    var ed, ned, excluded, excludedLabel;
+    if(mode === 'item'){
+      ed = buckets.ED; ned = buckets.NED;
+      excluded = buckets.nondrug + buckets.unclassified;
+      excludedLabel = 'ไม่รวมเวชภัณฑ์ที่ไม่ใช่ยา/ไม่ระบุประเภท ' + fmt(excluded) + ' รายการ';
+    } else {
+      ed = Object.keys(edGpuSet).length; ned = Object.keys(nedGpuSet).length;
+      var withGpu = state.items.filter(function(it){ return it.gpucode; }).length;
+      excluded = state.items.length - withGpu;
+      excludedLabel = 'นับเฉพาะรายการที่มีรหัส GPU (ไม่รวม ' + fmt(excluded) + ' รายการที่ไม่มีรหัส GPU)';
+    }
+    var total = ed + ned;
+    var edPct = total ? Math.round((ed/total)*100) : 0;
     var nedPct = 100 - edPct;
-    document.getElementById('ed-total-items').textContent = total;
-    var bar = document.getElementById('prop-bar');
-    bar.innerHTML = '';
-    var segEd = document.createElement('div'); segEd.className = 'prop-seg';
-    segEd.style.width = edPct + '%'; segEd.style.background = 'var(--good)';
-    segEd.textContent = 'ED ' + ed + ' รายการ (' + edPct + ')';
-    var segNed = document.createElement('div'); segNed.className = 'prop-seg';
-    segNed.style.width = nedPct + '%'; segNed.style.background = 'var(--ink-faint)';
-    segNed.textContent = 'NED ' + ned + ' (' + nedPct + ')';
-    bar.appendChild(segEd); bar.appendChild(segNed);
-    return {ed:ed, ned:ned, total:total};
+    var bar = document.getElementById('prop-bar'); bar.innerHTML = '';
+    if(total){
+      var segEd = document.createElement('div'); segEd.className = 'prop-seg';
+      segEd.style.width = edPct + '%'; segEd.style.background = 'var(--good)';
+      segEd.textContent = 'ED ' + ed + ' (' + edPct + ')';
+      var segNed = document.createElement('div'); segNed.className = 'prop-seg';
+      segNed.style.width = nedPct + '%'; segNed.style.background = 'var(--ink-faint)';
+      segNed.textContent = 'NED ' + ned + ' (' + nedPct + ')';
+      bar.appendChild(segEd); bar.appendChild(segNed);
+    } else {
+      bar.innerHTML = '<div class="table-note" style="padding:8px">ไม่มีข้อมูลเพียงพอสำหรับมุมมองนี้</div>';
+    }
+    document.getElementById('prop-footnote').textContent = excludedLabel;
+    return { ed:ed, ned:ned, total:total };
   }
+
+  document.querySelectorAll('#ed-toggle button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('#ed-toggle button').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      state.edCountMode = btn.getAttribute('data-mode');
+      renderAll();
+    });
+  });
 
   function renderRates(){
-    var sorted = drugs.slice().sort(function(a,b){ return b.usageMonth - a.usageMonth; });
-    var high = sorted.slice(0,5);
-    var low = sorted.slice(-5).reverse();
-    var maxHigh = high[0].usageMonth;
-    var maxLow = low[0].usageMonth;
-    var hb = document.getElementById('chart-high'); hb.innerHTML = '';
-    high.forEach(function(d){
-      hb.appendChild(barRow(d.generic, d.usageMonth, maxHigh, 'var(--good)', fmt(d.usageMonth)+' หน่วย/ด.', d.generic + ' · ' + fmt(d.usageMonth) + ' หน่วย/เดือน'));
+    var withProc = state.items.filter(function(it){ return it.proc; });
+    var rows = withProc.map(function(it){
+      var status = 'normal';
+      if(it.proc.userate < it.proc.lowrate) status = 'low';
+      else if(it.proc.userate > it.proc.highrate) status = 'high';
+      return { it:it, status:status };
     });
-    var lb = document.getElementById('chart-low'); lb.innerHTML = '';
-    low.forEach(function(d){
-      lb.appendChild(barRow(d.generic, d.usageMonth, maxLow, 'var(--warning)', fmt(d.usageMonth)+' หน่วย/ด.', d.generic + ' · ' + fmt(d.usageMonth) + ' หน่วย/เดือน'));
+    var order = { high:0, low:1, normal:2 };
+    rows.sort(function(a,b){ return order[a.status]-order[b.status] || b.it.proc.userate - a.it.proc.userate; });
+    var counts = { high:0, low:0, normal:0 };
+    rows.forEach(function(r){ counts[r.status]++; });
+    document.getElementById('rate-summary').innerHTML =
+      '<span><span class="pill status-high">สูงกว่าเกณฑ์</span> ' + counts.high + '</span>' +
+      '<span><span class="pill status-low">ต่ำกว่าเกณฑ์</span> ' + counts.low + '</span>' +
+      '<span><span class="pill status-normal">ปกติ</span> ' + counts.normal + '</span>' +
+      '<span style="color:var(--ink-faint)">จากทั้งหมด ' + fmt(rows.length) + ' รายการที่มีข้อมูลอัตราการใช้</span>';
+    var STATUS_LABEL = { high:'สูงกว่าเกณฑ์', low:'ต่ำกว่าเกณฑ์', normal:'ปกติ' };
+    var body = document.getElementById('rate-table'); body.innerHTML = '';
+    if(!rows.length){
+      body.innerHTML = '<tr><td colspan="6" class="table-note" style="padding:14px">ไม่มีข้อมูลอัตราการใช้ในไฟล์นี้ (ต้องมีชีต "จัดหา")</td></tr>';
+      return;
+    }
+    rows.forEach(function(r){
+      var tr = document.createElement('tr');
+      var label = r.it.tradename || r.it.generic;
+      tr.innerHTML =
+        '<td class="mono">'+r.it.hospcode+'</td>' +
+        '<td>'+label+'</td>' +
+        '<td class="mono">'+fmt1(r.it.proc.lowrate)+'</td>' +
+        '<td class="mono">'+fmt1(r.it.proc.userate)+'</td>' +
+        '<td class="mono">'+fmt1(r.it.proc.highrate)+'</td>' +
+        '<td><span class="pill status-'+r.status+'">'+STATUS_LABEL[r.status]+'</span></td>';
+      body.appendChild(tr);
     });
   }
 
-  function itemValue(d, room){
-    var floorUnits = room === 'G' ? d.floorG : room === '1' ? d.floor1 : (d.floorG + d.floor1);
-    return (d.inventory * d.perPack + floorUnits) * d.unitPrice;
+  function itemFloorValue(it, room){
+    var v = 0;
+    if(room !== '1' && it.floorG) v += it.floorG.qty * it.floorG.costrate;
+    if(room !== 'G' && it.floor1) v += it.floor1.qty * it.floor1.costrate;
+    return v;
   }
 
   function renderGpsc(room){
-    var byGroup = {};
-    drugs.forEach(function(d){ byGroup[d.group] = (byGroup[d.group]||0) + itemValue(d, room); });
-    var entries = Object.keys(byGroup).map(function(g){ return {g:g, v:byGroup[g]}; }).sort(function(a,b){ return b.v - a.v; });
-    var total = entries.reduce(function(s,e){ return s + e.v; }, 0);
+    var colorMap = groupColorMap(state.items);
+    var totals = {};
+    state.items.forEach(function(it){
+      var g = it.central ? (it.central.group || '') : '';
+      var v = (it.central ? it.central.value : 0) + itemFloorValue(it, room);
+      if(v <= 0) return;
+      var key = colorMap[g] ? g : 'อื่นๆ';
+      totals[key] = (totals[key]||0) + v;
+    });
+    var entries = Object.keys(totals).map(function(k){ return { g:k, v:totals[k] }; }).sort(function(a,b){ return b.v-a.v; });
+    var total = entries.reduce(function(s,e){ return s+e.v; }, 0);
     document.getElementById('value-total').textContent = '฿' + fmtMoney(total);
-    var max = Math.max.apply(null, entries.map(function(e){ return e.v; }));
+    document.getElementById('stock-group-total').textContent = ' ' + fmtMoney(state.items.reduce(function(s,it){ return s + (it.central?it.central.value:0); },0)) + ' ';
     var box = document.getElementById('chart-gpsc'); box.innerHTML = '';
+    if(!entries.length){ box.innerHTML = '<div class="table-note">ไม่มีข้อมูลมูลค่าคงคลังที่จับคู่ได้</div>'; return total; }
+    var max = entries[0].v;
     entries.forEach(function(e){
-      var meta = GROUP_META[e.g];
-      var label = meta.label + ' · ' + meta.gpsc;
-      box.appendChild(barRow(label, e.v, max, meta.color, '฿'+fmtMoney(e.v), label + ' · ฿' + fmtMoney(e.v)));
+      var color = colorMap[e.g] || 'var(--ink-faint)';
+      var label = e.g === 'อื่นๆ' || !e.g ? 'ไม่ระบุกลุ่ม / อื่นๆ' : 'กลุ่ม ' + e.g;
+      box.appendChild(barRow(label, e.v, max, color, '฿'+fmtMoney(e.v), label + ' · ฿' + fmtMoney(e.v)));
     });
     return total;
   }
 
   function renderTable(){
-    var body = document.getElementById('import-table');
-    body.innerHTML = '';
-    drugs.slice().sort(function(a,b){ return a.hospcode.localeCompare(b.hospcode); }).forEach(function(d){
+    var body = document.getElementById('import-table'); body.innerHTML = '';
+    var sorted = state.items.slice().sort(function(a,b){ return a.hospcode.localeCompare(b.hospcode, undefined, {numeric:true}); });
+    var LIMIT = 150;
+    var shown = sorted.slice(0, LIMIT);
+    shown.forEach(function(it){
+      var cls = classifyISED(it.isedRaw);
       var tr = document.createElement('tr');
-      var totalFloor = d.floorG + d.floor1;
       tr.innerHTML =
-        '<td class="mono">'+d.hospcode+'</td>' +
-        '<td>'+d.generic+'</td>' +
-        '<td>'+d.tradename+'</td>' +
-        '<td>'+d.content+'</td>' +
-        '<td>'+d.packsize+'</td>' +
-        '<td class="mono">'+fmt(d.listWant)+'</td>' +
-        '<td class="mono">'+fmt(d.inventory)+'</td>' +
-        '<td class="mono">'+fmt(totalFloor)+'</td>' +
-        '<td class="mono">'+fmt(d.perPack)+'</td>' +
-        '<td class="mono">'+fmt(d.floor1)+'</td>' +
-        '<td class="mono">'+fmt(d.floorG)+'</td>' +
-        '<td>'+d.distribute+'</td>' +
-        '<td>'+d.manufact+'</td>' +
-        '<td><span class="pill '+(d.ed?'ed':'ned')+'">'+d.ised+'</span></td>' +
-        '<td class="mono">'+d.ndc24+'</td>' +
-        '<td class="mono">'+d.gpsc+'</td>';
+        '<td class="mono">'+it.hospcode+'</td>' +
+        '<td>'+it.generic+'</td>' +
+        '<td>'+it.tradename+'</td>' +
+        '<td>'+it.content+'</td>' +
+        '<td class="mono">'+fmt(it.packsize)+'</td>' +
+        '<td class="mono">'+fmt(it.listWant)+'</td>' +
+        '<td class="mono">'+(it.central?fmt1(it.central.qty):'–')+'</td>' +
+        '<td class="mono">'+(it.floor1?fmt1(it.floor1.qty):'–')+'</td>' +
+        '<td class="mono">'+(it.floorG?fmt1(it.floorG.qty):'–')+'</td>' +
+        '<td>'+it.distribute+'</td>' +
+        '<td>'+it.manufact+'</td>' +
+        '<td><span class="pill '+(cls==='ED'?'ed':'ned')+'">'+(it.isedRaw||'-')+'</span></td>' +
+        '<td>'+(it.central?it.central.group||'–':'–')+'</td>';
       body.appendChild(tr);
     });
+    var note = document.getElementById('import-note');
+    note.textContent = sorted.length > LIMIT ? 'แสดง ' + fmt(LIMIT) + ' จากทั้งหมด ' + fmt(sorted.length) + ' รายการ (เรียงตาม hospcode)' : 'ทั้งหมด ' + fmt(sorted.length) + ' รายการ';
   }
 
   var currentRoom = 'all';
-  var ROOM_LABEL = {all:'ชั้น G + ชั้น 1', G:'ชั้น G เท่านั้น', '1':'ชั้น 1 เท่านั้น'};
-  var FLOOR_SUBHEAD = {all:'หน่วยย่อย รวมทุกห้อง แยกตามรายการ (Top 8)', G:'หน่วยย่อย ชั้น G แยกตามรายการ (Top 8)', '1':'หน่วยย่อย ชั้น 1 แยกตามรายการ (Top 8)'};
+  var ROOM_LABEL = { all:'ชั้น G + ชั้น 1', G:'ชั้น G เท่านั้น', '1':'ชั้น 1 เท่านั้น' };
 
   function renderAll(){
-    document.getElementById('kpi-central').innerHTML = fmt(drugs.reduce(function(s,d){return s+d.inventory;},0)) + '<span class="unit">กล่อง</span>';
-    var floorTotal = drugs.reduce(function(s,d){ return s + d.floorBoxEq(currentRoom); }, 0);
-    document.getElementById('kpi-floor').innerHTML = fmt1(floorTotal) + '<span class="unit">กล่องเทียบเท่า</span>';
+    currentRoom = state.room;
+    var centralCount = state.items.filter(function(it){ return it.central && it.central.qty > 0; }).length;
+    document.getElementById('kpi-central').innerHTML = fmt(centralCount) + '<span class="unit">รายการ</span>';
+    var floorCount = state.items.filter(function(it){
+      var v = currentRoom==='G' ? (it.floorG?it.floorG.qty:0) : currentRoom==='1' ? (it.floor1?it.floor1.qty:0) : ((it.floorG?it.floorG.qty:0)+(it.floor1?it.floor1.qty:0));
+      return v > 0;
+    }).length;
+    document.getElementById('kpi-floor').innerHTML = fmt(floorCount) + '<span class="unit">รายการ</span>';
     document.getElementById('kpi-floor-foot').textContent = ROOM_LABEL[currentRoom];
-    document.getElementById('floor-subhead').textContent = FLOOR_SUBHEAD[currentRoom];
 
     var prop = renderProportion();
     document.getElementById('kpi-ed').innerHTML = prop.ed + ' / ' + prop.ned;
-    document.getElementById('kpi-ed-foot').textContent = 'ED ' + Math.round((prop.ed/prop.total)*100) + ' : NED ' + Math.round((prop.ned/prop.total)*100) + ' ต่อ 100 รายการ';
+    document.getElementById('kpi-ed-foot').textContent = prop.total ? ('ED ' + Math.round((prop.ed/prop.total)*100) + ' : NED ' + Math.round((prop.ned/prop.total)*100) + ' ต่อ 100 รายการ') : 'ไม่มีข้อมูล';
 
     renderCentral();
     renderFloor(currentRoom);
@@ -524,7 +826,7 @@
     chip.addEventListener('click', function(){
       document.querySelectorAll('.chip[data-room]').forEach(function(c){ c.setAttribute('aria-pressed','false'); });
       chip.setAttribute('aria-pressed','true');
-      currentRoom = chip.getAttribute('data-room');
+      state.room = chip.getAttribute('data-room');
       renderAll();
     });
   });
