@@ -1,0 +1,534 @@
+<title>Dashboard จัดซื้อ พี่โอม</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Taviraj:wght@400;500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#F7F5F0;
+    --surface:#FFFFFF;
+    --surface-2:#F0EDE4;
+    --ink:#20241F;
+    --ink-muted:#5C6158;
+    --ink-faint:#8A8F84;
+    --border:#DEDACD;
+    --border-strong:#C7C2B2;
+    --accent:#96681E;
+    --accent-ink:#FFFFFF;
+    --accent-soft:#F1E3C8;
+    --good:#227A47;
+    --warning:#A85F12;
+    --critical:#9E3226;
+    --good-soft:#DDF0E3;
+    --warning-soft:#F6E4CB;
+    --critical-soft:#F5DEDB;
+    --cat-1:#0F8A6C;
+    --cat-2:#3568B0;
+    --cat-3:#C24A2E;
+    --cat-4:#8A4A9E;
+    --cat-5:#4F7A2E;
+    --shadow:0 1px 2px rgba(32,36,31,.06), 0 4px 16px rgba(32,36,31,.06);
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#1A1917; --surface:#221E1A; --surface-2:#2A2620;
+      --ink:#EDEAE2; --ink-muted:#B3AC9E; --ink-faint:#807A6C;
+      --border:#3B362D; --border-strong:#4B4536;
+      --accent:#D9A64D; --accent-ink:#241C0C; --accent-soft:#3B2E17;
+      --good:#4FBE82; --warning:#E0973F; --critical:#E0665A;
+      --good-soft:#1E3327; --warning-soft:#3A2C16; --critical-soft:#3A2320;
+      --cat-1:#22A883; --cat-2:#5F87C9; --cat-3:#D06A50; --cat-4:#A66DC0; --cat-5:#6FA155;
+      --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 22px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#1A1917; --surface:#221E1A; --surface-2:#2A2620;
+    --ink:#EDEAE2; --ink-muted:#B3AC9E; --ink-faint:#807A6C;
+    --border:#3B362D; --border-strong:#4B4536;
+    --accent:#D9A64D; --accent-ink:#241C0C; --accent-soft:#3B2E17;
+    --good:#4FBE82; --warning:#E0973F; --critical:#E0665A;
+    --good-soft:#1E3327; --warning-soft:#3A2C16; --critical-soft:#3A2320;
+    --cat-1:#22A883; --cat-2:#5F87C9; --cat-3:#D06A50; --cat-4:#A66DC0; --cat-5:#6FA155;
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 22px rgba(0,0,0,.4);
+  }
+
+  *{ box-sizing:border-box; }
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"IBM Plex Sans Thai","IBM Plex Sans",sans-serif;
+    padding:28px 20px 60px; max-width:1180px; margin:0 auto;
+    line-height:1.55;
+  }
+  .num{ font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
+  h1,h2,h3{ font-family:"Taviraj",serif; font-weight:600; text-wrap:balance; margin:0; }
+  a{ color:var(--accent); }
+
+  /* ---- masthead ---- */
+  .masthead{ display:flex; flex-wrap:wrap; gap:16px 24px; justify-content:space-between; align-items:flex-end; margin-bottom:22px; }
+  .masthead h1{ font-size:clamp(24px,3.4vw,32px); color:var(--ink); }
+  .masthead .sub{ color:var(--ink-muted); font-size:14.5px; margin-top:6px; }
+  .mock-badge{
+    display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-muted);
+    background:var(--surface-2); border:1px solid var(--border); border-radius:99px; padding:6px 12px 6px 10px;
+    white-space:nowrap;
+  }
+  .mock-badge .dot{ width:7px; height:7px; border-radius:50%; background:var(--warning); flex:none; }
+
+  /* ---- filter chips ---- */
+  .filterbar{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:26px; }
+  .filterbar .fb-label{ font-size:13px; color:var(--ink-muted); margin-right:2px; }
+  .chip{
+    font-family:inherit; font-size:14px; color:var(--ink); background:var(--surface);
+    border:1px solid var(--border-strong); border-radius:99px; padding:8px 16px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:7px; transition:background .15s,color .15s,border-color .15s;
+  }
+  .chip:hover{ border-color:var(--accent); }
+  .chip[aria-pressed="true"]{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:500; }
+  .chip .swatch{ width:9px; height:9px; border-radius:50%; }
+  .chip.planned{
+    cursor:not-allowed; color:var(--ink-faint); position:relative; overflow:hidden;
+    background-image:repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--surface) 6px 12px);
+  }
+  .chip.planned:hover{ border-color:var(--border-strong); }
+
+  /* ---- kpi row ---- */
+  .kpi-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:34px; }
+  @media (max-width:820px){ .kpi-row{ grid-template-columns:repeat(2,1fr); } }
+  .kpi{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px 18px; box-shadow:var(--shadow);
+  }
+  .kpi .label{ font-size:12.5px; color:var(--ink-muted); }
+  .kpi .value{ font-size:26px; font-weight:600; margin-top:6px; }
+  .kpi .value .unit{ font-size:14px; font-weight:400; color:var(--ink-muted); margin-left:4px; }
+  .kpi .foot{ font-size:12px; color:var(--ink-faint); margin-top:5px; }
+
+  /* ---- sections ---- */
+  section.panel{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:22px 24px 24px; margin-bottom:22px; box-shadow:var(--shadow);
+  }
+  .panel > header{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:8px 20px; margin-bottom:4px; }
+  .panel h2{ font-size:19px; }
+  .panel .hint{ font-size:12.5px; color:var(--ink-faint); }
+  .panel .desc{ font-size:13.5px; color:var(--ink-muted); margin:4px 0 18px; max-width:64ch; }
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  @media (max-width:760px){ .two-col{ grid-template-columns:1fr; } }
+  .subhead{ font-size:13.5px; font-weight:600; color:var(--ink-muted); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+
+  /* ---- bar rows ---- */
+  .barlist{ display:flex; flex-direction:column; gap:9px; }
+  .barrow{ display:grid; grid-template-columns:120px 1fr 84px; align-items:center; gap:10px; }
+  .barrow .rlabel{ font-size:12.5px; color:var(--ink-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .track{ background:var(--surface-2); border-radius:5px; height:16px; position:relative; overflow:hidden; }
+  .fill{ height:100%; border-radius:5px 0 0 5px; cursor:default; transition:width .35s ease; }
+  .barrow .rvalue{ font-size:12.5px; text-align:right; color:var(--ink); }
+
+  /* ---- legend ---- */
+  .legend{ display:flex; flex-wrap:wrap; gap:14px; margin:14px 0 4px; }
+  .legend .item{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); }
+  .legend .sw{ width:10px; height:10px; border-radius:3px; flex:none; }
+
+  /* ---- proportion bar (ED/NED) ---- */
+  .prop-bar{ display:flex; height:34px; border-radius:8px; overflow:hidden; border:1px solid var(--border); }
+  .prop-seg{ display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:500; color:#fff; white-space:nowrap; }
+  .prop-scale{ display:flex; justify-content:space-between; font-size:11px; color:var(--ink-faint); margin-top:6px; }
+
+  /* ---- callouts ---- */
+  .callout{ display:flex; gap:10px; align-items:flex-start; padding:10px 14px; border-radius:8px; font-size:13px; margin-top:14px; }
+  .callout.warn{ background:var(--warning-soft); color:var(--warning); }
+  .callout .badge{ flex:none; font-size:11px; font-weight:600; padding:2px 8px; border-radius:99px; background:var(--warning); color:#fff; }
+  .callout p{ margin:0; color:var(--ink); }
+
+  /* ---- value headline ---- */
+  .value-headline{ display:flex; align-items:baseline; gap:10px; margin-bottom:18px; }
+  .value-headline .big{ font-size:30px; font-weight:600; }
+  .value-headline .lbl{ font-size:13px; color:var(--ink-muted); }
+
+  /* ---- table ---- */
+  .table-scroll{ overflow-x:auto; border:1px solid var(--border); border-radius:8px; }
+  table{ border-collapse:collapse; width:100%; font-size:12.5px; min-width:1080px; }
+  thead th{
+    text-align:left; font-weight:600; color:var(--ink-muted); background:var(--surface-2);
+    padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap; position:sticky; top:0;
+  }
+  tbody td{ padding:8px 12px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:var(--surface-2); }
+  td.mono, th.mono{ font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
+  .pill{ font-size:11px; padding:2px 8px; border-radius:99px; font-weight:500; }
+  .pill.ed{ background:var(--good-soft); color:var(--good); }
+  .pill.ned{ background:var(--surface-2); color:var(--ink-muted); }
+
+  /* ---- open questions ---- */
+  ol.qlist{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:14px; }
+  ol.qlist li{ display:grid; grid-template-columns:30px 1fr; gap:10px; align-items:start; }
+  ol.qlist .qn{
+    width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600;
+  }
+  ol.qlist .qtext{ font-size:14px; padding-top:4px; }
+  ol.qlist .qtext .from{ display:block; font-size:12px; color:var(--ink-faint); margin-top:3px; }
+
+  footer{ text-align:center; font-size:12px; color:var(--ink-faint); margin-top:8px; }
+
+  /* ---- tooltip ---- */
+  #tooltip{
+    position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:12px;
+    padding:6px 10px; border-radius:6px; z-index:50; opacity:0; transform:translate(-50%,-100%);
+    transition:opacity .1s; white-space:nowrap; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
+  }
+  #tooltip.show{ opacity:1; }
+
+  @media (prefers-reduced-motion:reduce){ .fill{ transition:none; } }
+</style>
+
+<div id="tooltip"></div>
+
+<div class="masthead">
+  <div>
+    <h1>Dashboard จัดซื้อ พี่โอม</h1>
+    <div class="sub">คลังยาและการจัดซื้อห้องยา — mockup สำหรับรีวิวก่อนเริ่มพัฒนาจริง</div>
+  </div>
+  <div class="mock-badge"><span class="dot"></span>ข้อมูลตัวอย่างทั้งหมด ยังไม่ใช่ข้อมูลจริงจากรพ. · นำเข้าล่าสุด 18 ก.ย. 2569</div>
+</div>
+
+<div class="filterbar">
+  <span class="fb-label">มุมมองห้องยา</span>
+  <button class="chip" data-room="all" aria-pressed="true">ทั้งหมด</button>
+  <button class="chip" data-room="G" aria-pressed="false"><span class="swatch" style="background:var(--cat-1)"></span>ห้องจ่ายยาชั้น G</button>
+  <button class="chip" data-room="1" aria-pressed="false"><span class="swatch" style="background:var(--cat-2)"></span>ห้องจ่ายชั้น 1</button>
+  <button class="chip planned" disabled title="เตรียมรองรับห้องจ่ายยาเพิ่มปี 2570–71 — ยังไม่มีข้อมูล">+ ห้องจ่ายยา (แผนปี 70–71)</button>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="label">คลังกลางรวม (หน่วยจัดหา)</div>
+    <div class="value num" id="kpi-central">–<span class="unit">กล่อง</span></div>
+    <div class="foot">ไม่แยกตามห้อง — คลังกลางมีจุดเดียว</div>
+  </div>
+  <div class="kpi">
+    <div class="label">หน่วยย่อยรวม (เทียบหน่วยจัดหา)</div>
+    <div class="value num" id="kpi-floor">–<span class="unit">กล่องเทียบเท่า</span></div>
+    <div class="foot" id="kpi-floor-foot">รวมชั้น G + ชั้น 1</div>
+  </div>
+  <div class="kpi">
+    <div class="label">รายการยาบัญชี ED / NED</div>
+    <div class="value num" id="kpi-ed">–<span class="unit">รายการ</span></div>
+    <div class="foot" id="kpi-ed-foot">–</div>
+  </div>
+  <div class="kpi">
+    <div class="label">มูลค่าคงคลังพัสดุรวม</div>
+    <div class="value num" id="kpi-value">–<span class="unit">บาท</span></div>
+    <div class="foot">คลังกลาง + หน่วยย่อยตามมุมมองที่เลือก</div>
+  </div>
+</div>
+
+<section class="panel">
+  <header>
+    <h2>คงคลังยา</h2>
+    <span class="hint">หน่วยจัดหา (Box/unit) · ตอบสนองตัวเลือกห้องด้านบน</span>
+  </header>
+  <p class="desc">แยกสองส่วนตาม PRD — คลังกลางไม่ผูกกับห้องยา ส่วนหน่วยย่อยคำนวณจากยอดชั้น G และชั้น 1 แปลงเป็นหน่วยจัดหาโดยใช้ "จำนวนต่อหน่วยจัดหา" ต่อรายการ</p>
+  <div class="two-col">
+    <div>
+      <div class="subhead">คลังกลาง แยกตามกลุ่มยา (GPSC)</div>
+      <div class="barlist" id="chart-central"></div>
+    </div>
+    <div>
+      <div class="subhead" id="floor-subhead">หน่วยย่อย แยกตามรายการ (Top 8)</div>
+      <div class="barlist" id="chart-floor"></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <header>
+    <h2>สัดส่วนบัญชียา ED / NED</h2>
+    <span class="hint">นับต่อ 100 รายการ</span>
+  </header>
+  <p class="desc">สัดส่วนรายการยาที่อยู่ในบัญชียาหลักแห่งชาติ (ED) เทียบกับนอกบัญชี (NED) จากทั้งหมด <span class="num" id="ed-total-items"></span> รายการในระบบ</p>
+  <div class="prop-bar" id="prop-bar"></div>
+  <div class="prop-scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+  <div class="callout warn">
+    <span class="badge">ต้องยืนยัน</span>
+    <p>PRD ระบุให้ "นับที่ GPU" — ยังไม่ชัดว่าหมายถึงรหัส GPU (Generic Product Unit) หรือพิมพ์คลาดเคลื่อนจากคำอื่น รอพี่โอมยืนยันหน่วยนับที่ถูกต้อง</p>
+  </div>
+</section>
+
+<section class="panel">
+  <header>
+    <h2>อัตราการใช้ยา</h2>
+    <span class="hint">จากยอดเบิกจ่ายเฉลี่ยต่อเดือน</span>
+  </header>
+  <p class="desc">จัดอันดับรายการที่ใช้เร็ว (high rate) และใช้ช้า (low rate) เพื่อช่วยตัดสินใจแจ้งความต้องการจัดซื้อ</p>
+  <div class="two-col">
+    <div>
+      <div class="subhead"><span class="legend-sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--good)"></span>ใช้เร็ว (High rate) — Top 5</div>
+      <div class="barlist" id="chart-high"></div>
+    </div>
+    <div>
+      <div class="subhead"><span class="legend-sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--warning)"></span>ใช้ช้า (Low rate) — Top 5</div>
+      <div class="barlist" id="chart-low"></div>
+    </div>
+  </div>
+  <div class="callout warn">
+    <span class="badge">ต้องยืนยัน</span>
+    <p>ยังไม่มีเกณฑ์ตัดสิน low/high rate ที่ชัดเจน (mockup นี้ใช้อันดับยอดเบิกจ่ายต่อเดือนสูงสุด/ต่ำสุดแทนไปก่อน) — รอพี่โอมกำหนดเกณฑ์ เช่น จำนวนเดือนคงคลัง หรือ % เทียบค่าเฉลี่ยกลุ่มยา</p>
+  </div>
+</section>
+
+<section class="panel">
+  <header>
+    <h2>มูลค่าคงคลังพัสดุ ตาม GPSC</h2>
+    <span class="hint">ตอบสนองตัวเลือกห้องด้านบน</span>
+  </header>
+  <div class="value-headline">
+    <span class="big num" id="value-total">–</span>
+    <span class="lbl">บาท มูลค่าคงคลังรวมทุกกลุ่มยา</span>
+  </div>
+  <div class="barlist" id="chart-gpsc"></div>
+  <div class="callout warn">
+    <span class="badge">ต้องยืนยัน</span>
+    <p>คอลัมน์ import ปัจจุบันยังไม่มี "ราคาต่อหน่วย" — มูลค่าที่แสดงเป็นตัวเลขสมมติเพื่อสาธิตหน้าตาเท่านั้น ต้องเพิ่มคอลัมน์ราคาต่อหน่วยจึงจะคำนวณได้จริง</p>
+  </div>
+</section>
+
+<section class="panel">
+  <header>
+    <h2>ตัวอย่างข้อมูลนำเข้า (Excel)</h2>
+    <span class="hint">เรียงตาม hospcode จากน้อยไปมาก</span>
+  </header>
+  <p class="desc">แก้ปัญหาที่ระบุใน PRD — เดิม sheet เรียงตามกลุ่มยาทำให้ track ยาก mockup นี้เรียงตาม hospcode คงที่ทุกครั้งที่ import ไม่ว่ายาใหม่จะเข้ากลุ่มไหน</p>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>hospcode</th><th>generic</th><th>tradename</th><th>content</th><th>packsize</th>
+          <th class="mono">list want</th><th class="mono">inventory</th><th class="mono">total floor</th>
+          <th class="mono">ต่อหน่วยจัดหา</th><th class="mono">floor 1</th><th class="mono">floor G</th>
+          <th>distribute</th><th>manufact</th><th>ised</th><th>ndc24</th><th>gpscode</th>
+        </tr>
+      </thead>
+      <tbody id="import-table"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <header><h2>ประเด็นที่รอยืนยันจากพี่โอม</h2></header>
+  <ol class="qlist">
+    <li><span class="qn">1</span><span class="qtext">Import ไฟล์ได้ทุกครั้งที่มีของใหม่ หรือต้อง fix โครงสร้างคอลัมน์ตายตัว เพื่อไม่ให้ hospcode สลับที่กันทุกรอบ<span class="from">อ้างอิง PRD: "หน้าหลักแสดงข้อมูล ตาม excel * Import ได้ทุกครั้งมั้ย หรือต้อง fix"</span></span></li>
+    <li><span class="qn">2</span><span class="qtext">เผื่อห้องจ่ายยาเพิ่มปี 2570–71 กี่ห้อง และใช้ชื่อห้องว่าอะไร (mockup เตรียมปุ่มไว้ 1 ห้องเพิ่มก่อน)<span class="from">อ้างอิง PRD: "70 มีห้องจ่ายยาเพิ่มมั้ย" / "ห้องยาน่าจะได้เพิ่มอีกห้องในปี 70-71"</span></span></li>
+    <li><span class="qn">3</span><span class="qtext">สัดส่วน ED/NED ให้นับที่ระดับใด — "GPU" ในโจทย์หมายถึงรหัส Generic Product Unit หรือหมายถึงอย่างอื่น<span class="from">อ้างอิง PRD: "คิดเป็นสัดส่วน... โดยนับที่ GPU"</span></span></li>
+    <li><span class="qn">4</span><span class="qtext">ต้องเพิ่มคอลัมน์ "ราคาต่อหน่วย" ในไฟล์นำเข้า เพื่อคำนวณมูลค่าคงคลังตาม gpscode ให้ตรงจริง<span class="from">อ้างอิง PRD: "มูลค่าคงคลัง 900,000.00 บาท"</span></span></li>
+    <li><span class="qn">5</span><span class="qtext">เกณฑ์ตัดสิน low rate / high rate ใช้ตัวเลขอะไร (เช่น จำนวนเดือนคงคลังคงเหลือ หรือเทียบ % ค่าเฉลี่ยกลุ่มยา)<span class="from">อ้างอิง PRD: "อัตราการใช้ยา lowrate, highrate (อยู่ใน แจ้งความต้องการซื้อ)"</span></span></li>
+    <li><span class="qn">6</span><span class="qtext">drug cat — ต้องการให้ key เข้าเองในระบบอย่างเดียว หรือรองรับ import ทับบัญชีเดิมด้วย<span class="from">อ้างอิง PRD: "drug cat (Key เข้า หรือ import update บัญชีได้)"</span></span></li>
+  </ol>
+</section>
+
+<footer>Dashboard จัดซื้อ พี่โอม · mockup เพื่อรีวิวขอบเขตงาน · ข้อมูลทั้งหมดเป็นตัวอย่าง</footer>
+
+<script>
+(function(){
+  var GROUP_META = {
+    antibiotic:{ label:'ยาปฏิชีวนะ', color:'var(--cat-1)', gpsc:'99000051101500' },
+    cardio:    { label:'หัวใจและหลอดเลือด', color:'var(--cat-2)', gpsc:'99000051102500' },
+    endocrine: { label:'ต่อมไร้ท่อ/เบาหวาน', color:'var(--cat-3)', gpsc:'99000051103500' },
+    gi:        { label:'ทางเดินอาหาร', color:'var(--cat-4)', gpsc:'99000051104500' },
+    other:     { label:'อื่นๆ', color:'var(--cat-5)', gpsc:'99000051105500' }
+  };
+
+  var drugs = [
+    {hospcode:'10015', generic:'Diclofenac 25 mg', tradename:'Voltarol', content:'25 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'other', ed:false, listWant:5, inventory:8, floorG:300, floor1:220, usageMonth:1800, unitPrice:0.35, distribute:'บ.ยูนีซัน', manufact:'Sandoz', ised:'NED', ndc24:'12345678901234567890AB01'},
+    {hospcode:'10021', generic:'Amoxicillin 500 mg', tradename:'Amoxil', content:'500 mg', packsize:'500 แคปซูล/กล่อง', perPack:500, group:'antibiotic', ed:true, listWant:15, inventory:22, floorG:450, floor1:380, usageMonth:6200, unitPrice:1.2, distribute:'บ.เบอร์ลินฟาร์มา', manufact:'GPO', ised:'ED', ndc24:'12345678901234567890AB02'},
+    {hospcode:'10034', generic:'Enalapril 5 mg', tradename:'Renitec', content:'5 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'cardio', ed:true, listWant:8, inventory:14, floorG:200, floor1:150, usageMonth:3100, unitPrice:0.5, distribute:'บ.ซิลลิค', manufact:'MSD', ised:'ED', ndc24:'12345678901234567890AB03'},
+    {hospcode:'10048', generic:'Cetirizine 10 mg', tradename:'Zyrtec', content:'10 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'other', ed:false, listWant:3, inventory:6, floorG:90, floor1:60, usageMonth:650, unitPrice:0.6, distribute:'บ.ซิลลิค', manufact:'GSK', ised:'NED', ndc24:'12345678901234567890AB04'},
+    {hospcode:'10052', generic:'Metformin 500 mg', tradename:'Glucophage', content:'500 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'endocrine', ed:true, listWant:20, inventory:30, floorG:520, floor1:410, usageMonth:8400, unitPrice:0.3, distribute:'บ.เมอร์ค', manufact:'Merck', ised:'ED', ndc24:'12345678901234567890AB05'},
+    {hospcode:'10067', generic:'Omeprazole 20 mg', tradename:'Losec', content:'20 mg', packsize:'1000 แคปซูล/กล่อง', perPack:1000, group:'gi', ed:true, listWant:10, inventory:18, floorG:260, floor1:190, usageMonth:4200, unitPrice:1.5, distribute:'บ.แอสตร้าฯ', manufact:'AstraZeneca', ised:'ED', ndc24:'12345678901234567890AB06'},
+    {hospcode:'10071', generic:'Ciprofloxacin 500 mg', tradename:'Ciprobay', content:'500 mg', packsize:'100 เม็ด/กล่อง', perPack:100, group:'antibiotic', ed:true, listWant:12, inventory:25, floorG:140, floor1:95, usageMonth:1900, unitPrice:3.2, distribute:'บ.ไบเออร์', manufact:'Bayer', ised:'ED', ndc24:'12345678901234567890AB07'},
+    {hospcode:'10089', generic:'Ranitidine 150 mg', tradename:'Zantac', content:'150 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'gi', ed:false, listWant:1, inventory:4, floorG:40, floor1:25, usageMonth:180, unitPrice:0.45, distribute:'บ.ซิลลิค', manufact:'GSK', ised:'NED', ndc24:'12345678901234567890AB08'},
+    {hospcode:'10093', generic:'Simvastatin 20 mg', tradename:'Zocor', content:'20 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'cardio', ed:true, listWant:14, inventory:20, floorG:310, floor1:260, usageMonth:5100, unitPrice:0.9, distribute:'บ.เมอร์ค', manufact:'MSD', ised:'ED', ndc24:'12345678901234567890AB09'},
+    {hospcode:'10105', generic:'Glibenclamide 5 mg', tradename:'Daonil', content:'5 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'endocrine', ed:true, listWant:4, inventory:9, floorG:110, floor1:70, usageMonth:900, unitPrice:0.25, distribute:'บ.ซิลลิค', manufact:'Sanofi', ised:'ED', ndc24:'12345678901234567890AB10'},
+    {hospcode:'10118', generic:'Amlodipine 5 mg', tradename:'Norvasc', content:'5 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'cardio', ed:true, listWant:18, inventory:28, floorG:480, floor1:390, usageMonth:7600, unitPrice:0.4, distribute:'บ.ไฟเซอร์', manufact:'Pfizer', ised:'ED', ndc24:'12345678901234567890AB11'},
+    {hospcode:'10126', generic:'Ceftriaxone 1 g inj', tradename:'Rocephin', content:'1 g', packsize:'10 vial/กล่อง', perPack:10, group:'antibiotic', ed:true, listWant:25, inventory:45, floorG:60, floor1:45, usageMonth:980, unitPrice:48, distribute:'บ.โรช', manufact:'Roche', ised:'ED', ndc24:'12345678901234567890AB12'},
+    {hospcode:'10139', generic:'Salbutamol MDI 100 mcg', tradename:'Ventolin', content:'100 mcg', packsize:'1 หลอด/กล่อง', perPack:1, group:'other', ed:true, listWant:6, inventory:12, floorG:25, floor1:18, usageMonth:140, unitPrice:95, distribute:'บ.ซิลลิค', manufact:'GSK', ised:'ED', ndc24:'12345678901234567890AB13'},
+    {hospcode:'10144', generic:'Insulin NPH 100 IU/ml', tradename:'Humulin N', content:'100 IU/ml', packsize:'1 ขวด/กล่อง', perPack:1, group:'endocrine', ed:true, listWant:8, inventory:15, floorG:20, floor1:15, usageMonth:210, unitPrice:125, distribute:'บ.เอลี่ลิลลี่', manufact:'Eli Lilly', ised:'ED', ndc24:'12345678901234567890AB14'},
+    {hospcode:'10158', generic:'Paracetamol 500 mg', tradename:'Sara', content:'500 mg', packsize:'1000 เม็ด/กล่อง', perPack:1000, group:'other', ed:true, listWant:35, inventory:60, floorG:900, floor1:780, usageMonth:15200, unitPrice:0.2, distribute:'บ.เบอร์ลินฟาร์มา', manufact:'GPO', ised:'ED', ndc24:'12345678901234567890AB15'}
+  ];
+
+  drugs.forEach(function(d){
+    d.gpsc = GROUP_META[d.group].gpsc;
+    d.floorBoxEq = function(room){
+      var units = room === 'G' ? d.floorG : room === '1' ? d.floor1 : (d.floorG + d.floor1);
+      return units / d.perPack;
+    };
+  });
+
+  function fmt(n){ return Math.round(n).toLocaleString('th-TH'); }
+  function fmt1(n){ return n.toLocaleString('th-TH',{maximumFractionDigits:1}); }
+  function fmtMoney(n){ return Math.round(n).toLocaleString('th-TH'); }
+
+  var tooltip = document.getElementById('tooltip');
+  function bindTooltip(el, text){
+    el.addEventListener('mouseenter', function(){ tooltip.textContent = text; tooltip.classList.add('show'); });
+    el.addEventListener('mousemove', function(e){ tooltip.style.left = e.clientX + 'px'; tooltip.style.top = (e.clientY - 10) + 'px'; });
+    el.addEventListener('mouseleave', function(){ tooltip.classList.remove('show'); });
+  }
+
+  function barRow(label, value, max, color, valueText, tipText){
+    var row = document.createElement('div'); row.className = 'barrow';
+    var l = document.createElement('div'); l.className = 'rlabel'; l.textContent = label; l.title = label;
+    var track = document.createElement('div'); track.className = 'track';
+    var fill = document.createElement('div'); fill.className = 'fill';
+    fill.style.width = Math.max(2, (value / max) * 100) + '%';
+    fill.style.background = color;
+    bindTooltip(fill, tipText);
+    track.appendChild(fill);
+    var v = document.createElement('div'); v.className = 'rvalue num'; v.textContent = valueText;
+    row.appendChild(l); row.appendChild(track); row.appendChild(v);
+    return row;
+  }
+
+  function renderCentral(){
+    var box = document.getElementById('chart-central');
+    box.innerHTML = '';
+    var byGroup = {};
+    drugs.forEach(function(d){ byGroup[d.group] = (byGroup[d.group]||0) + d.inventory; });
+    var entries = Object.keys(byGroup).map(function(g){ return {g:g, v:byGroup[g]}; }).sort(function(a,b){ return b.v - a.v; });
+    var max = Math.max.apply(null, entries.map(function(e){ return e.v; }));
+    entries.forEach(function(e){
+      var meta = GROUP_META[e.g];
+      box.appendChild(barRow(meta.label, e.v, max, meta.color, fmt(e.v)+' กล่อง', meta.label + ' · ' + fmt(e.v) + ' กล่อง'));
+    });
+  }
+
+  function renderFloor(room){
+    var box = document.getElementById('chart-floor');
+    box.innerHTML = '';
+    var items = drugs.map(function(d){ return {d:d, v:d.floorBoxEq(room)}; })
+      .sort(function(a,b){ return b.v - a.v; }).slice(0,8);
+    var max = Math.max.apply(null, items.map(function(i){ return i.v; }));
+    items.forEach(function(i){
+      var meta = GROUP_META[i.d.group];
+      box.appendChild(barRow(i.d.generic, i.v, max, meta.color, fmt1(i.v)+' กล่อง', i.d.generic + ' · ' + fmt1(i.v) + ' กล่องเทียบเท่า'));
+    });
+  }
+
+  function renderProportion(){
+    var total = drugs.length;
+    var ed = drugs.filter(function(d){ return d.ed; }).length;
+    var ned = total - ed;
+    var edPct = Math.round((ed/total)*100);
+    var nedPct = 100 - edPct;
+    document.getElementById('ed-total-items').textContent = total;
+    var bar = document.getElementById('prop-bar');
+    bar.innerHTML = '';
+    var segEd = document.createElement('div'); segEd.className = 'prop-seg';
+    segEd.style.width = edPct + '%'; segEd.style.background = 'var(--good)';
+    segEd.textContent = 'ED ' + ed + ' รายการ (' + edPct + ')';
+    var segNed = document.createElement('div'); segNed.className = 'prop-seg';
+    segNed.style.width = nedPct + '%'; segNed.style.background = 'var(--ink-faint)';
+    segNed.textContent = 'NED ' + ned + ' (' + nedPct + ')';
+    bar.appendChild(segEd); bar.appendChild(segNed);
+    return {ed:ed, ned:ned, total:total};
+  }
+
+  function renderRates(){
+    var sorted = drugs.slice().sort(function(a,b){ return b.usageMonth - a.usageMonth; });
+    var high = sorted.slice(0,5);
+    var low = sorted.slice(-5).reverse();
+    var maxHigh = high[0].usageMonth;
+    var maxLow = low[0].usageMonth;
+    var hb = document.getElementById('chart-high'); hb.innerHTML = '';
+    high.forEach(function(d){
+      hb.appendChild(barRow(d.generic, d.usageMonth, maxHigh, 'var(--good)', fmt(d.usageMonth)+' หน่วย/ด.', d.generic + ' · ' + fmt(d.usageMonth) + ' หน่วย/เดือน'));
+    });
+    var lb = document.getElementById('chart-low'); lb.innerHTML = '';
+    low.forEach(function(d){
+      lb.appendChild(barRow(d.generic, d.usageMonth, maxLow, 'var(--warning)', fmt(d.usageMonth)+' หน่วย/ด.', d.generic + ' · ' + fmt(d.usageMonth) + ' หน่วย/เดือน'));
+    });
+  }
+
+  function itemValue(d, room){
+    var floorUnits = room === 'G' ? d.floorG : room === '1' ? d.floor1 : (d.floorG + d.floor1);
+    return (d.inventory * d.perPack + floorUnits) * d.unitPrice;
+  }
+
+  function renderGpsc(room){
+    var byGroup = {};
+    drugs.forEach(function(d){ byGroup[d.group] = (byGroup[d.group]||0) + itemValue(d, room); });
+    var entries = Object.keys(byGroup).map(function(g){ return {g:g, v:byGroup[g]}; }).sort(function(a,b){ return b.v - a.v; });
+    var total = entries.reduce(function(s,e){ return s + e.v; }, 0);
+    document.getElementById('value-total').textContent = '฿' + fmtMoney(total);
+    var max = Math.max.apply(null, entries.map(function(e){ return e.v; }));
+    var box = document.getElementById('chart-gpsc'); box.innerHTML = '';
+    entries.forEach(function(e){
+      var meta = GROUP_META[e.g];
+      var label = meta.label + ' · ' + meta.gpsc;
+      box.appendChild(barRow(label, e.v, max, meta.color, '฿'+fmtMoney(e.v), label + ' · ฿' + fmtMoney(e.v)));
+    });
+    return total;
+  }
+
+  function renderTable(){
+    var body = document.getElementById('import-table');
+    body.innerHTML = '';
+    drugs.slice().sort(function(a,b){ return a.hospcode.localeCompare(b.hospcode); }).forEach(function(d){
+      var tr = document.createElement('tr');
+      var totalFloor = d.floorG + d.floor1;
+      tr.innerHTML =
+        '<td class="mono">'+d.hospcode+'</td>' +
+        '<td>'+d.generic+'</td>' +
+        '<td>'+d.tradename+'</td>' +
+        '<td>'+d.content+'</td>' +
+        '<td>'+d.packsize+'</td>' +
+        '<td class="mono">'+fmt(d.listWant)+'</td>' +
+        '<td class="mono">'+fmt(d.inventory)+'</td>' +
+        '<td class="mono">'+fmt(totalFloor)+'</td>' +
+        '<td class="mono">'+fmt(d.perPack)+'</td>' +
+        '<td class="mono">'+fmt(d.floor1)+'</td>' +
+        '<td class="mono">'+fmt(d.floorG)+'</td>' +
+        '<td>'+d.distribute+'</td>' +
+        '<td>'+d.manufact+'</td>' +
+        '<td><span class="pill '+(d.ed?'ed':'ned')+'">'+d.ised+'</span></td>' +
+        '<td class="mono">'+d.ndc24+'</td>' +
+        '<td class="mono">'+d.gpsc+'</td>';
+      body.appendChild(tr);
+    });
+  }
+
+  var currentRoom = 'all';
+  var ROOM_LABEL = {all:'ชั้น G + ชั้น 1', G:'ชั้น G เท่านั้น', '1':'ชั้น 1 เท่านั้น'};
+  var FLOOR_SUBHEAD = {all:'หน่วยย่อย รวมทุกห้อง แยกตามรายการ (Top 8)', G:'หน่วยย่อย ชั้น G แยกตามรายการ (Top 8)', '1':'หน่วยย่อย ชั้น 1 แยกตามรายการ (Top 8)'};
+
+  function renderAll(){
+    document.getElementById('kpi-central').innerHTML = fmt(drugs.reduce(function(s,d){return s+d.inventory;},0)) + '<span class="unit">กล่อง</span>';
+    var floorTotal = drugs.reduce(function(s,d){ return s + d.floorBoxEq(currentRoom); }, 0);
+    document.getElementById('kpi-floor').innerHTML = fmt1(floorTotal) + '<span class="unit">กล่องเทียบเท่า</span>';
+    document.getElementById('kpi-floor-foot').textContent = ROOM_LABEL[currentRoom];
+    document.getElementById('floor-subhead').textContent = FLOOR_SUBHEAD[currentRoom];
+
+    var prop = renderProportion();
+    document.getElementById('kpi-ed').innerHTML = prop.ed + ' / ' + prop.ned;
+    document.getElementById('kpi-ed-foot').textContent = 'ED ' + Math.round((prop.ed/prop.total)*100) + ' : NED ' + Math.round((prop.ned/prop.total)*100) + ' ต่อ 100 รายการ';
+
+    renderCentral();
+    renderFloor(currentRoom);
+    renderRates();
+    var total = renderGpsc(currentRoom);
+    document.getElementById('kpi-value').innerHTML = '฿' + fmtMoney(total);
+    renderTable();
+  }
+
+  document.querySelectorAll('.chip[data-room]').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      document.querySelectorAll('.chip[data-room]').forEach(function(c){ c.setAttribute('aria-pressed','false'); });
+      chip.setAttribute('aria-pressed','true');
+      currentRoom = chip.getAttribute('data-room');
+      renderAll();
+    });
+  });
+
+  renderAll();
+})();
+</script>
