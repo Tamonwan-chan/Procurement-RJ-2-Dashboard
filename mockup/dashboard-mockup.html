@@ -4,28 +4,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --bg:#F7F5F0;
-    --surface:#FFFFFF;
-    --surface-2:#F0EDE4;
-    --ink:#20241F;
-    --ink-muted:#5C6158;
-    --ink-faint:#8A8F84;
-    --border:#DEDACD;
-    --border-strong:#C7C2B2;
-    --accent:#96681E;
-    --accent-ink:#FFFFFF;
-    --accent-soft:#F1E3C8;
-    --good:#227A47;
-    --warning:#A85F12;
-    --critical:#9E3226;
-    --good-soft:#DDF0E3;
-    --warning-soft:#F6E4CB;
-    --critical-soft:#F5DEDB;
-    --cat-1:#0F8A6C;
-    --cat-2:#3568B0;
-    --cat-3:#C24A2E;
-    --cat-4:#8A4A9E;
-    --cat-5:#4F7A2E;
+    --bg:#F7F5F0; --surface:#FFFFFF; --surface-2:#F0EDE4;
+    --ink:#20241F; --ink-muted:#5C6158; --ink-faint:#8A8F84;
+    --border:#DEDACD; --border-strong:#C7C2B2;
+    --accent:#96681E; --accent-ink:#FFFFFF; --accent-soft:#F1E3C8;
+    --good:#227A47; --warning:#A85F12; --critical:#9E3226;
+    --good-soft:#DDF0E3; --warning-soft:#F6E4CB; --critical-soft:#F5DEDB;
+    --cat-1:#0F8A6C; --cat-2:#3568B0; --cat-3:#C24A2E; --cat-4:#8A4A9E; --cat-5:#4F7A2E;
     --shadow:0 1px 2px rgba(32,36,31,.06), 0 4px 16px rgba(32,36,31,.06);
     --radius:10px;
   }
@@ -56,22 +41,25 @@
   body{
     background:var(--bg); color:var(--ink);
     font-family:"IBM Plex Sans Thai","IBM Plex Sans",sans-serif;
-    padding:28px 20px 60px; max-width:1180px; margin:0 auto;
-    line-height:1.55;
+    padding:28px 20px 60px; max-width:1180px; margin:0 auto; line-height:1.55;
   }
   .num{ font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
   h1,h2,h3{ font-family:"Taviraj",serif; font-weight:600; text-wrap:balance; margin:0; }
-  a{ color:var(--accent); }
+  button:focus-visible, input:focus-visible, .dropzone:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 
-  /* ---- masthead ---- */
   .masthead{ display:flex; flex-wrap:wrap; gap:16px 24px; justify-content:space-between; align-items:flex-end; margin-bottom:18px; }
-  .masthead h1{ font-size:clamp(24px,3.4vw,32px); color:var(--ink); }
+  .masthead h1{ font-size:clamp(24px,3.4vw,32px); }
   .masthead .sub{ color:var(--ink-muted); font-size:14.5px; margin-top:6px; }
+  .mock-badge{
+    display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-muted);
+    background:var(--surface-2); border:1px solid var(--border); border-radius:99px; padding:6px 12px 6px 10px;
+  }
+  .mock-badge .dot{ width:7px; height:7px; border-radius:50%; background:var(--warning); flex:none; }
+  .mock-badge.real .dot{ background:var(--good); }
 
-  /* ---- drop zone ---- */
   .dropzone{
     border:1.5px dashed var(--border-strong); border-radius:var(--radius); background:var(--surface);
-    padding:22px 22px; text-align:center; cursor:pointer; margin-bottom:16px; transition:border-color .15s, background .15s;
+    padding:20px; text-align:center; cursor:pointer; margin-bottom:16px; transition:border-color .15s, background .15s;
   }
   .dropzone:hover, .dropzone.drag{ border-color:var(--accent); background:var(--accent-soft); }
   .dropzone .dz-title{ font-size:15px; font-weight:500; }
@@ -85,137 +73,122 @@
   }
   .sourcebar.show{ display:flex; }
   .sourcebar .file{ color:var(--ink); font-weight:500; }
-  .sourcebar button{
+  .sourcebar .stats{ display:flex; flex-wrap:wrap; gap:4px 14px; }
+  .btn-ghost{
     font-family:inherit; font-size:12.5px; background:none; border:1px solid var(--border-strong); color:var(--ink);
     border-radius:99px; padding:5px 12px; cursor:pointer;
   }
-  .sourcebar button:hover{ border-color:var(--accent); color:var(--accent); }
-  .sourcebar .stats{ display:flex; flex-wrap:wrap; gap:4px 14px; }
-
-  .errorbar{
-    display:none; background:var(--critical-soft); color:var(--critical); border-radius:8px; padding:10px 14px;
-    font-size:13px; margin-bottom:16px;
-  }
+  .btn-ghost:hover{ border-color:var(--accent); color:var(--accent); }
+  .errorbar{ display:none; background:var(--critical-soft); color:var(--critical); border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:16px; }
   .errorbar.show{ display:block; }
 
-  .mock-badge{
-    display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-muted);
-    background:var(--surface-2); border:1px solid var(--border); border-radius:99px; padding:6px 12px 6px 10px;
-    white-space:nowrap;
+  /* ---- filters ---- */
+  .filters{
+    display:grid; grid-template-columns:118px 1fr; gap:12px 14px; align-items:start;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px 18px; margin-bottom:22px; box-shadow:var(--shadow);
   }
-  .mock-badge .dot{ width:7px; height:7px; border-radius:50%; background:var(--warning); flex:none; }
-  .mock-badge.real .dot{ background:var(--good); }
-
-  /* ---- filter chips ---- */
-  .filterbar{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:26px; }
-  .filterbar .fb-label{ font-size:13px; color:var(--ink-muted); margin-right:2px; }
+  @media (max-width:700px){ .filters{ grid-template-columns:1fr; gap:6px; } .filters .f-label{ margin-top:8px; } }
+  .filters .f-label{ font-size:13px; color:var(--ink-muted); padding-top:7px; font-weight:500; }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
   .chip{
-    font-family:inherit; font-size:14px; color:var(--ink); background:var(--surface);
-    border:1px solid var(--border-strong); border-radius:99px; padding:8px 16px; cursor:pointer;
+    font-family:inherit; font-size:13.5px; color:var(--ink); background:var(--surface);
+    border:1px solid var(--border-strong); border-radius:99px; padding:6px 14px; cursor:pointer;
     display:inline-flex; align-items:center; gap:7px; transition:background .15s,color .15s,border-color .15s;
   }
+  .chip.sm{ font-size:12.5px; padding:5px 11px; }
   .chip:hover{ border-color:var(--accent); }
   .chip[aria-pressed="true"]{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:500; }
-  .chip .swatch{ width:9px; height:9px; border-radius:50%; }
+  .chip .swatch{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .chip .cnt{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-faint); font-variant-numeric:tabular-nums; }
+  .chip[aria-pressed="true"] .cnt{ color:var(--accent-ink); opacity:.85; }
+  .chip.empty{ color:var(--ink-faint); border-style:dashed; }
   .chip.planned{
-    cursor:not-allowed; color:var(--ink-faint); position:relative; overflow:hidden;
+    cursor:not-allowed; color:var(--ink-faint);
     background-image:repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--surface) 6px 12px);
   }
   .chip.planned:hover{ border-color:var(--border-strong); }
-  .toggle2{ display:inline-flex; border:1px solid var(--border-strong); border-radius:99px; overflow:hidden; font-size:12.5px; }
-  .toggle2 button{ font-family:inherit; font-size:inherit; border:none; background:var(--surface); color:var(--ink-muted); padding:6px 12px; cursor:pointer; }
-  .toggle2 button.active{ background:var(--accent); color:var(--accent-ink); font-weight:500; }
 
-  /* ---- kpi row ---- */
-  .kpi-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:34px; }
-  @media (max-width:820px){ .kpi-row{ grid-template-columns:repeat(2,1fr); } }
-  .kpi{
-    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
-    padding:16px 18px; box-shadow:var(--shadow);
-  }
+  /* ---- kpi ---- */
+  .kpi-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:28px; }
+  @media (max-width:820px){ .kpi-row{ grid-template-columns:1fr; } }
+  .kpi{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow); }
   .kpi .label{ font-size:12.5px; color:var(--ink-muted); }
-  .kpi .value{ font-size:26px; font-weight:600; margin-top:6px; }
-  .kpi .value .unit{ font-size:14px; font-weight:400; color:var(--ink-muted); margin-left:4px; }
-  .kpi .foot{ font-size:12px; color:var(--ink-faint); margin-top:5px; }
+  .kpi .value{ font-size:28px; font-weight:600; margin-top:6px; }
+  .kpi .value .unit{ font-size:14px; font-weight:400; color:var(--ink-muted); margin-left:4px; font-family:"IBM Plex Sans Thai",sans-serif; }
+  .kpi .foot{ font-size:12px; color:var(--ink-faint); margin-top:6px; display:flex; flex-wrap:wrap; gap:2px 12px; }
 
-  /* ---- sections ---- */
-  section.panel{
-    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
-    padding:22px 24px 24px; margin-bottom:22px; box-shadow:var(--shadow);
-  }
+  /* ---- panels ---- */
+  section.panel{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px 24px 24px; margin-bottom:22px; box-shadow:var(--shadow); }
   .panel > header{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:8px 20px; margin-bottom:4px; }
   .panel h2{ font-size:19px; }
   .panel .hint{ font-size:12.5px; color:var(--ink-faint); }
-  .panel .desc{ font-size:13.5px; color:var(--ink-muted); margin:4px 0 18px; max-width:70ch; }
-  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .panel .desc{ font-size:13.5px; color:var(--ink-muted); margin:4px 0 18px; max-width:72ch; }
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:28px; }
   @media (max-width:760px){ .two-col{ grid-template-columns:1fr; } }
-  .subhead{ font-size:13.5px; font-weight:600; color:var(--ink-muted); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .subhead{ font-size:13.5px; font-weight:600; color:var(--ink-muted); margin-bottom:12px; }
 
-  /* ---- bar rows ---- */
-  .barlist{ display:flex; flex-direction:column; gap:9px; }
-  .barrow{ display:grid; grid-template-columns:130px 1fr 96px; align-items:center; gap:10px; }
+  .barlist{ display:flex; flex-direction:column; gap:8px; }
+  .barrow{ display:grid; grid-template-columns:minmax(120px,190px) 1fr 118px; align-items:center; gap:10px; border-radius:6px; }
+  .barrow.clickable{ cursor:pointer; padding:2px 4px; margin:0 -4px; }
+  .barrow.clickable:hover{ background:var(--surface-2); }
+  .barrow.selected{ background:var(--accent-soft); }
+  .barrow.dim{ opacity:.45; }
   .barrow .rlabel{ font-size:12.5px; color:var(--ink-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .track{ background:var(--surface-2); border-radius:5px; height:16px; position:relative; overflow:hidden; }
-  .fill{ height:100%; border-radius:5px 0 0 5px; cursor:default; transition:width .35s ease; }
-  .barrow .rvalue{ font-size:12.5px; text-align:right; color:var(--ink); }
+  .track{ background:var(--surface-2); border-radius:5px; height:16px; overflow:hidden; }
+  .fill{ height:100%; border-radius:5px 0 0 5px; transition:width .35s ease; }
+  .barrow .rvalue{ font-size:12.5px; text-align:right; }
+  .barrow .rvalue small{ color:var(--ink-faint); font-size:11px; }
+  .legend{ display:flex; flex-wrap:wrap; gap:6px 16px; margin:0 0 12px; font-size:12.5px; color:var(--ink-muted); }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; }
 
-  /* ---- proportion bar (ED/NED) ---- */
-  .prop-bar{ display:flex; height:34px; border-radius:8px; overflow:hidden; border:1px solid var(--border); }
-  .prop-seg{ display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:500; color:#fff; white-space:nowrap; }
-  .prop-scale{ display:flex; justify-content:space-between; font-size:11px; color:var(--ink-faint); margin-top:6px; }
+  .prop-bar{ display:flex; height:34px; border-radius:8px; overflow:hidden; border:1px solid var(--border); margin-bottom:6px; }
+  .prop-seg{ display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:500; color:#fff; white-space:nowrap; overflow:hidden; }
+  .prop-scale{ display:flex; justify-content:space-between; font-size:11px; color:var(--ink-faint); margin-bottom:18px; }
 
-  /* ---- callouts ---- */
-  .callout{ display:flex; gap:10px; align-items:flex-start; padding:10px 14px; border-radius:8px; font-size:13px; margin-top:14px; }
-  .callout.warn{ background:var(--warning-soft); color:var(--warning); }
+  .callout{ display:flex; gap:10px; align-items:flex-start; padding:10px 14px; border-radius:8px; font-size:13px; margin-top:16px; background:var(--warning-soft); }
   .callout .badge{ flex:none; font-size:11px; font-weight:600; padding:2px 8px; border-radius:99px; background:var(--warning); color:#fff; }
+  .callout.info{ background:var(--surface-2); }
+  .callout.info .badge{ background:var(--ink-muted); }
   .callout p{ margin:0; color:var(--ink); }
 
-  /* ---- value headline ---- */
-  .value-headline{ display:flex; align-items:baseline; gap:10px; margin-bottom:18px; }
-  .value-headline .big{ font-size:30px; font-weight:600; }
-  .value-headline .lbl{ font-size:13px; color:var(--ink-muted); }
-
-  /* ---- table ---- */
-  .table-scroll{ overflow-x:auto; border:1px solid var(--border); border-radius:8px; }
-  .table-scroll.tall{ max-height:420px; overflow-y:auto; }
-  table{ border-collapse:collapse; width:100%; font-size:12.5px; }
-  table.wide{ min-width:1080px; }
-  thead th{
-    text-align:left; font-weight:600; color:var(--ink-muted); background:var(--surface-2);
-    padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap; position:sticky; top:0;
+  .table-tools{ display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin-bottom:12px; }
+  .search{
+    font-family:inherit; font-size:13.5px; color:var(--ink); background:var(--surface); border:1px solid var(--border-strong);
+    border-radius:8px; padding:7px 12px; width:min(340px,100%);
   }
-  tbody td{ padding:8px 12px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .table-scroll{ overflow:auto; border:1px solid var(--border); border-radius:8px; max-height:520px; }
+  table{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  table.wide{ min-width:1100px; }
+  thead th{ text-align:left; font-weight:600; color:var(--ink-muted); background:var(--surface-2); padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap; position:sticky; top:0; z-index:1; }
+  tbody td{ padding:7px 12px; border-bottom:1px solid var(--border); white-space:nowrap; }
   tbody tr:last-child td{ border-bottom:none; }
   tbody tr:hover{ background:var(--surface-2); }
-  td.mono, th.mono{ font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
-  .pill{ font-size:11px; padding:2px 8px; border-radius:99px; font-weight:500; white-space:nowrap; }
+  td.mono, th.mono{ font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; text-align:right; }
+  td.zero{ color:var(--ink-faint); }
+  .pill{ font-size:11px; padding:2px 8px; border-radius:99px; font-weight:500; white-space:nowrap; background:var(--surface-2); color:var(--ink-muted); }
   .pill.ed{ background:var(--good-soft); color:var(--good); }
-  .pill.ned{ background:var(--surface-2); color:var(--ink-muted); }
   .pill.status-high{ background:var(--critical-soft); color:var(--critical); }
   .pill.status-low{ background:var(--warning-soft); color:var(--warning); }
   .pill.status-normal{ background:var(--good-soft); color:var(--good); }
   .table-note{ font-size:12px; color:var(--ink-faint); margin-top:8px; }
 
-  /* ---- open questions ---- */
   ol.qlist{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:14px; }
   ol.qlist li{ display:grid; grid-template-columns:30px 1fr; gap:10px; align-items:start; }
-  ol.qlist .qn{
-    width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--accent);
-    display:flex; align-items:center; justify-content:center; font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600;
-  }
+  ol.qlist .qn{ width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; }
   ol.qlist .qtext{ font-size:14px; padding-top:4px; }
   ol.qlist .qtext .from{ display:block; font-size:12px; color:var(--ink-faint); margin-top:3px; }
+  ul.done{ margin:0 0 18px; padding-left:20px; font-size:13px; color:var(--ink-muted); }
+  ul.done li{ margin-bottom:3px; }
 
   footer{ text-align:center; font-size:12px; color:var(--ink-faint); margin-top:8px; }
-
-  /* ---- tooltip ---- */
   #tooltip{
-    position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:12px;
-    padding:6px 10px; border-radius:6px; z-index:50; opacity:0; transform:translate(-50%,-100%);
-    transition:opacity .1s; white-space:nowrap; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
+    position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:12px; padding:6px 10px; border-radius:6px;
+    z-index:50; opacity:0; transform:translate(-50%,-100%); transition:opacity .1s; white-space:nowrap;
+    font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
   }
   #tooltip.show{ opacity:1; }
-
   @media (prefers-reduced-motion:reduce){ .fill{ transition:none; } }
 </style>
 
@@ -226,300 +199,320 @@
     <h1>Dashboard จัดซื้อ พี่โอม</h1>
     <div class="sub">คลังยาและการจัดซื้อห้องยา — ลากไฟล์ Excel มาวางเพื่อดูข้อมูลจริง</div>
   </div>
-  <div class="mock-badge" id="mode-badge"><span class="dot"></span>กำลังแสดงข้อมูลตัวอย่าง 15 รายการ — ลากไฟล์จริงมาวางเพื่อแทนที่</div>
+  <div class="mock-badge" id="mode-badge"><span class="dot"></span>ข้อมูลตัวอย่าง — ลากไฟล์จริงมาวางเพื่อแทนที่</div>
 </div>
 
 <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือกไฟล์">
   <div class="dz-title">ลากไฟล์ Excel มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</div>
-  <div class="dz-hint">รองรับไฟล์ .xlsx ที่มีชีต "รายการต้องจัดซื้อ" (และ คงคลัง / ชั้น G / ชั้น 1 / จัดหา ถ้ามี จะยิ่งครบ)</div>
+  <div class="dz-hint">ไฟล์ .xlsx ที่มีชีต "รายการต้องจัดซื้อ" + คงคลัง / ชั้น G / ชั้น 1 / จัดหา / ทะเบียน</div>
   <input type="file" id="file-input" accept=".xlsx,.xls">
 </div>
 <div class="errorbar" id="errorbar"></div>
 <div class="sourcebar" id="sourcebar">
   <div>นำเข้าแล้ว: <span class="file" id="src-filename"></span></div>
   <div class="stats" id="src-stats"></div>
-  <button id="btn-reset">เปลี่ยนไฟล์ / กลับไปดูตัวอย่าง</button>
+  <button class="btn-ghost" id="btn-reset">เปลี่ยนไฟล์ / กลับไปดูตัวอย่าง</button>
 </div>
 
-<div class="filterbar">
-  <span class="fb-label">มุมมองห้องยา</span>
-  <button class="chip" data-room="all" aria-pressed="true">ทั้งหมด</button>
-  <button class="chip" data-room="G" aria-pressed="false"><span class="swatch" style="background:var(--cat-1)"></span>ห้องจ่ายยาชั้น G</button>
-  <button class="chip" data-room="1" aria-pressed="false"><span class="swatch" style="background:var(--cat-2)"></span>ห้องจ่ายชั้น 1</button>
-  <button class="chip planned" disabled title="เตรียมรองรับห้องจ่ายยาเพิ่มปี 2570–71 — ยังไม่มีข้อมูล">+ ห้องจ่ายยา (แผนปี 70–71)</button>
+<div class="filters">
+  <div class="f-label">มุมมองห้องยา</div>
+  <div class="chips" id="room-chips"></div>
+  <div class="f-label">ทะเบียน</div>
+  <div class="chips" id="reg-chips"></div>
+  <div class="f-label">ประเภทบัญชี</div>
+  <div class="chips" id="acct-chips"></div>
 </div>
 
 <div class="kpi-row">
   <div class="kpi">
-    <div class="label">รายการมีสต็อกคลังกลาง</div>
-    <div class="value num" id="kpi-central">–<span class="unit">รายการ</span></div>
-    <div class="foot">ไม่แยกตามห้อง — คลังกลางมีจุดเดียว</div>
-  </div>
-  <div class="kpi">
-    <div class="label">รายการมีสต็อกหน่วยย่อย</div>
-    <div class="value num" id="kpi-floor">–<span class="unit">รายการ</span></div>
-    <div class="foot" id="kpi-floor-foot">รวมชั้น G + ชั้น 1</div>
+    <div class="label">รายการยาทั้งหมด (มีสต็อก &gt; 0)</div>
+    <div class="value num" id="kpi-items">–</div>
+    <div class="foot" id="kpi-items-foot"></div>
   </div>
   <div class="kpi">
     <div class="label">รายการยาบัญชี ED / NED</div>
-    <div class="value num" id="kpi-ed">–<span class="unit">รายการ</span></div>
-    <div class="foot" id="kpi-ed-foot">–</div>
+    <div class="value num" id="kpi-ed">–</div>
+    <div class="foot" id="kpi-ed-foot"></div>
   </div>
   <div class="kpi">
-    <div class="label">มูลค่าคงคลังพัสดุรวม</div>
-    <div class="value num" id="kpi-value">–<span class="unit">บาท</span></div>
-    <div class="foot">คลังกลาง + หน่วยย่อยตามมุมมองที่เลือก</div>
+    <div class="label">มูลค่าคงคลังพัสดุรวม (ต้นทุน)</div>
+    <div class="value num" id="kpi-value">–</div>
+    <div class="foot" id="kpi-value-foot"></div>
   </div>
 </div>
 
 <section class="panel">
   <header>
-    <h2>คงคลังยา</h2>
-    <span class="hint">หน่วยนับตามที่แต่ละรายการจัดหาจริง (กล่อง/ขวด/แผง ฯลฯ)</span>
+    <h2>สัดส่วนประเภทบัญชียา</h2>
+    <span class="hint">นับรายการละ 1 ครั้ง · ต่อ 100 รายการ · คลิกแถวเพื่อกรอง</span>
   </header>
-  <p class="desc">แยกสองส่วนตาม PRD — คลังกลางไม่ผูกกับห้องยา ส่วนหน่วยย่อยตอบสนองตัวเลือกห้องด้านบน แสดงเป็นอันดับรายการที่มีสต็อกมากที่สุด (Top 8) เพราะหน่วยนับของแต่ละรายการไม่เท่ากัน (เม็ด/ขวด/กล่อง) จึงรวมเป็นตัวเลขเดียวข้ามรายการไม่ได้อย่างถูกต้อง</p>
-  <div class="two-col">
-    <div>
-      <div class="subhead">คลังกลาง — Top 8 รายการที่มีสต็อกมากที่สุด</div>
-      <div class="barlist" id="chart-central"></div>
-    </div>
-    <div>
-      <div class="subhead" id="floor-subhead">หน่วยย่อย — Top 8 รายการที่มีสต็อกมากที่สุด</div>
-      <div class="barlist" id="chart-floor"></div>
-    </div>
+  <p class="desc">นับเฉพาะรายการที่มีสต็อกรวม (คลังยา + ชั้น 1 + ชั้น G) มากกว่า 0 — ยาที่มีอยู่หลายห้องนับเป็น 1 รายการ ไม่นับซ้ำตามจำนวนห้อง</p>
+  <div class="prop-bar" id="prop-bar"></div>
+  <div class="prop-scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+  <div class="legend">
+    <span><i style="background:var(--cat-5)"></i>บัญชี ED (ก ข ค ง จ(1) จ(2))</span>
+    <span><i style="background:var(--cat-4)"></i>NED</span>
+    <span><i style="background:var(--ink-faint)"></i>อื่น ๆ</span>
   </div>
+  <div class="barlist" id="chart-acct"></div>
 </section>
 
 <section class="panel">
   <header>
-    <h2>สัดส่วนบัญชียา ED / NED</h2>
-    <span class="hint">นับต่อ 100 รายการ</span>
+    <h2>มูลค่าคงคลังพัสดุ</h2>
+    <span class="hint">ตอบสนองตัวกรองด้านบน</span>
   </header>
-  <p class="desc">สัดส่วนรายการยาที่อยู่ในบัญชียาหลักแห่งชาติ (ED) เทียบกับนอกบัญชี (NED) — สลับหน่วยนับได้ระหว่างรายการยา (hospcode) กับรหัส GPU</p>
-  <div class="toggle2" id="ed-toggle" style="margin-bottom:14px;">
-    <button data-mode="item" class="active">นับแบบรายการยา (hospcode)</button>
-    <button data-mode="gpu">นับแบบรหัส GPU</button>
+  <p class="desc">คลังยา = "รวมมูลค่า" จากชีตคงคลัง · หน่วยย่อย (ชั้น G, ชั้น 1 และห้องใหม่ในอนาคต) = จำนวนคงเหลือ × costrate จากชีตทะเบียน</p>
+  <div class="two-col">
+    <div>
+      <div class="subhead">แยกตามที่เก็บ</div>
+      <div class="barlist" id="chart-value-loc"></div>
+    </div>
+    <div>
+      <div class="subhead">แยกตามกลุ่ม (ชื่อกลุ่มจากชีตคงคลัง)</div>
+      <div class="barlist" id="chart-value-group"></div>
+    </div>
   </div>
-  <div class="prop-bar" id="prop-bar"></div>
-  <div class="prop-scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
-  <div class="table-note" id="prop-footnote"></div>
-  <div class="callout warn">
+  <div class="callout">
     <span class="badge">ต้องยืนยัน</span>
-    <p>PRD เขียนว่า "นับที่ GPU" — ในไฟล์จริงพบคอลัมน์ gpucode ในชีต "ทะเบียน" (Generic Product Unit) แต่มีแค่บางรายการที่ถูกกำหนดรหัสนี้ไว้ ด้านบนจึงทำเป็นตัวเลือกสลับได้ก่อน รอพี่โอมยืนยันว่าตัวเลขหลักที่จะใช้รายงานคือแบบไหน</p>
+    <p>ยังไม่มีคอลัมน์ gpscode ในไฟล์ — กราฟขวาใช้ "ชื่อกลุ่ม" (A, B, C, …) จากชีตคงคลังไปก่อน รายการที่มีเฉพาะในห้องย่อยจึงอยู่ในกลุ่ม "ไม่ระบุกลุ่ม"</p>
   </div>
 </section>
 
 <section class="panel">
   <header>
     <h2>อัตราการใช้ยา</h2>
-    <span class="hint">จากชีต "จัดหา" — lowrate / highrate / userate</span>
+    <span class="hint">จากชีต "จัดหา" · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
-  <p class="desc">เทียบอัตราการใช้จริง (userate) กับเกณฑ์ต่ำสุด/สูงสุด (lowrate/highrate) ต่อรายการ — มีเฉพาะรายการที่อยู่ในรอบแจ้งความต้องการจัดซื้อรอบนี้</p>
-  <div class="legend" style="display:flex;gap:16px;margin-bottom:12px;font-size:12.5px;color:var(--ink-muted)" id="rate-summary"></div>
-  <div class="table-scroll tall">
+  <p class="desc">เทียบอัตราการใช้จริง (userate) กับ lowrate / highrate — แสดงทุกรายการในรอบจัดซื้อ แม้สต็อกเป็น 0 เพราะเป็นรายการที่อาจต้องสั่งซื้อ</p>
+  <div class="legend" id="rate-summary"></div>
+  <div class="table-scroll" style="max-height:380px">
     <table>
       <thead><tr><th>hospcode</th><th>ชื่อยา</th><th class="mono">lowrate</th><th class="mono">userate</th><th class="mono">highrate</th><th>สถานะ</th></tr></thead>
       <tbody id="rate-table"></tbody>
     </table>
   </div>
-  <div class="callout warn">
-    <span class="badge">ต้องยืนยัน</span>
-    <p>ตารางนี้ตั้งสมมติฐานว่า lowrate/highrate คือ "ช่วงเกณฑ์อัตราการใช้ที่ยอมรับได้" และ userate คืออัตราการใช้จริงปัจจุบัน (ต่ำกว่า lowrate = ใช้ช้ากว่าเกณฑ์, สูงกว่า highrate = ใช้เร็วกว่าเกณฑ์) รอพี่โอมยืนยันความหมายที่ถูกต้องของทั้งสามค่านี้</p>
-  </div>
 </section>
 
 <section class="panel">
   <header>
-    <h2>มูลค่าคงคลังพัสดุ ตามกลุ่ม</h2>
-    <span class="hint">ตอบสนองตัวเลือกห้องด้านบน</span>
+    <h2>รายการยา</h2>
+    <span class="hint">เรียงตาม hospcode · ตามตัวกรองด้านบน</span>
   </header>
-  <div class="value-headline">
-    <span class="big num" id="value-total">–</span>
-    <span class="lbl">บาท มูลค่าคงคลังรวมทุกกลุ่ม</span>
+  <div class="table-tools">
+    <input class="search" id="item-search" type="search" placeholder="ค้นหา hospcode / ชื่อยา / บริษัท" aria-label="ค้นหารายการยา">
+    <span class="table-note" id="item-count" style="margin:0"></span>
   </div>
-  <div class="barlist" id="chart-gpsc"></div>
-  <div class="callout warn">
-    <span class="badge">ต้องยืนยัน</span>
-    <p>ไฟล์จริงยังไม่มีคอลัมน์ "gpscode" 14 หลักตามที่ระบุใน PRD — กราฟนี้จึงใช้ "ชื่อกลุ่ม" (A, B, C, ...) จากชีต "คงคลัง" ไปก่อน (มูลค่ารวม<span class="num" id="stock-group-total"></span>บาท ณ รายการที่มีอยู่ในชีตนั้น) รอพี่โอมยืนยันว่ากลุ่มตัวอักษรนี้คือกลุ่มเดียวกับที่จะใช้ผูกรหัส gpscode หรือไม่ หรือมีตารางแม่บท GPSC แยกต่างหากที่ต้องนำมาจับคู่เพิ่ม</p>
-  </div>
-</section>
-
-<section class="panel">
-  <header>
-    <h2>ตัวอย่างข้อมูลนำเข้า</h2>
-    <span class="hint" id="import-hint">เรียงตาม hospcode จากน้อยไปมาก</span>
-  </header>
-  <p class="desc">แก้ปัญหาที่ระบุใน PRD — เดิม sheet เรียงตามกลุ่มยาทำให้ track ยาก มุมมองนี้เรียงตาม hospcode คงที่ทุกครั้งที่ import ไม่ว่ายาใหม่จะเข้ากลุ่มไหน</p>
   <div class="table-scroll">
     <table class="wide">
       <thead>
         <tr>
-          <th>hospcode</th><th>generic</th><th>tradename</th><th>content</th><th class="mono">packsize</th>
-          <th class="mono">list want</th><th class="mono">คลังกลาง</th><th class="mono">ชั้น 1</th><th class="mono">ชั้น G</th>
-          <th>distribute</th><th>manufact</th><th>ised</th><th>กลุ่ม (คงคลัง)</th>
+          <th>hospcode</th><th>generic</th><th>tradename</th><th>ทะเบียน</th><th>ประเภทบัญชี</th>
+          <th class="mono">คลังยา<br><small>หน่วยจัดหา</small></th><th class="mono">ชั้น G<br><small>หน่วยย่อย</small></th><th class="mono">ชั้น 1<br><small>หน่วยย่อย</small></th>
+          <th class="mono">มูลค่า (บาท)</th><th>distribute</th>
         </tr>
       </thead>
-      <tbody id="import-table"></tbody>
+      <tbody id="item-table"></tbody>
     </table>
   </div>
-  <div class="table-note" id="import-note"></div>
 </section>
 
 <section class="panel">
   <header><h2>ประเด็นที่รอยืนยันจากพี่โอม</h2></header>
+  <p class="desc" style="margin-bottom:8px">ปรับตามที่พี่โอมแจ้งแล้ว:</p>
+  <ul class="done">
+    <li>นับรายการยาเฉพาะที่มีสต็อกรวม &gt; 0 และนับรายการละ 1 ครั้ง ไม่นับตามจำนวนห้อง</li>
+    <li>เพิ่มตัวกรองทะเบียน (6 ประเภท) และประเภทบัญชี (12 ประเภท) พร้อม "ทั้งหมด"</li>
+    <li>เพิ่ม "รายการคลังยา" ในแถบมุมมองห้องยา และเตรียมโค้ดรองรับห้องจ่ายยาใหม่ปี 70–71 แล้ว</li>
+    <li>มูลค่าหน่วยย่อย = จำนวน × costrate จากชีตทะเบียน</li>
+  </ul>
   <ol class="qlist">
-    <li><span class="qn">1</span><span class="qtext">Import ไฟล์ได้ทุกครั้งที่มีของใหม่ หรือต้อง fix โครงสร้างคอลัมน์ตายตัว เพื่อไม่ให้ hospcode สลับที่กันทุกรอบ<span class="from">อ้างอิง PRD: "หน้าหลักแสดงข้อมูล ตาม excel * Import ได้ทุกครั้งมั้ย หรือต้อง fix"</span></span></li>
-    <li><span class="qn">2</span><span class="qtext">เผื่อห้องจ่ายยาเพิ่มปี 2570–71 กี่ห้อง และใช้ชื่อห้องว่าอะไร (mockup เตรียมปุ่มไว้ 1 ห้องเพิ่มก่อน)<span class="from">อ้างอิง PRD: "70 มีห้องจ่ายยาเพิ่มมั้ย" / "ห้องยาน่าจะได้เพิ่มอีกห้องในปี 70-71"</span></span></li>
-    <li><span class="qn">3</span><span class="qtext">สัดส่วน ED/NED ให้นับที่ระดับใด — รายการยา (hospcode) หรือรหัส GPU (ในไฟล์จริงพบว่ามีรหัส GPU ให้แค่บางรายการในชีต "ทะเบียน")<span class="from">อ้างอิง PRD: "คิดเป็นสัดส่วน... โดยนับที่ GPU"</span></span></li>
-    <li><span class="qn">4</span><span class="qtext">"ชื่อกลุ่ม" (A, B, C, ...) ในชีต "คงคลัง" คือกลุ่มเดียวกับที่จะใช้เป็นรหัส gpscode หรือไม่ ถ้าไม่ใช่ ต้องขอตารางแม่บท gpscode มาจับคู่เพิ่ม<span class="from">อ้างอิง PRD: "เพิ่มอีก column ต่อท้าย gpscode... มูลค่าคงคลัง 900,000.00 บาท"</span></span></li>
-    <li><span class="qn">5</span><span class="qtext">คอลัมน์ lowrate / highrate / userate ในชีต "จัดหา" หมายถึงอะไรกันแน่ (เกณฑ์อัตราการใช้ต่ำสุด-สูงสุด กับอัตราการใช้จริง ตามที่ mockup นี้ตั้งสมมติฐานไว้ ใช่หรือไม่)<span class="from">อ้างอิง PRD: "อัตราการใช้ยา lowrate, highrate (อยู่ใน แจ้งความต้องการซื้อ)"</span></span></li>
-    <li><span class="qn">6</span><span class="qtext">คลังกลางและหน่วยย่อยมีหน่วยนับต่างกันตามแต่ละรายการ (เม็ด/ขวด/กล่อง) — ต้องการให้แปลงเป็น "หน่วยจัดหา" เดียวกันทั้งระบบหรือไม่ หรือแสดงตามหน่วยจริงของแต่ละรายการแบบนี้ต่อไป<span class="from">อ้างอิง PRD: "ใช้หน่วยจัดหา (เป็น Box/unit)"</span></span></li>
-    <li><span class="qn">7</span><span class="qtext">drug cat — ต้องการให้ key เข้าเองในระบบอย่างเดียว หรือรองรับ import ทับบัญชีเดิม (ชีต "drugcat" ในไฟล์จริงมี 4,335 รายการ มากกว่ารายการต้องจัดซื้อ)<span class="from">อ้างอิง PRD: "drug cat (Key เข้า หรือ import update บัญชีได้)"</span></span></li>
+    <li><span class="qn">1</span><span class="qtext">ห้องจ่ายยาใหม่ปี 70–71 จะใช้ชื่อห้องและชื่อชีตใน Excel ว่าอะไร (โค้ดเตรียมไว้แล้ว เพิ่มชื่อชีตอย่างเดียวก็ใช้ได้)</span></li>
+    <li><span class="qn">2</span><span class="qtext">ในสัดส่วน ED : NED — บัญชียาสมุนไพร, ยา Covid 19 และสูตรตำรับ รพ. ควรนับเป็น ED หรือไม่ (ตอนนี้ไม่นับทั้งฝั่ง ED และ NED แต่แสดงแยกในกราฟ) และ "R:restricted list (EDจ)" 2 รายการ ตอนนี้อยู่ในกลุ่ม "ไม่ระบุ" ถูกต้องไหม</span></li>
+    <li><span class="qn">3</span><span class="qtext">คอลัมน์ inventory (P) ในชีตรายการต้องจัดซื้อ ไม่ตรงกับชีตคงคลัง 4 รายการ เช่น hospcode 1272010 (P = 4,650 แต่ชีตคงคลัง = 200) — ควรยึดตัวเลขจากที่ไหน (ตอนนี้ยึดชีตคงคลัง)</span></li>
+    <li><span class="qn">4</span><span class="qtext">"ชื่อกลุ่ม" (A, B, C, …) ในชีตคงคลัง คือกลุ่มเดียวกับ gpscode หรือไม่ ถ้าไม่ใช่ ขอตารางแม่บท gpscode มาจับคู่เพิ่ม<span class="from">อ้างอิง PRD: "มูลค่าคงคลัง 900,000.00 บาท ตาม gpscode"</span></span></li>
+    <li><span class="qn">5</span><span class="qtext">lowrate / highrate / userate ในชีตจัดหา คือเกณฑ์อัตราการใช้ต่ำสุด–สูงสุด เทียบกับอัตราการใช้จริง ใช่หรือไม่</span></li>
+    <li><span class="qn">6</span><span class="qtext">ในชีตทะเบียนยังมี "ทะเบียนรังสี" (256 รายการ) และ "ทะเบียนอวัยวะเทียม" แบบไม่มี (IR) (22 รายการ) — ต้องการให้เป็นตัวเลือกด้วยหรือไม่</span></li>
+    <li><span class="qn">7</span><span class="qtext">Import ไฟล์ใหม่ได้ทุกครั้งโดยใช้ชื่อชีตและหัวคอลัมน์เดิม — ต่อไปจะมีการเปลี่ยนชื่อชีตหรือหัวคอลัมน์หรือไม่</span></li>
+    <li><span class="qn">8</span><span class="qtext">drug cat — ต้องการ key เข้าเองในระบบ หรือ import ทับบัญชีเดิม (ชีต drugcat มี 4,335 รายการ)</span></li>
   </ol>
 </section>
 
-<footer>Dashboard จัดซื้อ พี่โอม · mockup เชื่อมกับไฟล์ Excel จริงได้แล้ว · ลองลากไฟล์มาวางด้านบน</footer>
+<footer>Dashboard จัดซื้อ พี่โอม · ทำงานในเบราว์เซอร์ทั้งหมด ไฟล์ไม่ถูกส่งออกไปที่ไหน</footer>
 
 <script>
 (function(){
-  var SAMPLE_ITEMS = (function(){
-    var g = { A:'A', B:'B', C:'C', D:'D', E:'E' };
-    function it(hospcode, generic, tradename, content, packsize, unitprice, listWant, distribute, manufact, isedRaw, ndc24, group, centralQty, floorGQty, floor1Qty, costrate, lowrate, highrate, userate, gpucode){
-      return {
-        hospcode:hospcode, generic:generic, tradename:tradename, content:content, packsize:packsize, unitprice:unitprice,
-        listWant:listWant, distribute:distribute, manufact:manufact, isedRaw:isedRaw, ndc24:ndc24,
-        central: centralQty!=null ? { qty:centralQty, unitPrice:unitprice, value:centralQty*unitprice, group:group, name:tradename } : null,
-        floorG: floorGQty!=null ? { qty:floorGQty, costrate:costrate, name:tradename } : null,
-        floor1: floor1Qty!=null ? { qty:floor1Qty, costrate:costrate, name:tradename } : null,
-        proc: lowrate!=null ? { lowrate:lowrate, highrate:highrate, userate:userate, sumqty:0 } : null,
-        gpucode: gpucode || ''
-      };
-    }
-    return [
-      it('10015','diclofenac sodium','Voltarol 25 mg','25 mg',1000,0.35,5,'บ.ยูนีซัน','Sandoz','NED','1234567890123','D',8,300,220,0.4,180,650,120,'GPU1015'),
-      it('10021','amoxicillin','Amoxil 500 mg','500 mg',500,1.2,15,'บ.เบอร์ลินฟาร์มา','GPO','b:basic list (EDก)','1234567890124','A',22,450,380,1.3,6200,15000,4300,'GPU1021'),
-      it('10034','enalapril maleate','Renitec 5 mg','5 mg',1000,0.5,8,'บ.ซิลลิค','MSD','b:basic list (EDก)','1234567890125','B',14,200,150,0.55,3100,9000,2900,''),
-      it('10048','cetirizine hcl','Zyrtec 10 mg','10 mg',1000,0.6,3,'บ.ซิลลิค','GSK','NED','1234567890126','D',6,90,60,0.65,650,2000,180,'GPU1048'),
-      it('10052','metformin hcl','Glucophage 500 mg','500 mg',1000,0.3,20,'บ.เมอร์ค','Merck','b:basic list (EDก)','1234567890127','B',30,520,410,0.32,8400,20000,7900,'GPU1052'),
-      it('10067','omeprazole','Losec 20 mg','20 mg',1000,1.5,10,'บ.แอสตร้าฯ','AstraZeneca','s:supplemental list (EDค)','1234567890128','C',18,260,190,1.6,4200,11000,3500,''),
-      it('10071','ciprofloxacin hcl','Ciprobay 500 mg','500 mg',100,3.2,12,'บ.ไบเออร์','Bayer','b:basic list (EDข)','1234567890129','A',25,140,95,3.4,1900,6000,750,'GPU1071'),
-      it('10089','ranitidine hcl','Zantac 150 mg','150 mg',1000,0.45,1,'บ.ซิลลิค','GSK','NED','1234567890130','C',4,40,25,0.5,180,900,650,''),
-      it('10093','simvastatin','Zocor 20 mg','20 mg',1000,0.9,14,'บ.เมอร์ค','MSD','b:basic list (EDก)','1234567890131','B',20,310,260,0.95,5100,13000,4800,'GPU1093'),
-      it('10105','glibenclamide','Daonil 5 mg','5 mg',1000,0.25,4,'บ.ซิลลิค','Sanofi','b:basic list (EDก)','1234567890132','B',9,110,70,0.28,900,4000,380,''),
-      it('10118','amlodipine besylate','Norvasc 5 mg','5 mg',1000,0.4,18,'บ.ไฟเซอร์','Pfizer','b:basic list (EDก)','1234567890133','B',28,480,390,0.42,7600,18000,7100,'GPU1118'),
-      it('10126','ceftriaxone sodium','Rocephin 1 g','1 g',10,48,25,'บ.โรช','Roche','ex:exclusive list (EDง)','1234567890134','A',45,60,45,50,980,3000,2600,''),
-      it('10139','salbutamol','Ventolin MDI 100 mcg','100 mcg',1,95,6,'บ.ซิลลิค','GSK','b:basic list (EDก)','1234567890135','E',12,25,18,98,140,600,95,'GPU1139'),
-      it('10144','insulin NPH','Humulin N 100 IU/ml','100 IU/ml',1,125,8,'บ.เอลี่ลิลลี่','Eli Lilly','b:basic list (EDข)','1234567890136','E',15,20,15,130,210,800,720,''),
-      it('10158','paracetamol','Sara 500 mg','500 mg',1000,0.2,35,'บ.เบอร์ลินฟาร์มา','GPO','b:basic list (EDก)','1234567890137','D',60,900,780,0.22,15200,25000,14800,'GPU1158')
-    ];
-  })();
+  /* ห้องยา: เพิ่มห้องใหม่ (ปี 70–71) ได้โดยเพิ่มบรรทัดในรายการนี้ โดยใส่ชื่อชีตใน Excel ให้ตรง
+     kind 'central' = อ่านแบบชีตคงคลัง, kind 'floor' = อ่านแบบชีตชั้น G / ชั้น 1 */
+  var LOCATIONS = [
+    { id:'central', label:'รายการคลังยา',    short:'คลังยา', sheet:'คงคลัง', kind:'central', color:'var(--cat-3)' },
+    { id:'G',       label:'ห้องจ่ายยาชั้น G', short:'ชั้น G',  sheet:'ชั้น G',  kind:'floor',   color:'var(--cat-1)' },
+    { id:'1',       label:'ห้องจ่ายชั้น 1',   short:'ชั้น 1',  sheet:'ชั้น 1',  kind:'floor',   color:'var(--cat-2)' }
+  ];
+  var PLANNED_ROOM_LABEL = '+ ห้องจ่ายยา (แผนปี 70–71)';
 
-  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', edCountMode:'item', fileName:'', meta:null };
+  var REG_TYPES = [
+    'ทะเบียนยา',
+    'ทะเบียนเภสัชเคมีภัณฑ์',
+    'ทะเบียนเวชภัณฑ์ที่มิใช่ยา',
+    'ทะเบียนยาตัวอย่าง (SAMPLE)',
+    'ทะเบียนวัสดุเภสัชกรรมและอื่น ๆ',
+    'ทะเบียนอวัยวะเทียม(IR)'
+  ];
+  var REG_UNKNOWN = 'ไม่ระบุทะเบียน';
 
+  var ACCT_CATS = [
+    { key:'EDก',  label:'b:basic list (EDก)',          group:'ED' },
+    { key:'EDข',  label:'b:basic list (EDข)',          group:'ED' },
+    { key:'EDค',  label:'s:supplemental list (EDค)',   group:'ED' },
+    { key:'EDง',  label:'ex:exclusive list (EDง)',     group:'ED' },
+    { key:'EDจ1', label:'R1:restricted list (EDจ(1))', group:'ED' },
+    { key:'EDจ2', label:'R2:restricted list (EDจ(2))', group:'ED' },
+    { key:'herb', label:'บัญชียาสมุนไพร',              group:'other' },
+    { key:'covid',label:'ยา Covid 19',                 group:'other' },
+    { key:'NED',  label:'NED',                         group:'NED' },
+    { key:'nondrug', label:'เวชภัณฑ์มิใช่ยา',           group:'other' },
+    { key:'formula', label:'สูตรตำรับ รพ.',             group:'other' },
+    { key:'other',label:'ไม่ระบุ (อื่น ๆ)',             group:'other' }
+  ];
+  var ACCT_BY_LABEL = {};
+  ACCT_CATS.forEach(function(c){ if(c.key !== 'other') ACCT_BY_LABEL[squash(c.label)] = c.key; });
+  var ACCT_BY_KEY = {};
+  ACCT_CATS.forEach(function(c){ ACCT_BY_KEY[c.key] = c; });
+  var GROUP_COLOR = { ED:'var(--cat-5)', NED:'var(--cat-4)', other:'var(--ink-faint)' };
+
+  function squash(s){ return String(s == null ? '' : s).replace(/\s+/g,' ').trim(); }
+  function acctKey(raw){ return ACCT_BY_LABEL[squash(raw)] || 'other'; }
   function num(v){
     if(typeof v === 'number') return isFinite(v) ? v : 0;
-    var n = parseFloat(String(v==null?'':v).replace(/,/g,'').trim());
+    var n = parseFloat(String(v == null ? '' : v).replace(/,/g,'').trim());
     return isFinite(n) ? n : 0;
   }
   function fmt(n){ return Math.round(n).toLocaleString('th-TH'); }
-  function fmt1(n){ return n.toLocaleString('th-TH',{maximumFractionDigits:1}); }
-  function fmtMoney(n){ return Math.round(n).toLocaleString('th-TH'); }
+  function fmt1(n){ return n.toLocaleString('th-TH',{ maximumFractionDigits:1 }); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]; }); }
 
-  function classifyISED(raw){
-    var s = (raw||'').trim();
-    if(!s || s === '0' || s === 'ไม่ระบุ') return 'unclassified';
-    if(s === 'NED') return 'NED';
-    if(s.indexOf('เวชภัณฑ์มิใช่ยา') === 0) return 'nondrug';
-    return 'ED';
-  }
+  /* ---------------- sample data ---------------- */
+  var SAMPLE_ITEMS = (function(){
+    function it(hospcode, generic, tradename, reg, ised, group, cQty, cVal, gQty, oneQty, costrate, rate, distribute){
+      var stock = {
+        central:{ qty:cQty, value:cVal },
+        G:{ qty:gQty, value:gQty*costrate },
+        '1':{ qty:oneQty, value:oneQty*costrate }
+      };
+      return { hospcode:hospcode, generic:generic, tradename:tradename, regType:reg, isedRaw:ised, acct:acctKey(ised),
+        group:group, distribute:distribute, stock:stock,
+        proc: rate ? { lowrate:rate[0], highrate:rate[1], userate:rate[2] } : null };
+    }
+    var D='ทะเบียนยา', C='ทะเบียนเภสัชเคมีภัณฑ์', N='ทะเบียนเวชภัณฑ์ที่มิใช่ยา', S='ทะเบียนยาตัวอย่าง (SAMPLE)';
+    return [
+      it('1012110','bupivacaine','MARCAINE SPINAL HEAVY 0.5% 4 ML',D,'b:basic list (EDข)','C',180,25923,0,142,144.02,[40,160,52],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
+      it('2131822','doxazosin','CARDURA XL 4 MG TABLET',D,'NED','',0,0,14,591,23.5,[300,1200,410],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
+      it('2251286','paracetamol','PARACETAMOL 500 MG TABLET',D,'b:basic list (EDก)','A',80,36000,1223,1201,0.45,[5000,20000,15200],'องค์การเภสัชกรรม'),
+      it('2263090','acetylcysteine','ACETYLCYSTEINE 100 MG SACHET',D,'b:basic list (EDก)','A',400,25680,4077,1432,1.28,[900,3600,2400],'บริษัท เบอร์ลินฟาร์มาซูติคอลอินดัสตรี้ จำกัด'),
+      it('2272210','sodium acetate','ACETAR 1000 ML',D,'s:supplemental list (EDค)','S',120,5160,40,85,43,[232.5,930,232.5],'บริษัท วี.แอนด์.วี. จำกัด'),
+      it('2306697','abacavir + lamivudine','ABACAVIR 600 + LAMIVUDINE 300 TABLET',D,'ex:exclusive list (EDง)','L',0,0,28,0,28.67,null,'องค์การเภสัชกรรม'),
+      it('2307015','ammonia aromatic','แอมโมเนียหอม 15 ml',D,'b:basic list (EDก)','',0,0,12,20,15,null,'องค์การเภสัชกรรม'),
+      it('2307349','ceftriaxone','CEFTRIAXONE 1 G INJ',D,'R2:restricted list (EDจ(2))','M',20,9600,82,842,48,[600,2400,700],'บริษัท โรช ไทยแลนด์ จำกัด'),
+      it('2307517','molnupiravir','MOLNUPIRAVIR (GPO) 200 MG CAPSULE',D,'ยา Covid 19','',0,0,0,40,11.77,null,'องค์การเภสัชกรรม'),
+      it('2307967','risedronate','ACTONEL FCT 150 MG ONCE-A-MONTH',D,'NED','P',6,5136,0,4,856,[30,90,8.4],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
+      it('2308001','andrographis','ฟ้าทะลายโจร แคปซูล',D,'บัญชียาสมุนไพร','',0,0,300,120,1.1,null,'องค์การเภสัชกรรม'),
+      it('2309120','hq cream','HQ 5% IN CREAM BASE 500 GM (HF)',D,'สูตรตำรับ รพ.','',0,0,0,2,3035,null,'ผลิตใน รพ.'),
+      it('160044','formalin','10% NEUTRAL BUFFERED FORMALIN 1000 ML',C,'ไม่ระบุ','',0,0,0,2,140,null,'บริษัท เมดิทอป จำกัด'),
+      it('4381089','abdominal support','ABDOMINAL SUPPORT L 39-47"',N,'เวชภัณฑ์มิใช่ยา','',0,0,1,0,360,null,'บริษัท เมดิทอป จำกัด'),
+      it('2131856','pravastatin','MEVALOTIN PROTECT 40 MG',S,'NED','',0,0,0,0,11.5,[20,80,3],'บริษัท ซิลลิค ฟาร์มา จำกัด')
+    ];
+  })();
+
+  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', fileName:'', meta:null, regList:REG_TYPES.slice() };
 
   /* ---------------- Excel import ---------------- */
   function normalizeRows(ws){
     if(!ws) return [];
-    var rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
-    return rows.map(function(r){
+    return XLSX.utils.sheet_to_json(ws, { defval:'' }).map(function(r){
       var o = {};
       Object.keys(r).forEach(function(k){ o[String(k).trim().toLowerCase()] = r[k]; });
       return o;
     });
   }
+  function idOf(v){ var s = String(v == null ? '' : v).trim(); return s === '0' ? '' : s; }
 
   function buildFromWorkbook(wb){
     var main = normalizeRows(wb.Sheets['รายการต้องจัดซื้อ']);
-    var stockRows = normalizeRows(wb.Sheets['คงคลัง']);
-    var floorGRows = normalizeRows(wb.Sheets['ชั้น G']);
-    var floor1Rows = normalizeRows(wb.Sheets['ชั้น 1']);
-    var procRows = normalizeRows(wb.Sheets['จัดหา']);
-    var regRows = normalizeRows(wb.Sheets['ทะเบียน']);
-
-    var stockMap = {};
-    stockRows.forEach(function(r){
-      var id = String(r['รหัสเวชภัณฑ์']||'').trim();
-      var name = String(r['ชื่อเวชภัณฑ์']||'').trim();
-      if(!id || id === '0' || !name) return;
-      stockMap[id] = { qty:num(r['จำนวน']), unitPrice:num(r['ราคาต่อหน่วย']), value:num(r['รวมมูลค่า']), group:String(r['ชื่อกลุ่ม']||'').trim(), name:name };
-    });
-    function buildFloorMap(rows){
-      var m = {};
-      rows.forEach(function(r){
-        var id = String(r.meditem||'').trim();
-        if(!id || id === '0') return;
-        m[id] = { qty:num(r.stkqty), costrate:num(r.costrate), name:String(r.medname||'').trim() };
-      });
-      return m;
-    }
-    var floorGMap = buildFloorMap(floorGRows);
-    var floor1Map = buildFloorMap(floor1Rows);
-    var procMap = {};
-    procRows.forEach(function(r){
-      var id = String(r.meditem||'').trim();
-      if(!id || id === '0') return;
-      procMap[id] = { lowrate:num(r.lowrate), highrate:num(r.highrate), userate:num(r.userate), sumqty:num(r.sumqty) };
-    });
     var regMap = {};
-    regRows.forEach(function(r){
-      var id = String(r.hospdrugid||'').trim();
-      if(!id || id === '0') return;
-      regMap[id] = { gpucode:String(r.gpucode||'').trim() };
+    normalizeRows(wb.Sheets['ทะเบียน']).forEach(function(r){
+      var id = idOf(r.hospdrugid);
+      if(id) regMap[id] = { regType:squash(r.medrgttype_name), costrate:num(r.costrate) };
+    });
+    var groupMap = {};
+    var locMaps = {};
+    var missingSheets = [];
+    LOCATIONS.forEach(function(loc){
+      var m = {};
+      var ws = wb.Sheets[loc.sheet];
+      if(!ws){ missingSheets.push(loc.sheet); locMaps[loc.id] = m; return; }
+      normalizeRows(ws).forEach(function(r){
+        if(loc.kind === 'central'){
+          var id = idOf(r['รหัสเวชภัณฑ์']);
+          if(!id || !squash(r['ชื่อเวชภัณฑ์'])) return;
+          var qty = num(r['จำนวน']);
+          var value = num(r['รวมมูลค่า']) || qty * num(r['ราคาต่อหน่วย']);
+          var prev = m[id] || { qty:0, value:0 };
+          m[id] = { qty:prev.qty + qty, value:prev.value + value };
+          var g = squash(r['ชื่อกลุ่ม']);
+          if(g && g.indexOf('ประเภท') !== 0) groupMap[id] = g;
+        } else {
+          var fid = idOf(r.meditem);
+          if(!fid) return;
+          var fq = num(r.stkqty);
+          var reg = regMap[fid];
+          var cost = reg && reg.costrate > 0 ? reg.costrate : num(r.costrate);
+          var fprev = m[fid] || { qty:0, value:0 };
+          m[fid] = { qty:fprev.qty + fq, value:fprev.value + fq * cost };
+        }
+      });
+      locMaps[loc.id] = m;
+    });
+    var procMap = {};
+    normalizeRows(wb.Sheets['จัดหา']).forEach(function(r){
+      var id = idOf(r.meditem);
+      if(id) procMap[id] = { lowrate:num(r.lowrate), highrate:num(r.highrate), userate:num(r.userate) };
     });
 
     var items = main.map(function(r){
-      var id = String(r.hospcode||'').trim();
+      var id = idOf(r.hospcode);
+      if(!id) return null;
+      var stock = {};
+      LOCATIONS.forEach(function(loc){ stock[loc.id] = locMaps[loc.id][id] || { qty:0, value:0 }; });
+      var regType = squash(r.medrgttype_name) || (regMap[id] ? regMap[id].regType : '') || REG_UNKNOWN;
       return {
         hospcode:id,
-        generic:String(r.generic||'').trim(),
-        tradename:String(r.tradename||'').trim(),
-        content:String(r.content||'').trim(),
-        packsize:num(r.packsize),
-        unitprice:num(r.unitprice),
-        listWant:num(r['list want']),
-        distribute:String(r.distribute||'').trim(),
-        manufact:String(r.manufact||'').trim(),
-        isedRaw:String(r.ised||'').trim(),
-        ndc24:String(r.ndc24||'').trim(),
-        central: stockMap[id] || null,
-        floorG: floorGMap[id] || null,
-        floor1: floor1Map[id] || null,
-        proc: procMap[id] || null,
-        gpucode: regMap[id] ? regMap[id].gpucode : ''
+        generic:squash(r.generic),
+        tradename:squash(r.tradename),
+        regType:regType,
+        isedRaw:squash(r.ised),
+        acct:acctKey(r.ised),
+        group:groupMap[id] || '',
+        distribute:squash(r.distribute),
+        stock:stock,
+        proc:procMap[id] || null
       };
-    }).filter(function(it){ return it.hospcode && it.hospcode !== '0'; });
+    }).filter(Boolean);
 
-    var meta = {
-      totalItems: items.length,
-      centralMatched: items.filter(function(i){return i.central;}).length,
-      floorGMatched: items.filter(function(i){return i.floorG;}).length,
-      floor1Matched: items.filter(function(i){return i.floor1;}).length,
-      procMatched: items.filter(function(i){return i.proc;}).length
+    var extraRegs = [];
+    items.forEach(function(it){ if(REG_TYPES.indexOf(it.regType) < 0 && extraRegs.indexOf(it.regType) < 0) extraRegs.push(it.regType); });
+    return {
+      items:items,
+      regList:REG_TYPES.concat(extraRegs),
+      meta:{ total:items.length, withProc:items.filter(function(i){ return i.proc; }).length, missingSheets:missingSheets,
+             hasColZ: main.length > 0 && Object.prototype.hasOwnProperty.call(main[0], 'medrgttype_name') }
     };
-    return { items:items, meta:meta };
   }
 
-  function showError(msg){
-    var bar = document.getElementById('errorbar');
-    bar.textContent = msg; bar.classList.add('show');
-  }
+  function showError(msg){ var b = document.getElementById('errorbar'); b.textContent = msg; b.classList.add('show'); }
   function hideError(){ document.getElementById('errorbar').classList.remove('show'); }
+
+  function resetFilters(){ state.room = 'all'; state.reg = 'all'; state.acct = 'all'; state.search = ''; document.getElementById('item-search').value = ''; }
 
   function handleFile(file){
     hideError();
@@ -528,18 +521,15 @@
       try{
         var wb = XLSX.read(e.target.result, { type:'array' });
         if(!wb.Sheets['รายการต้องจัดซื้อ']){
-          showError('ไม่พบชีต "รายการต้องจัดซื้อ" ในไฟล์นี้ กรุณาตรวจสอบว่าเป็นไฟล์รูปแบบเดียวกับที่ใช้อยู่ (ชื่อชีตต้องตรงกัน)');
+          showError('ไม่พบชีต "รายการต้องจัดซื้อ" ในไฟล์นี้ — ตรวจสอบว่าเป็นไฟล์รูปแบบเดียวกับที่ใช้อยู่และชื่อชีตตรงกัน');
           return;
         }
         var built = buildFromWorkbook(wb);
-        if(!built.items.length){
-          showError('อ่านไฟล์ได้ แต่ไม่พบแถวข้อมูลในชีต "รายการต้องจัดซื้อ"');
-          return;
-        }
-        state.mode = 'real'; state.items = built.items; state.meta = built.meta; state.fileName = file.name; state.room = 'all';
-        document.querySelectorAll('.chip[data-room]').forEach(function(c){ c.setAttribute('aria-pressed', c.getAttribute('data-room')==='all' ? 'true':'false'); });
-        updateSourceUI();
-        renderAll();
+        if(!built.items.length){ showError('อ่านไฟล์ได้ แต่ไม่พบแถวข้อมูลในชีต "รายการต้องจัดซื้อ"'); return; }
+        state.mode = 'real'; state.items = built.items; state.regList = built.regList; state.meta = built.meta; state.fileName = file.name;
+        resetFilters();
+        if(built.meta.missingSheets.length) showError('ไม่พบชีต: ' + built.meta.missingSheets.join(', ') + ' — ยอดของห้องนั้นจะเป็น 0');
+        updateSourceUI(); renderAll();
       }catch(err){
         showError('อ่านไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : String(err)));
       }
@@ -550,40 +540,45 @@
 
   function updateSourceUI(){
     var badge = document.getElementById('mode-badge');
-    var srcbar = document.getElementById('sourcebar');
+    var bar = document.getElementById('sourcebar');
     if(state.mode === 'real'){
       badge.classList.add('real');
       badge.innerHTML = '<span class="dot"></span>ข้อมูลจริงจากไฟล์ที่นำเข้า';
-      srcbar.classList.add('show');
+      bar.classList.add('show');
       document.getElementById('src-filename').textContent = state.fileName;
       var m = state.meta;
       document.getElementById('src-stats').innerHTML =
-        '<span>' + fmt(m.totalItems) + ' รายการทั้งหมด</span>' +
-        '<span>จับคู่คลังกลาง ' + fmt(m.centralMatched) + '</span>' +
-        '<span>จับคู่ชั้น G ' + fmt(m.floorGMatched) + '</span>' +
-        '<span>จับคู่ชั้น 1 ' + fmt(m.floor1Matched) + '</span>' +
-        '<span>มีอัตราการใช้ ' + fmt(m.procMatched) + '</span>';
+        '<span>ในทะเบียน ' + fmt(m.total) + ' รายการ</span>' +
+        '<span>มีอัตราการใช้ ' + fmt(m.withProc) + ' รายการ</span>' +
+        '<span>ทะเบียนอ่านจาก ' + (m.hasColZ ? 'คอลัมน์ medrgttype_name' : 'ชีตทะเบียน') + '</span>';
     } else {
       badge.classList.remove('real');
-      badge.innerHTML = '<span class="dot"></span>กำลังแสดงข้อมูลตัวอย่าง 15 รายการ — ลากไฟล์จริงมาวางเพื่อแทนที่';
-      srcbar.classList.remove('show');
+      badge.innerHTML = '<span class="dot"></span>ข้อมูลตัวอย่าง — ลากไฟล์จริงมาวางเพื่อแทนที่';
+      bar.classList.remove('show');
     }
   }
 
   document.getElementById('btn-reset').addEventListener('click', function(){
-    state.mode = 'sample'; state.items = SAMPLE_ITEMS; state.meta = null; state.fileName = ''; state.room = 'all';
-    document.querySelectorAll('.chip[data-room]').forEach(function(c){ c.setAttribute('aria-pressed', c.getAttribute('data-room')==='all' ? 'true':'false'); });
-    hideError(); updateSourceUI(); renderAll();
+    state.mode = 'sample'; state.items = SAMPLE_ITEMS; state.regList = REG_TYPES.slice(); state.meta = null; state.fileName = '';
+    resetFilters(); hideError(); updateSourceUI(); renderAll();
   });
 
   var dz = document.getElementById('dropzone');
   var fileInput = document.getElementById('file-input');
   dz.addEventListener('click', function(){ fileInput.click(); });
-  dz.addEventListener('keydown', function(e){ if(e.key==='Enter' || e.key===' ') fileInput.click(); });
-  fileInput.addEventListener('change', function(){ if(fileInput.files[0]) handleFile(fileInput.files[0]); });
+  dz.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileInput.click(); } });
+  fileInput.addEventListener('change', function(){ if(fileInput.files[0]) handleFile(fileInput.files[0]); fileInput.value = ''; });
   ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.add('drag'); }); });
   ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.remove('drag'); }); });
   dz.addEventListener('drop', function(e){ var f = e.dataTransfer.files[0]; if(f) handleFile(f); });
+
+  /* ---------------- filtering ---------------- */
+  function activeLocIds(){ return state.room === 'all' ? LOCATIONS.map(function(l){ return l.id; }) : [state.room]; }
+  function qtyIn(it, ids){ var s = 0; ids.forEach(function(id){ s += it.stock[id] ? it.stock[id].qty : 0; }); return s; }
+  function valueIn(it, ids){ var s = 0; ids.forEach(function(id){ s += it.stock[id] ? it.stock[id].value : 0; }); return s; }
+  function matchReg(it){ return state.reg === 'all' || it.regType === state.reg; }
+  function matchAcct(it){ return state.acct === 'all' || it.acct === state.acct; }
+  function inStock(it){ return qtyIn(it, activeLocIds()) > 0; }
 
   /* ---------------- rendering ---------------- */
   var tooltip = document.getElementById('tooltip');
@@ -592,243 +587,223 @@
     el.addEventListener('mousemove', function(e){ tooltip.style.left = e.clientX + 'px'; tooltip.style.top = (e.clientY - 10) + 'px'; });
     el.addEventListener('mouseleave', function(){ tooltip.classList.remove('show'); });
   }
-  function barRow(label, value, max, color, valueText, tipText){
+  function barRow(label, value, max, color, valueHtml, tipText){
     var row = document.createElement('div'); row.className = 'barrow';
     var l = document.createElement('div'); l.className = 'rlabel'; l.textContent = label; l.title = label;
     var track = document.createElement('div'); track.className = 'track';
     var fill = document.createElement('div'); fill.className = 'fill';
-    fill.style.width = Math.max(2, (value / max) * 100) + '%';
+    fill.style.width = (max > 0 && value > 0 ? Math.max(1.5, value / max * 100) : 0) + '%';
     fill.style.background = color;
     bindTooltip(fill, tipText);
     track.appendChild(fill);
-    var v = document.createElement('div'); v.className = 'rvalue num'; v.textContent = valueText;
+    var v = document.createElement('div'); v.className = 'rvalue num'; v.innerHTML = valueHtml;
     row.appendChild(l); row.appendChild(track); row.appendChild(v);
     return row;
   }
-
-  function groupColorMap(items){
-    var totals = {};
-    items.forEach(function(it){
-      if(!it.central) return;
-      var g = it.central.group || '';
-      totals[g] = (totals[g]||0) + it.central.value;
-    });
-    var keys = Object.keys(totals).filter(function(k){ return k !== ''; }).sort(function(a,b){ return totals[b]-totals[a]; });
-    var palette = ['var(--cat-1)','var(--cat-2)','var(--cat-3)','var(--cat-4)','var(--cat-5)'];
-    var map = {};
-    keys.slice(0,5).forEach(function(k,i){ map[k] = palette[i]; });
-    return map;
+  function chip(label, pressed, onClick, opts){
+    opts = opts || {};
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (opts.sm ? ' sm' : '') + (opts.empty ? ' empty' : '');
+    b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    if(opts.color){ var sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = opts.color; b.appendChild(sw); }
+    b.appendChild(document.createTextNode(label));
+    if(opts.count != null){ var c = document.createElement('span'); c.className = 'cnt'; c.textContent = fmt(opts.count); b.appendChild(c); }
+    b.addEventListener('click', onClick);
+    return b;
   }
 
-  function renderCentral(){
-    var box = document.getElementById('chart-central'); box.innerHTML = '';
-    var withCentral = state.items.filter(function(it){ return it.central && it.central.qty > 0; })
-      .sort(function(a,b){ return b.central.qty - a.central.qty; }).slice(0,8);
-    if(!withCentral.length){ box.innerHTML = '<div class="table-note">ไม่มีข้อมูลคลังกลางที่จับคู่ได้</div>'; return; }
-    var max = withCentral[0].central.qty;
-    withCentral.forEach(function(it){
-      var label = it.tradename || it.generic;
-      box.appendChild(barRow(label, it.central.qty, max, 'var(--cat-1)', fmt1(it.central.qty), label + ' · ' + fmt1(it.central.qty) + ' (' + it.content + ')'));
+  function renderFilters(){
+    var roomBox = document.getElementById('room-chips'); roomBox.innerHTML = '';
+    var base = state.items.filter(function(it){ return matchReg(it) && matchAcct(it); });
+    var allIds = LOCATIONS.map(function(l){ return l.id; });
+    roomBox.appendChild(chip('ทั้งหมด', state.room === 'all', function(){ state.room = 'all'; renderAll(); },
+      { count: base.filter(function(it){ return qtyIn(it, allIds) > 0; }).length }));
+    LOCATIONS.forEach(function(loc){
+      roomBox.appendChild(chip(loc.label, state.room === loc.id, function(){ state.room = loc.id; renderAll(); },
+        { color:loc.color, count: base.filter(function(it){ return qtyIn(it, [loc.id]) > 0; }).length }));
+    });
+    var planned = document.createElement('button');
+    planned.type = 'button'; planned.className = 'chip planned'; planned.disabled = true;
+    planned.title = 'เตรียมรองรับห้องจ่ายยาเพิ่มปี 70–71 — ยังไม่มีข้อมูล';
+    planned.textContent = PLANNED_ROOM_LABEL;
+    roomBox.appendChild(planned);
+
+    var regBox = document.getElementById('reg-chips'); regBox.innerHTML = '';
+    var regBase = state.items.filter(function(it){ return inStock(it) && matchAcct(it); });
+    regBox.appendChild(chip('ทั้งหมด', state.reg === 'all', function(){ state.reg = 'all'; renderAll(); }, { sm:true, count:regBase.length }));
+    state.regList.forEach(function(r){
+      var n = regBase.filter(function(it){ return it.regType === r; }).length;
+      regBox.appendChild(chip(r, state.reg === r, function(){ state.reg = r; renderAll(); }, { sm:true, count:n, empty:n === 0 }));
+    });
+
+    var acctBox = document.getElementById('acct-chips'); acctBox.innerHTML = '';
+    var acctBase = state.items.filter(function(it){ return inStock(it) && matchReg(it); });
+    acctBox.appendChild(chip('ทั้งหมด', state.acct === 'all', function(){ state.acct = 'all'; renderAll(); }, { sm:true, count:acctBase.length }));
+    ACCT_CATS.forEach(function(c){
+      var n = acctBase.filter(function(it){ return it.acct === c.key; }).length;
+      acctBox.appendChild(chip(c.label, state.acct === c.key, function(){ state.acct = c.key; renderAll(); }, { sm:true, count:n, empty:n === 0 }));
     });
   }
 
-  function renderFloor(room){
-    var box = document.getElementById('chart-floor'); box.innerHTML = '';
-    var items = state.items.map(function(it){
-      var g = room === 'G' ? (it.floorG?it.floorG.qty:0) : room === '1' ? (it.floor1?it.floor1.qty:0) : ((it.floorG?it.floorG.qty:0)+(it.floor1?it.floor1.qty:0));
-      return { it:it, v:g };
-    }).filter(function(x){ return x.v > 0; }).sort(function(a,b){ return b.v-a.v; }).slice(0,8);
-    if(!items.length){ box.innerHTML = '<div class="table-note">ไม่มีข้อมูลหน่วยย่อยที่จับคู่ได้สำหรับมุมมองนี้</div>'; return; }
-    var max = items[0].v;
-    items.forEach(function(x){
-      var label = x.it.tradename || x.it.generic;
-      box.appendChild(barRow(label, x.v, max, 'var(--cat-2)', fmt1(x.v), label + ' · ' + fmt1(x.v) + ' (' + x.it.content + ')'));
-    });
+  function renderKpis(visible){
+    var ids = activeLocIds();
+    document.getElementById('kpi-items').innerHTML = fmt(visible.length) + '<span class="unit">รายการ</span>';
+    document.getElementById('kpi-items-foot').innerHTML = LOCATIONS.filter(function(l){ return ids.indexOf(l.id) >= 0; }).map(function(l){
+      return '<span>' + l.short + ' ' + fmt(visible.filter(function(it){ return qtyIn(it, [l.id]) > 0; }).length) + '</span>';
+    }).join('') + (ids.length > 1 ? '<span>(ยาที่อยู่หลายห้องนับเป็น 1)</span>' : '');
+
+    var ed = visible.filter(function(it){ return ACCT_BY_KEY[it.acct].group === 'ED'; }).length;
+    var ned = visible.filter(function(it){ return ACCT_BY_KEY[it.acct].group === 'NED'; }).length;
+    var other = visible.length - ed - ned;
+    document.getElementById('kpi-ed').innerHTML = fmt(ed) + ' / ' + fmt(ned);
+    var both = ed + ned;
+    document.getElementById('kpi-ed-foot').innerHTML = both
+      ? '<span>ED ' + Math.round(ed / both * 100) + ' : NED ' + (100 - Math.round(ed / both * 100)) + ' ต่อ 100 รายการ</span><span>ไม่รวมประเภทอื่น ' + fmt(other) + ' รายการ</span>'
+      : '<span>ไม่มีรายการ ED/NED ในตัวกรองนี้</span>';
+
+    var total = visible.reduce(function(s, it){ return s + valueIn(it, ids); }, 0);
+    document.getElementById('kpi-value').innerHTML = '<span class="unit" style="margin:0 2px 0 0">฿</span>' + fmt(total);
+    document.getElementById('kpi-value-foot').innerHTML = LOCATIONS.filter(function(l){ return ids.indexOf(l.id) >= 0; }).map(function(l){
+      return '<span>' + l.short + ' ฿' + fmt(visible.reduce(function(s, it){ return s + valueIn(it, [l.id]); }, 0)) + '</span>';
+    }).join('');
   }
 
-  function renderProportion(){
-    var mode = state.edCountMode;
-    var buckets = { ED:0, NED:0, nondrug:0, unclassified:0 };
-    var edGpuSet = {}, nedGpuSet = {};
-    state.items.forEach(function(it){
-      var cls = classifyISED(it.isedRaw);
-      if(mode === 'item'){
-        buckets[cls] = (buckets[cls]||0) + 1;
-      } else {
-        if(!it.gpucode) return;
-        if(cls === 'ED') edGpuSet[it.gpucode] = 1;
-        else if(cls === 'NED') nedGpuSet[it.gpucode] = 1;
-      }
-    });
-    var ed, ned, excluded, excludedLabel;
-    if(mode === 'item'){
-      ed = buckets.ED; ned = buckets.NED;
-      excluded = buckets.nondrug + buckets.unclassified;
-      excludedLabel = 'ไม่รวมเวชภัณฑ์ที่ไม่ใช่ยา/ไม่ระบุประเภท ' + fmt(excluded) + ' รายการ';
-    } else {
-      ed = Object.keys(edGpuSet).length; ned = Object.keys(nedGpuSet).length;
-      var withGpu = state.items.filter(function(it){ return it.gpucode; }).length;
-      excluded = state.items.length - withGpu;
-      excludedLabel = 'นับเฉพาะรายการที่มีรหัส GPU (ไม่รวม ' + fmt(excluded) + ' รายการที่ไม่มีรหัส GPU)';
-    }
-    var total = ed + ned;
-    var edPct = total ? Math.round((ed/total)*100) : 0;
-    var nedPct = 100 - edPct;
+  function renderAcct(){
+    var base = state.items.filter(function(it){ return inStock(it) && matchReg(it); });
+    var total = base.length;
+    var counts = {};
+    ACCT_CATS.forEach(function(c){ counts[c.key] = 0; });
+    base.forEach(function(it){ counts[it.acct]++; });
+    var groups = { ED:0, NED:0, other:0 };
+    ACCT_CATS.forEach(function(c){ groups[c.group] += counts[c.key]; });
+
     var bar = document.getElementById('prop-bar'); bar.innerHTML = '';
     if(total){
-      var segEd = document.createElement('div'); segEd.className = 'prop-seg';
-      segEd.style.width = edPct + '%'; segEd.style.background = 'var(--good)';
-      segEd.textContent = 'ED ' + ed + ' (' + edPct + ')';
-      var segNed = document.createElement('div'); segNed.className = 'prop-seg';
-      segNed.style.width = nedPct + '%'; segNed.style.background = 'var(--ink-faint)';
-      segNed.textContent = 'NED ' + ned + ' (' + nedPct + ')';
-      bar.appendChild(segEd); bar.appendChild(segNed);
-    } else {
-      bar.innerHTML = '<div class="table-note" style="padding:8px">ไม่มีข้อมูลเพียงพอสำหรับมุมมองนี้</div>';
+      [['ED','ED'],['NED','NED'],['other','อื่น ๆ']].forEach(function(g){
+        var n = groups[g[0]]; if(!n) return;
+        var per = n / total * 100;
+        var seg = document.createElement('div'); seg.className = 'prop-seg';
+        seg.style.width = per + '%'; seg.style.background = GROUP_COLOR[g[0]];
+        seg.textContent = per >= 8 ? g[1] + ' ' + Math.round(per) : '';
+        bindTooltip(seg, g[1] + ' · ' + fmt(n) + ' รายการ · ' + fmt1(per) + ' ต่อ 100');
+        bar.appendChild(seg);
+      });
     }
-    document.getElementById('prop-footnote').textContent = excludedLabel;
-    return { ed:ed, ned:ned, total:total };
+
+    var box = document.getElementById('chart-acct'); box.innerHTML = '';
+    var max = Math.max.apply(null, ACCT_CATS.map(function(c){ return counts[c.key]; }).concat([1]));
+    ACCT_CATS.forEach(function(c){
+      var n = counts[c.key];
+      var per = total ? n / total * 100 : 0;
+      var row = barRow(c.label, n, max, GROUP_COLOR[c.group],
+        fmt(n) + ' <small>· ' + fmt1(per) + '/100</small>', c.label + ' · ' + fmt(n) + ' รายการ · ' + fmt1(per) + ' ต่อ 100');
+      row.classList.add('clickable');
+      if(state.acct === c.key) row.classList.add('selected');
+      else if(state.acct !== 'all') row.classList.add('dim');
+      row.setAttribute('role','button'); row.tabIndex = 0;
+      var toggle = function(){ state.acct = state.acct === c.key ? 'all' : c.key; renderAll(); };
+      row.addEventListener('click', toggle);
+      row.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
+      box.appendChild(row);
+    });
   }
 
-  document.querySelectorAll('#ed-toggle button').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      document.querySelectorAll('#ed-toggle button').forEach(function(b){ b.classList.remove('active'); });
-      btn.classList.add('active');
-      state.edCountMode = btn.getAttribute('data-mode');
-      renderAll();
+  function renderValue(visible){
+    var ids = activeLocIds();
+    var locBox = document.getElementById('chart-value-loc'); locBox.innerHTML = '';
+    var locVals = LOCATIONS.filter(function(l){ return ids.indexOf(l.id) >= 0; }).map(function(l){
+      return { l:l, v:visible.reduce(function(s, it){ return s + valueIn(it, [l.id]); }, 0) };
     });
-  });
+    var maxL = Math.max.apply(null, locVals.map(function(x){ return x.v; }).concat([1]));
+    locVals.forEach(function(x){
+      locBox.appendChild(barRow(x.l.label, x.v, maxL, x.l.color, '฿' + fmt(x.v), x.l.label + ' · ฿' + fmt(x.v)));
+    });
+
+    var totals = {};
+    visible.forEach(function(it){
+      var v = valueIn(it, ids); if(v <= 0) return;
+      var g = it.group || 'ไม่ระบุกลุ่ม';
+      totals[g] = (totals[g] || 0) + v;
+    });
+    var entries = Object.keys(totals).map(function(k){ return { g:k, v:totals[k] }; }).sort(function(a, b){ return b.v - a.v; });
+    var named = entries.filter(function(e){ return e.g !== 'ไม่ระบุกลุ่ม'; });
+    var top = named.slice(0, 5);
+    var rest = named.slice(5).reduce(function(s, e){ return s + e.v; }, 0);
+    var palette = ['var(--cat-1)','var(--cat-2)','var(--cat-3)','var(--cat-4)','var(--cat-5)'];
+    var rows = top.map(function(e, i){ return { label:'กลุ่ม ' + e.g, v:e.v, color:palette[i] }; });
+    if(rest > 0) rows.push({ label:'กลุ่มอื่น ๆ (' + (named.length - 5) + ' กลุ่ม)', v:rest, color:'var(--ink-faint)' });
+    if(totals['ไม่ระบุกลุ่ม']) rows.push({ label:'ไม่ระบุกลุ่ม', v:totals['ไม่ระบุกลุ่ม'], color:'var(--border-strong)' });
+    var gBox = document.getElementById('chart-value-group'); gBox.innerHTML = '';
+    if(!rows.length){ gBox.innerHTML = '<div class="table-note">ไม่มีมูลค่าในตัวกรองนี้</div>'; return; }
+    var maxG = Math.max.apply(null, rows.map(function(r){ return r.v; }));
+    rows.forEach(function(r){ gBox.appendChild(barRow(r.label, r.v, maxG, r.color, '฿' + fmt(r.v), r.label + ' · ฿' + fmt(r.v))); });
+  }
 
   function renderRates(){
-    var withProc = state.items.filter(function(it){ return it.proc; });
-    var rows = withProc.map(function(it){
-      var status = 'normal';
-      if(it.proc.userate < it.proc.lowrate) status = 'low';
-      else if(it.proc.userate > it.proc.highrate) status = 'high';
-      return { it:it, status:status };
-    });
+    var STATUS_LABEL = { high:'สูงกว่าเกณฑ์', low:'ต่ำกว่าเกณฑ์', normal:'ปกติ' };
     var order = { high:0, low:1, normal:2 };
-    rows.sort(function(a,b){ return order[a.status]-order[b.status] || b.it.proc.userate - a.it.proc.userate; });
+    var rows = state.items.filter(function(it){ return it.proc && matchReg(it) && matchAcct(it); }).map(function(it){
+      var s = 'normal';
+      if(it.proc.userate < it.proc.lowrate) s = 'low';
+      else if(it.proc.userate > it.proc.highrate) s = 'high';
+      return { it:it, status:s };
+    }).sort(function(a, b){ return order[a.status] - order[b.status] || a.it.hospcode.localeCompare(b.it.hospcode, undefined, { numeric:true }); });
     var counts = { high:0, low:0, normal:0 };
     rows.forEach(function(r){ counts[r.status]++; });
     document.getElementById('rate-summary').innerHTML =
       '<span><span class="pill status-high">สูงกว่าเกณฑ์</span> ' + counts.high + '</span>' +
       '<span><span class="pill status-low">ต่ำกว่าเกณฑ์</span> ' + counts.low + '</span>' +
       '<span><span class="pill status-normal">ปกติ</span> ' + counts.normal + '</span>' +
-      '<span style="color:var(--ink-faint)">จากทั้งหมด ' + fmt(rows.length) + ' รายการที่มีข้อมูลอัตราการใช้</span>';
-    var STATUS_LABEL = { high:'สูงกว่าเกณฑ์', low:'ต่ำกว่าเกณฑ์', normal:'ปกติ' };
-    var body = document.getElementById('rate-table'); body.innerHTML = '';
-    if(!rows.length){
-      body.innerHTML = '<tr><td colspan="6" class="table-note" style="padding:14px">ไม่มีข้อมูลอัตราการใช้ในไฟล์นี้ (ต้องมีชีต "จัดหา")</td></tr>';
-      return;
+      '<span>จาก ' + fmt(rows.length) + ' รายการที่มีข้อมูลอัตราการใช้</span>';
+    var body = document.getElementById('rate-table');
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="6" class="table-note" style="padding:14px">ไม่มีข้อมูลอัตราการใช้ในตัวกรองนี้</td></tr>'; return; }
+    body.innerHTML = rows.map(function(r){
+      return '<tr><td>' + esc(r.it.hospcode) + '</td><td>' + esc(r.it.tradename || r.it.generic) + '</td>' +
+        '<td class="mono">' + fmt1(r.it.proc.lowrate) + '</td><td class="mono">' + fmt1(r.it.proc.userate) + '</td><td class="mono">' + fmt1(r.it.proc.highrate) + '</td>' +
+        '<td><span class="pill status-' + r.status + '">' + STATUS_LABEL[r.status] + '</span></td></tr>';
+    }).join('');
+  }
+
+  function renderTable(visible){
+    var q = state.search.trim().toLowerCase();
+    var rows = visible.filter(function(it){
+      return !q || (it.hospcode + ' ' + it.generic + ' ' + it.tradename + ' ' + it.distribute).toLowerCase().indexOf(q) >= 0;
+    }).sort(function(a, b){ return a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
+    var ids = activeLocIds();
+    function cell(it, id){
+      var qn = it.stock[id] ? it.stock[id].qty : 0;
+      return '<td class="mono' + (qn ? '' : ' zero') + '">' + (qn ? fmt1(qn) : '–') + '</td>';
     }
-    rows.forEach(function(r){
-      var tr = document.createElement('tr');
-      var label = r.it.tradename || r.it.generic;
-      tr.innerHTML =
-        '<td class="mono">'+r.it.hospcode+'</td>' +
-        '<td>'+label+'</td>' +
-        '<td class="mono">'+fmt1(r.it.proc.lowrate)+'</td>' +
-        '<td class="mono">'+fmt1(r.it.proc.userate)+'</td>' +
-        '<td class="mono">'+fmt1(r.it.proc.highrate)+'</td>' +
-        '<td><span class="pill status-'+r.status+'">'+STATUS_LABEL[r.status]+'</span></td>';
-      body.appendChild(tr);
-    });
+    document.getElementById('item-table').innerHTML = rows.length ? rows.map(function(it){
+      var cat = ACCT_BY_KEY[it.acct];
+      return '<tr><td>' + esc(it.hospcode) + '</td><td>' + esc(it.generic) + '</td><td>' + esc(it.tradename) + '</td>' +
+        '<td>' + esc(it.regType) + '</td>' +
+        '<td><span class="pill' + (cat.group === 'ED' ? ' ed' : '') + '">' + esc(it.acct === 'other' ? (it.isedRaw || 'ไม่ระบุ') : cat.label) + '</span></td>' +
+        cell(it, 'central') + cell(it, 'G') + cell(it, '1') +
+        '<td class="mono">' + fmt(valueIn(it, ids)) + '</td><td>' + esc(it.distribute) + '</td></tr>';
+    }).join('') : '<tr><td colspan="10" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
+    document.getElementById('item-count').textContent = 'แสดง ' + fmt(rows.length) + ' รายการ' + (q ? ' (จาก ' + fmt(visible.length) + ')' : '');
   }
-
-  function itemFloorValue(it, room){
-    var v = 0;
-    if(room !== '1' && it.floorG) v += it.floorG.qty * it.floorG.costrate;
-    if(room !== 'G' && it.floor1) v += it.floor1.qty * it.floor1.costrate;
-    return v;
-  }
-
-  function renderGpsc(room){
-    var colorMap = groupColorMap(state.items);
-    var totals = {};
-    state.items.forEach(function(it){
-      var g = it.central ? (it.central.group || '') : '';
-      var v = (it.central ? it.central.value : 0) + itemFloorValue(it, room);
-      if(v <= 0) return;
-      var key = colorMap[g] ? g : 'อื่นๆ';
-      totals[key] = (totals[key]||0) + v;
-    });
-    var entries = Object.keys(totals).map(function(k){ return { g:k, v:totals[k] }; }).sort(function(a,b){ return b.v-a.v; });
-    var total = entries.reduce(function(s,e){ return s+e.v; }, 0);
-    document.getElementById('value-total').textContent = '฿' + fmtMoney(total);
-    document.getElementById('stock-group-total').textContent = ' ' + fmtMoney(state.items.reduce(function(s,it){ return s + (it.central?it.central.value:0); },0)) + ' ';
-    var box = document.getElementById('chart-gpsc'); box.innerHTML = '';
-    if(!entries.length){ box.innerHTML = '<div class="table-note">ไม่มีข้อมูลมูลค่าคงคลังที่จับคู่ได้</div>'; return total; }
-    var max = entries[0].v;
-    entries.forEach(function(e){
-      var color = colorMap[e.g] || 'var(--ink-faint)';
-      var label = e.g === 'อื่นๆ' || !e.g ? 'ไม่ระบุกลุ่ม / อื่นๆ' : 'กลุ่ม ' + e.g;
-      box.appendChild(barRow(label, e.v, max, color, '฿'+fmtMoney(e.v), label + ' · ฿' + fmtMoney(e.v)));
-    });
-    return total;
-  }
-
-  function renderTable(){
-    var body = document.getElementById('import-table'); body.innerHTML = '';
-    var sorted = state.items.slice().sort(function(a,b){ return a.hospcode.localeCompare(b.hospcode, undefined, {numeric:true}); });
-    var LIMIT = 150;
-    var shown = sorted.slice(0, LIMIT);
-    shown.forEach(function(it){
-      var cls = classifyISED(it.isedRaw);
-      var tr = document.createElement('tr');
-      tr.innerHTML =
-        '<td class="mono">'+it.hospcode+'</td>' +
-        '<td>'+it.generic+'</td>' +
-        '<td>'+it.tradename+'</td>' +
-        '<td>'+it.content+'</td>' +
-        '<td class="mono">'+fmt(it.packsize)+'</td>' +
-        '<td class="mono">'+fmt(it.listWant)+'</td>' +
-        '<td class="mono">'+(it.central?fmt1(it.central.qty):'–')+'</td>' +
-        '<td class="mono">'+(it.floor1?fmt1(it.floor1.qty):'–')+'</td>' +
-        '<td class="mono">'+(it.floorG?fmt1(it.floorG.qty):'–')+'</td>' +
-        '<td>'+it.distribute+'</td>' +
-        '<td>'+it.manufact+'</td>' +
-        '<td><span class="pill '+(cls==='ED'?'ed':'ned')+'">'+(it.isedRaw||'-')+'</span></td>' +
-        '<td>'+(it.central?it.central.group||'–':'–')+'</td>';
-      body.appendChild(tr);
-    });
-    var note = document.getElementById('import-note');
-    note.textContent = sorted.length > LIMIT ? 'แสดง ' + fmt(LIMIT) + ' จากทั้งหมด ' + fmt(sorted.length) + ' รายการ (เรียงตาม hospcode)' : 'ทั้งหมด ' + fmt(sorted.length) + ' รายการ';
-  }
-
-  var currentRoom = 'all';
-  var ROOM_LABEL = { all:'ชั้น G + ชั้น 1', G:'ชั้น G เท่านั้น', '1':'ชั้น 1 เท่านั้น' };
 
   function renderAll(){
-    currentRoom = state.room;
-    var centralCount = state.items.filter(function(it){ return it.central && it.central.qty > 0; }).length;
-    document.getElementById('kpi-central').innerHTML = fmt(centralCount) + '<span class="unit">รายการ</span>';
-    var floorCount = state.items.filter(function(it){
-      var v = currentRoom==='G' ? (it.floorG?it.floorG.qty:0) : currentRoom==='1' ? (it.floor1?it.floor1.qty:0) : ((it.floorG?it.floorG.qty:0)+(it.floor1?it.floor1.qty:0));
-      return v > 0;
-    }).length;
-    document.getElementById('kpi-floor').innerHTML = fmt(floorCount) + '<span class="unit">รายการ</span>';
-    document.getElementById('kpi-floor-foot').textContent = ROOM_LABEL[currentRoom];
-
-    var prop = renderProportion();
-    document.getElementById('kpi-ed').innerHTML = prop.ed + ' / ' + prop.ned;
-    document.getElementById('kpi-ed-foot').textContent = prop.total ? ('ED ' + Math.round((prop.ed/prop.total)*100) + ' : NED ' + Math.round((prop.ned/prop.total)*100) + ' ต่อ 100 รายการ') : 'ไม่มีข้อมูล';
-
-    renderCentral();
-    renderFloor(currentRoom);
+    var visible = state.items.filter(function(it){ return inStock(it) && matchReg(it) && matchAcct(it); });
+    renderFilters();
+    renderKpis(visible);
+    renderAcct();
+    renderValue(visible);
     renderRates();
-    var total = renderGpsc(currentRoom);
-    document.getElementById('kpi-value').innerHTML = '฿' + fmtMoney(total);
-    renderTable();
+    renderTable(visible);
   }
 
-  document.querySelectorAll('.chip[data-room]').forEach(function(chip){
-    chip.addEventListener('click', function(){
-      document.querySelectorAll('.chip[data-room]').forEach(function(c){ c.setAttribute('aria-pressed','false'); });
-      chip.setAttribute('aria-pressed','true');
-      state.room = chip.getAttribute('data-room');
-      renderAll();
-    });
+  var searchTimer;
+  document.getElementById('item-search').addEventListener('input', function(e){
+    clearTimeout(searchTimer);
+    var v = e.target.value;
+    searchTimer = setTimeout(function(){
+      state.search = v;
+      renderTable(state.items.filter(function(it){ return inStock(it) && matchReg(it) && matchAcct(it); }));
+    }, 150);
   });
 
   renderAll();
