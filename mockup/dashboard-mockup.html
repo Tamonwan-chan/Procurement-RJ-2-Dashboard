@@ -173,6 +173,12 @@
   .pill.status-low{ background:var(--warning-soft); color:var(--warning); }
   .pill.status-normal{ background:var(--good-soft); color:var(--good); }
   .table-note{ font-size:12px; color:var(--ink-faint); margin-top:8px; }
+  .field-select{ width:auto; cursor:pointer; }
+  .check{ display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--ink); cursor:pointer; user-select:none; }
+  .check input{ width:16px; height:16px; accent-color:var(--accent); margin:0; cursor:pointer; }
+  tr.grp td{ background:var(--surface-2); font-weight:600; font-size:12.5px; padding:8px 12px; border-top:2px solid var(--border-strong); }
+  tr.grp .grp-meta{ font-weight:400; color:var(--ink-muted); margin-left:12px; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
+  tbody tr.grp:hover{ background:transparent; }
   tr.pick{ cursor:pointer; }
   tr.pick.sel, tr.pick.sel:hover{ background:var(--accent-soft); }
 
@@ -337,14 +343,24 @@
     <span class="hint">เรียงตาม hospcode · ตามตัวกรองด้านบน</span>
   </header>
   <div class="table-tools">
-    <input class="search" id="item-search" type="search" placeholder="ค้นหา hospcode / ชื่อยา / บริษัท" aria-label="ค้นหารายการยา">
+    <select class="search field-select" id="item-field" aria-label="ค้นหาในช่อง">
+      <option value="all">ค้นหาทุกช่อง</option>
+      <option value="hospcode">hospcode</option>
+      <option value="generic">generic</option>
+      <option value="tradename">ชื่อยา (tradename)</option>
+      <option value="distribute">distribute (บริษัท)</option>
+      <option value="ised">ised (ประเภทบัญชี)</option>
+    </select>
+    <input class="search" id="item-search" type="search" list="item-options" placeholder="พิมพ์คำค้นหา" aria-label="คำค้นหารายการยา">
+    <datalist id="item-options"></datalist>
+    <label class="check"><input type="checkbox" id="item-group"> จัดกลุ่มตามบริษัท (distribute)</label>
     <span class="table-note" id="item-count" style="margin:0"></span>
   </div>
   <div class="table-scroll">
     <table class="wide">
       <thead>
         <tr>
-          <th>hospcode</th><th>generic</th><th>tradename</th><th>ทะเบียน</th><th>ประเภทบัญชี</th>
+          <th>hospcode</th><th>generic</th><th>ชื่อยา (tradename)</th><th>ทะเบียน</th><th>ised (ประเภทบัญชี)</th>
           <th class="mono">คลังยา<br><small>หน่วยจัดหา</small></th><th class="mono">ชั้น G<br><small>หน่วยย่อย</small></th><th class="mono">ชั้น 1<br><small>หน่วยย่อย</small></th>
           <th class="mono">มูลค่า (บาท)</th><th>distribute</th>
         </tr>
@@ -461,7 +477,7 @@
     ];
   })();
 
-  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', rateSearch:'', rateStatus:'all', rateSel:null, fileName:'', meta:null, regList:REG_TYPES.slice() };
+  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', searchField:'all', groupByCompany:false, rateSearch:'', rateStatus:'all', rateSel:null, fileName:'', meta:null, regList:REG_TYPES.slice() };
 
   /* ---------------- Excel import ---------------- */
   function normalizeRows(ws){
@@ -526,7 +542,7 @@
         regType:regType,
         isedRaw:squash(r.ised),
         acct:acctKey(r.ised),
-        distribute:squash(r.distribute),
+        distribute:squash(r.distribute) === '0' ? '' : squash(r.distribute),
         stock:stock,
         proc:procMap[id] || null
       };
@@ -906,25 +922,75 @@
     }, 150);
   });
 
+  var NO_COMPANY = 'ไม่ระบุบริษัท';
+  function isedText(it){ return it.acct === 'other' ? (it.isedRaw || 'ไม่ระบุ') : ACCT_BY_KEY[it.acct].label; }
+  function fieldText(it, f){
+    if(f === 'hospcode') return it.hospcode;
+    if(f === 'generic') return it.generic;
+    if(f === 'tradename') return it.tradename;
+    if(f === 'distribute') return it.distribute;
+    if(f === 'ised') return isedText(it) + ' ' + it.isedRaw;
+    return [it.hospcode, it.generic, it.tradename, it.distribute, isedText(it), it.isedRaw].join(' ');
+  }
+
+  function renderItemOptions(visible){
+    var f = state.searchField, seen = {}, opts = [];
+    if(f === 'distribute' || f === 'ised' || f === 'generic'){
+      visible.forEach(function(it){
+        var v = f === 'ised' ? isedText(it) : f === 'generic' ? it.generic : (it.distribute || '');
+        if(v && !seen[v]){ seen[v] = 1; opts.push(v); }
+      });
+      opts.sort(function(a, b){ return a.localeCompare(b, 'th'); });
+    }
+    document.getElementById('item-options').innerHTML = opts.map(function(v){ return '<option value="' + esc(v) + '"></option>'; }).join('');
+  }
+
   function renderTable(visible){
+    renderItemOptions(visible);
     var q = state.search.trim().toLowerCase();
     var rows = visible.filter(function(it){
-      return !q || (it.hospcode + ' ' + it.generic + ' ' + it.tradename + ' ' + it.distribute).toLowerCase().indexOf(q) >= 0;
+      return !q || fieldText(it, state.searchField).toLowerCase().indexOf(q) >= 0;
     }).sort(function(a, b){ return a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
     var ids = activeLocIds();
     function cell(it, id){
       var qn = it.stock[id] ? it.stock[id].qty : 0;
       return '<td class="mono' + (qn ? '' : ' zero') + '">' + (qn ? fmt1(qn) : '–') + '</td>';
     }
-    document.getElementById('item-table').innerHTML = rows.length ? rows.map(function(it){
+    function rowHtml(it){
       var cat = ACCT_BY_KEY[it.acct];
       return '<tr><td>' + esc(it.hospcode) + '</td><td>' + esc(it.generic) + '</td><td>' + esc(it.tradename) + '</td>' +
         '<td>' + esc(it.regType) + '</td>' +
-        '<td><span class="pill' + (cat.group === 'ED' ? ' ed' : '') + '">' + esc(it.acct === 'other' ? (it.isedRaw || 'ไม่ระบุ') : cat.label) + '</span></td>' +
+        '<td><span class="pill' + (cat.group === 'ED' ? ' ed' : '') + '">' + esc(isedText(it)) + '</span></td>' +
         cell(it, 'central') + cell(it, 'G') + cell(it, '1') +
         '<td class="mono">' + fmt(valueIn(it, ids)) + '</td><td>' + esc(it.distribute) + '</td></tr>';
-    }).join('') : '<tr><td colspan="10" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
-    document.getElementById('item-count').textContent = 'แสดง ' + fmt(rows.length) + ' รายการ' + (q ? ' (จาก ' + fmt(visible.length) + ')' : '');
+    }
+
+    var body = document.getElementById('item-table');
+    var countText = 'แสดง ' + fmt(rows.length) + ' รายการ' + (q ? ' (จาก ' + fmt(visible.length) + ')' : '');
+    if(!rows.length){
+      body.innerHTML = '<tr><td colspan="10" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
+    } else if(state.groupByCompany){
+      var groups = {}, names = [];
+      rows.forEach(function(it){
+        var k = it.distribute || NO_COMPANY;
+        if(!groups[k]){ groups[k] = []; names.push(k); }
+        groups[k].push(it);
+      });
+      names.sort(function(a, b){
+        if(a === NO_COMPANY) return 1; if(b === NO_COMPANY) return -1;
+        return a.localeCompare(b, 'th');
+      });
+      body.innerHTML = names.map(function(k){
+        var list = groups[k];
+        var v = list.reduce(function(s, it){ return s + valueIn(it, ids); }, 0);
+        return '<tr class="grp"><td colspan="10">' + esc(k) + '<span class="grp-meta">' + fmt(list.length) + ' รายการ · ฿' + fmt(v) + '</span></td></tr>' +
+          list.map(rowHtml).join('');
+      }).join('');
+      countText += ' ใน ' + fmt(names.length) + ' บริษัท';
+    } else {
+      body.innerHTML = rows.map(rowHtml).join('');
+    }
+    document.getElementById('item-count').textContent = countText;
   }
 
   function renderAll(){
@@ -938,13 +1004,22 @@
     renderTable(visible);
   }
 
+  function visibleItems(){ return state.items.filter(function(it){ return inStock(it) && matchReg(it) && matchAcct(it); }); }
+  document.getElementById('item-field').addEventListener('change', function(e){
+    state.searchField = e.target.value;
+    renderTable(visibleItems());
+  });
+  document.getElementById('item-group').addEventListener('change', function(e){
+    state.groupByCompany = e.target.checked;
+    renderTable(visibleItems());
+  });
   var searchTimer;
   document.getElementById('item-search').addEventListener('input', function(e){
     clearTimeout(searchTimer);
     var v = e.target.value;
     searchTimer = setTimeout(function(){
       state.search = v;
-      renderTable(state.items.filter(function(it){ return inStock(it) && matchReg(it) && matchAcct(it); }));
+      renderTable(visibleItems());
     }, 150);
   });
 
