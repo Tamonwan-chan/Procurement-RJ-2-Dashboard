@@ -173,6 +173,22 @@
   .pill.status-low{ background:var(--warning-soft); color:var(--warning); }
   .pill.status-normal{ background:var(--good-soft); color:var(--good); }
   .table-note{ font-size:12px; color:var(--ink-faint); margin-top:8px; }
+  tr.pick{ cursor:pointer; }
+  tr.pick.sel, tr.pick.sel:hover{ background:var(--accent-soft); }
+
+  .rate-detail{ border:1px solid var(--border-strong); border-radius:var(--radius); padding:16px 18px; margin-bottom:14px; background:var(--surface); }
+  .rate-detail .rd-top{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:8px 16px; }
+  .rate-detail .rd-name{ font-size:16px; font-weight:600; }
+  .rate-detail .rd-meta{ font-size:12.5px; color:var(--ink-muted); margin-top:2px; display:flex; flex-wrap:wrap; gap:4px 12px; }
+  .rd-range{ position:relative; height:26px; margin:22px 0 6px; }
+  .rd-range .axis{ position:absolute; left:0; right:0; top:11px; height:4px; border-radius:2px; background:var(--surface-2); }
+  .rd-range .band{ position:absolute; top:7px; height:12px; border-radius:4px; background:var(--good-soft); border:1px solid var(--good); }
+  .rd-range .mark{ position:absolute; top:0; width:4px; height:26px; margin-left:-2px; border-radius:2px; }
+  .rd-range .mark-lbl{ position:absolute; top:-19px; transform:translateX(-50%); font-size:11.5px; font-weight:600; white-space:nowrap; font-family:"IBM Plex Mono",monospace; }
+  .rd-scale{ position:relative; height:16px; font-size:11px; color:var(--ink-faint); font-family:"IBM Plex Mono",monospace; }
+  .rd-scale span{ position:absolute; transform:translateX(-50%); white-space:nowrap; }
+  .rd-stock{ display:flex; flex-wrap:wrap; gap:6px 20px; margin-top:12px; font-size:13px; }
+  .rd-stock b{ font-family:"IBM Plex Mono",monospace; font-weight:600; }
 
   ol.qlist{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:14px; }
   ol.qlist li{ display:grid; grid-template-columns:30px 1fr; gap:10px; align-items:start; }
@@ -305,7 +321,13 @@
     <span class="hint">จากชีต "จัดหา" · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
   <p class="desc">เทียบอัตราการใช้จริง (userate) กับ lowrate / highrate — แสดงทุกรายการในรอบจัดซื้อ แม้สต็อกเป็น 0 เพราะเป็นรายการที่อาจต้องสั่งซื้อ</p>
-  <div class="legend" id="rate-summary"></div>
+  <div class="table-tools">
+    <input class="search" id="rate-search" type="search" list="rate-options" placeholder="เลือกหรือค้นหารายการยา (hospcode / ชื่อยา)" aria-label="เลือกรายการยา">
+    <datalist id="rate-options"></datalist>
+    <div class="chips" id="rate-status"></div>
+  </div>
+  <div class="rate-detail" id="rate-detail" hidden></div>
+  <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
   <div class="table-scroll" style="max-height:380px">
     <table>
       <thead><tr><th>hospcode</th><th>ชื่อยา</th><th class="mono">lowrate</th><th class="mono">userate</th><th class="mono">highrate</th><th>สถานะ</th></tr></thead>
@@ -444,7 +466,7 @@
     ];
   })();
 
-  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', fileName:'', meta:null, regList:REG_TYPES.slice() };
+  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', rateSearch:'', rateStatus:'all', rateSel:null, fileName:'', meta:null, regList:REG_TYPES.slice() };
 
   /* ---------------- Excel import ---------------- */
   function normalizeRows(ws){
@@ -532,7 +554,12 @@
   function showError(msg){ var b = document.getElementById('errorbar'); b.textContent = msg; b.classList.add('show'); }
   function hideError(){ document.getElementById('errorbar').classList.remove('show'); }
 
-  function resetFilters(){ state.room = 'all'; state.reg = 'all'; state.acct = 'all'; state.search = ''; document.getElementById('item-search').value = ''; }
+  function resetFilters(){
+    state.room = 'all'; state.reg = 'all'; state.acct = 'all'; state.search = '';
+    state.rateSearch = ''; state.rateStatus = 'all'; state.rateSel = null;
+    document.getElementById('item-search').value = '';
+    document.getElementById('rate-search').value = '';
+  }
 
   function handleFile(file){
     hideError();
@@ -795,30 +822,99 @@
     rows.forEach(function(r){ gBox.appendChild(barRow(r.label, r.v, maxG, r.color, '฿' + fmt(r.v), r.label + ' · ฿' + fmt(r.v))); });
   }
 
+  var STATUS_LABEL = { high:'สูงกว่าเกณฑ์', low:'ต่ำกว่าเกณฑ์', normal:'ปกติ' };
+  function rateStatus(it){
+    if(it.proc.userate < it.proc.lowrate) return 'low';
+    if(it.proc.userate > it.proc.highrate) return 'high';
+    return 'normal';
+  }
+  function rateOptionLabel(it){ return it.hospcode + ' · ' + (it.tradename || it.generic); }
+
   function renderRates(){
-    var STATUS_LABEL = { high:'สูงกว่าเกณฑ์', low:'ต่ำกว่าเกณฑ์', normal:'ปกติ' };
     var order = { high:0, low:1, normal:2 };
-    var rows = state.items.filter(function(it){ return it.proc && matchReg(it) && matchAcct(it); }).map(function(it){
-      var s = 'normal';
-      if(it.proc.userate < it.proc.lowrate) s = 'low';
-      else if(it.proc.userate > it.proc.highrate) s = 'high';
-      return { it:it, status:s };
+    var pool = state.items.filter(function(it){ return it.proc && matchReg(it) && matchAcct(it); }).map(function(it){
+      return { it:it, status:rateStatus(it) };
     }).sort(function(a, b){ return order[a.status] - order[b.status] || a.it.hospcode.localeCompare(b.it.hospcode, undefined, { numeric:true }); });
+
+    document.getElementById('rate-options').innerHTML = pool.map(function(r){ return '<option value="' + esc(rateOptionLabel(r.it)) + '"></option>'; }).join('');
+
+    var q = state.rateSearch.trim().toLowerCase();
+    var searched = pool.filter(function(r){
+      return !q || rateOptionLabel(r.it).toLowerCase().indexOf(q) >= 0 || r.it.generic.toLowerCase().indexOf(q) >= 0;
+    });
     var counts = { high:0, low:0, normal:0 };
-    rows.forEach(function(r){ counts[r.status]++; });
-    document.getElementById('rate-summary').innerHTML =
-      '<span><span class="pill status-high">สูงกว่าเกณฑ์</span> ' + counts.high + '</span>' +
-      '<span><span class="pill status-low">ต่ำกว่าเกณฑ์</span> ' + counts.low + '</span>' +
-      '<span><span class="pill status-normal">ปกติ</span> ' + counts.normal + '</span>' +
-      '<span>จาก ' + fmt(rows.length) + ' รายการที่มีข้อมูลอัตราการใช้</span>';
+    searched.forEach(function(r){ counts[r.status]++; });
+
+    var statusBox = document.getElementById('rate-status'); statusBox.innerHTML = '';
+    statusBox.appendChild(chip('ทั้งหมด', state.rateStatus === 'all', function(){ state.rateStatus = 'all'; renderRates(); }, { sm:true, count:searched.length }));
+    ['high','low','normal'].forEach(function(s){
+      statusBox.appendChild(chip(STATUS_LABEL[s], state.rateStatus === s, function(){ state.rateStatus = s; renderRates(); }, { sm:true, count:counts[s], empty:!counts[s] }));
+    });
+
+    var rows = searched.filter(function(r){ return state.rateStatus === 'all' || r.status === state.rateStatus; });
+    document.getElementById('rate-count').textContent = 'แสดง ' + fmt(rows.length) + ' จาก ' + fmt(pool.length) + ' รายการที่มีข้อมูลอัตราการใช้ · คลิกรายการเพื่อดูรายละเอียด';
+
+    var selected = null;
+    pool.forEach(function(r){ if(r.it.hospcode === state.rateSel) selected = r; });
+    if(!selected) state.rateSel = null;
+    renderRateDetail(selected);
+
     var body = document.getElementById('rate-table');
-    if(!rows.length){ body.innerHTML = '<tr><td colspan="6" class="table-note" style="padding:14px">ไม่มีข้อมูลอัตราการใช้ในตัวกรองนี้</td></tr>'; return; }
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="6" class="table-note" style="padding:14px">ไม่พบรายการตามที่เลือก</td></tr>'; return; }
     body.innerHTML = rows.map(function(r){
-      return '<tr><td>' + esc(r.it.hospcode) + '</td><td>' + esc(r.it.tradename || r.it.generic) + '</td>' +
+      return '<tr class="pick' + (r.it.hospcode === state.rateSel ? ' sel' : '') + '" tabindex="0" data-hc="' + esc(r.it.hospcode) + '">' +
+        '<td>' + esc(r.it.hospcode) + '</td><td>' + esc(r.it.tradename || r.it.generic) + '</td>' +
         '<td class="mono">' + fmt1(r.it.proc.lowrate) + '</td><td class="mono">' + fmt1(r.it.proc.userate) + '</td><td class="mono">' + fmt1(r.it.proc.highrate) + '</td>' +
         '<td><span class="pill status-' + r.status + '">' + STATUS_LABEL[r.status] + '</span></td></tr>';
     }).join('');
   }
+
+  function renderRateDetail(r){
+    var box = document.getElementById('rate-detail');
+    if(!r){ box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    var it = r.it, p = it.proc;
+    var max =Math.max(p.highrate, p.userate, p.lowrate, 1) * 1.1;
+    function pos(v){ return (v / max * 100).toFixed(2) + '%'; }
+    var markColor = r.status === 'normal' ? 'var(--good)' : r.status === 'low' ? 'var(--warning)' : 'var(--critical)';
+    var cat = ACCT_BY_KEY[it.acct];
+    box.innerHTML =
+      '<div class="rd-top"><div>' +
+        '<div class="rd-name">' + esc(it.tradename || it.generic) + '</div>' +
+        '<div class="rd-meta"><span>hospcode ' + esc(it.hospcode) + '</span><span>' + esc(it.generic) + '</span><span>' + esc(it.regType) + '</span><span>' + esc(it.acct === 'other' ? (it.isedRaw || 'ไม่ระบุ') : cat.label) + '</span></div>' +
+      '</div><div style="display:flex;gap:8px;align-items:center"><span class="pill status-' + r.status + '">' + STATUS_LABEL[r.status] + '</span>' +
+        '<button type="button" class="btn-ghost" id="rate-detail-close">ปิด</button></div></div>' +
+      '<div class="rd-range" role="img" aria-label="userate ' + fmt1(p.userate) + ' เทียบช่วง lowrate ' + fmt1(p.lowrate) + ' ถึง highrate ' + fmt1(p.highrate) + '">' +
+        '<div class="axis"></div>' +
+        '<div class="band" style="left:' + pos(p.lowrate) + ';width:calc(' + pos(p.highrate) + ' - ' + pos(p.lowrate) + ')"></div>' +
+        '<div class="mark" style="left:' + pos(p.userate) + ';background:' + markColor + '"></div>' +
+        '<div class="mark-lbl" style="left:' + pos(p.userate) + ';color:' + markColor + '">userate ' + fmt1(p.userate) + '</div>' +
+      '</div>' +
+      '<div class="rd-scale"><span style="left:0;transform:none">0</span><span style="left:' + pos(p.lowrate) + '">low ' + fmt1(p.lowrate) + '</span><span style="left:' + pos(p.highrate) + '">high ' + fmt1(p.highrate) + '</span></div>' +
+      '<div class="rd-stock">' + LOCATIONS.map(function(l){
+        var s = it.stock[l.id]; return '<span>' + l.short + ' <b>' + fmt1(s ? s.qty : 0) + '</b></span>';
+      }).join('') + '<span>มูลค่ารวม <b>฿' + fmt(valueIn(it, LOCATIONS.map(function(l){ return l.id; }))) + '</b></span></div>';
+    document.getElementById('rate-detail-close').addEventListener('click', function(){ state.rateSel = null; renderRates(); });
+  }
+
+  function pickRate(hc){ state.rateSel = state.rateSel === hc ? null : hc; renderRates(); }
+  var rateBody = document.getElementById('rate-table');
+  rateBody.addEventListener('click', function(e){ var tr = e.target.closest('tr.pick'); if(tr) pickRate(tr.getAttribute('data-hc')); });
+  rateBody.addEventListener('keydown', function(e){
+    var tr = e.target.closest('tr.pick');
+    if(tr && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); pickRate(tr.getAttribute('data-hc')); }
+  });
+  var rateTimer;
+  document.getElementById('rate-search').addEventListener('input', function(e){
+    var v = e.target.value;
+    clearTimeout(rateTimer);
+    rateTimer = setTimeout(function(){
+      state.rateSearch = v;
+      var exact = state.items.filter(function(it){ return it.proc && rateOptionLabel(it) === v; })[0];
+      if(exact){ state.rateSel = exact.hospcode; state.rateStatus = 'all'; }
+      renderRates();
+    }, 150);
+  });
 
   function renderTable(visible){
     var q = state.search.trim().toLowerCase();
