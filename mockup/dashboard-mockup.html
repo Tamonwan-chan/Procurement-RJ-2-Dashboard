@@ -299,20 +299,15 @@
     <span class="hint">ตอบสนองตัวกรองด้านบน</span>
   </header>
   <p class="desc">คลังยา = "รวมมูลค่า" จากชีตคงคลัง · หน่วยย่อย (ชั้น G, ชั้น 1 และห้องใหม่ในอนาคต) = จำนวนคงเหลือ × costrate จากชีตทะเบียน</p>
-  <div class="two-col">
-    <div>
-      <div class="subhead">แยกตามที่เก็บ</div>
-      <div class="barlist" id="chart-value-loc"></div>
-    </div>
-    <div>
-      <div class="subhead">แยกตามกลุ่ม (ชื่อกลุ่มจากชีตคงคลัง)</div>
-      <div class="barlist" id="chart-value-group"></div>
-    </div>
+  <div class="subhead">แยกตามที่เก็บ</div>
+  <div class="barlist" id="chart-value-loc" style="margin-bottom:26px"></div>
+  <div class="subhead">แยกตามประเภทบัญชี — คลิกแถวเพื่อกรองทั้งหน้า</div>
+  <div class="legend">
+    <span><i style="background:var(--cat-5)"></i>บัญชี ED (ก ข ค ง จ(1) จ(2))</span>
+    <span><i style="background:var(--cat-4)"></i>NED</span>
+    <span><i style="background:var(--ink-faint)"></i>อื่น ๆ</span>
   </div>
-  <div class="callout">
-    <span class="badge">ต้องยืนยัน</span>
-    <p>ยังไม่มีคอลัมน์ gpscode ในไฟล์ — กราฟขวาใช้ "ชื่อกลุ่ม" (A, B, C, …) จากชีตคงคลังไปก่อน รายการที่มีเฉพาะในห้องย่อยจึงอยู่ในกลุ่ม "ไม่ระบุกลุ่ม"</p>
-  </div>
+  <div class="barlist" id="chart-value-acct"></div>
 </section>
 
 <section class="panel">
@@ -367,16 +362,16 @@
     <li>เพิ่มตัวกรองทะเบียน (6 ประเภท) และประเภทบัญชี (12 ประเภท) พร้อม "ทั้งหมด"</li>
     <li>เพิ่ม "รายการคลังยา" ในแถบมุมมองห้องยา และเตรียมโค้ดรองรับห้องจ่ายยาใหม่ปี 70–71 แล้ว</li>
     <li>มูลค่าหน่วยย่อย = จำนวน × costrate จากชีตทะเบียน</li>
+    <li>มูลค่าคงคลังแยกตามประเภทบัญชี 12 ประเภท แทน "ชื่อกลุ่ม" / gpscode</li>
   </ul>
   <ol class="qlist">
     <li><span class="qn">1</span><span class="qtext">ห้องจ่ายยาใหม่ปี 70–71 จะใช้ชื่อห้องและชื่อชีตใน Excel ว่าอะไร (โค้ดเตรียมไว้แล้ว เพิ่มชื่อชีตอย่างเดียวก็ใช้ได้)</span></li>
     <li><span class="qn">2</span><span class="qtext">ในสัดส่วน ED : NED — บัญชียาสมุนไพร, ยา Covid 19 และสูตรตำรับ รพ. ควรนับเป็น ED หรือไม่ (ตอนนี้ไม่นับทั้งฝั่ง ED และ NED แต่แสดงแยกในกราฟ) และ "R:restricted list (EDจ)" 2 รายการ ตอนนี้อยู่ในกลุ่ม "ไม่ระบุ" ถูกต้องไหม</span></li>
     <li><span class="qn">3</span><span class="qtext">คอลัมน์ inventory (P) ในชีตรายการต้องจัดซื้อ ไม่ตรงกับชีตคงคลัง 4 รายการ เช่น hospcode 1272010 (P = 4,650 แต่ชีตคงคลัง = 200) — ควรยึดตัวเลขจากที่ไหน (ตอนนี้ยึดชีตคงคลัง)</span></li>
-    <li><span class="qn">4</span><span class="qtext">"ชื่อกลุ่ม" (A, B, C, …) ในชีตคงคลัง คือกลุ่มเดียวกับ gpscode หรือไม่ ถ้าไม่ใช่ ขอตารางแม่บท gpscode มาจับคู่เพิ่ม<span class="from">อ้างอิง PRD: "มูลค่าคงคลัง 900,000.00 บาท ตาม gpscode"</span></span></li>
-    <li><span class="qn">5</span><span class="qtext">lowrate / highrate / userate ในชีตจัดหา คือเกณฑ์อัตราการใช้ต่ำสุด–สูงสุด เทียบกับอัตราการใช้จริง ใช่หรือไม่</span></li>
-    <li><span class="qn">6</span><span class="qtext">ในชีตทะเบียนยังมี "ทะเบียนรังสี" (256 รายการ) และ "ทะเบียนอวัยวะเทียม" แบบไม่มี (IR) (22 รายการ) — ต้องการให้เป็นตัวเลือกด้วยหรือไม่</span></li>
-    <li><span class="qn">7</span><span class="qtext">Import ไฟล์ใหม่ได้ทุกครั้งโดยใช้ชื่อชีตและหัวคอลัมน์เดิม — ต่อไปจะมีการเปลี่ยนชื่อชีตหรือหัวคอลัมน์หรือไม่</span></li>
-    <li><span class="qn">8</span><span class="qtext">drug cat — ต้องการ key เข้าเองในระบบ หรือ import ทับบัญชีเดิม (ชีต drugcat มี 4,335 รายการ)</span></li>
+    <li><span class="qn">4</span><span class="qtext">lowrate / highrate / userate ในชีตจัดหา คือเกณฑ์อัตราการใช้ต่ำสุด–สูงสุด เทียบกับอัตราการใช้จริง ใช่หรือไม่</span></li>
+    <li><span class="qn">5</span><span class="qtext">ในชีตทะเบียนยังมี "ทะเบียนรังสี" (256 รายการ) และ "ทะเบียนอวัยวะเทียม" แบบไม่มี (IR) (22 รายการ) — ต้องการให้เป็นตัวเลือกด้วยหรือไม่</span></li>
+    <li><span class="qn">6</span><span class="qtext">Import ไฟล์ใหม่ได้ทุกครั้งโดยใช้ชื่อชีตและหัวคอลัมน์เดิม — ต่อไปจะมีการเปลี่ยนชื่อชีตหรือหัวคอลัมน์หรือไม่</span></li>
+    <li><span class="qn">7</span><span class="qtext">drug cat — ต้องการ key เข้าเองในระบบ หรือ import ทับบัญชีเดิม (ชีต drugcat มี 4,335 รายการ)</span></li>
   </ol>
 </section>
 
@@ -436,33 +431,33 @@
 
   /* ---------------- sample data ---------------- */
   var SAMPLE_ITEMS = (function(){
-    function it(hospcode, generic, tradename, reg, ised, group, cQty, cVal, gQty, oneQty, costrate, rate, distribute){
+    function it(hospcode, generic, tradename, reg, ised, cQty, cVal, gQty, oneQty, costrate, rate, distribute){
       var stock = {
         central:{ qty:cQty, value:cVal },
         G:{ qty:gQty, value:gQty*costrate },
         '1':{ qty:oneQty, value:oneQty*costrate }
       };
       return { hospcode:hospcode, generic:generic, tradename:tradename, regType:reg, isedRaw:ised, acct:acctKey(ised),
-        group:group, distribute:distribute, stock:stock,
+        distribute:distribute, stock:stock,
         proc: rate ? { lowrate:rate[0], highrate:rate[1], userate:rate[2] } : null };
     }
     var D='ทะเบียนยา', C='ทะเบียนเภสัชเคมีภัณฑ์', N='ทะเบียนเวชภัณฑ์ที่มิใช่ยา', S='ทะเบียนยาตัวอย่าง (SAMPLE)';
     return [
-      it('1012110','bupivacaine','MARCAINE SPINAL HEAVY 0.5% 4 ML',D,'b:basic list (EDข)','C',180,25923,0,142,144.02,[40,160,52],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
-      it('2131822','doxazosin','CARDURA XL 4 MG TABLET',D,'NED','',0,0,14,591,23.5,[300,1200,410],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
-      it('2251286','paracetamol','PARACETAMOL 500 MG TABLET',D,'b:basic list (EDก)','A',80,36000,1223,1201,0.45,[5000,20000,15200],'องค์การเภสัชกรรม'),
-      it('2263090','acetylcysteine','ACETYLCYSTEINE 100 MG SACHET',D,'b:basic list (EDก)','A',400,25680,4077,1432,1.28,[900,3600,2400],'บริษัท เบอร์ลินฟาร์มาซูติคอลอินดัสตรี้ จำกัด'),
-      it('2272210','sodium acetate','ACETAR 1000 ML',D,'s:supplemental list (EDค)','S',120,5160,40,85,43,[232.5,930,232.5],'บริษัท วี.แอนด์.วี. จำกัด'),
-      it('2306697','abacavir + lamivudine','ABACAVIR 600 + LAMIVUDINE 300 TABLET',D,'ex:exclusive list (EDง)','L',0,0,28,0,28.67,null,'องค์การเภสัชกรรม'),
-      it('2307015','ammonia aromatic','แอมโมเนียหอม 15 ml',D,'b:basic list (EDก)','',0,0,12,20,15,null,'องค์การเภสัชกรรม'),
-      it('2307349','ceftriaxone','CEFTRIAXONE 1 G INJ',D,'R2:restricted list (EDจ(2))','M',20,9600,82,842,48,[600,2400,700],'บริษัท โรช ไทยแลนด์ จำกัด'),
-      it('2307517','molnupiravir','MOLNUPIRAVIR (GPO) 200 MG CAPSULE',D,'ยา Covid 19','',0,0,0,40,11.77,null,'องค์การเภสัชกรรม'),
-      it('2307967','risedronate','ACTONEL FCT 150 MG ONCE-A-MONTH',D,'NED','P',6,5136,0,4,856,[30,90,8.4],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
-      it('2308001','andrographis','ฟ้าทะลายโจร แคปซูล',D,'บัญชียาสมุนไพร','',0,0,300,120,1.1,null,'องค์การเภสัชกรรม'),
-      it('2309120','hq cream','HQ 5% IN CREAM BASE 500 GM (HF)',D,'สูตรตำรับ รพ.','',0,0,0,2,3035,null,'ผลิตใน รพ.'),
-      it('160044','formalin','10% NEUTRAL BUFFERED FORMALIN 1000 ML',C,'ไม่ระบุ','',0,0,0,2,140,null,'บริษัท เมดิทอป จำกัด'),
-      it('4381089','abdominal support','ABDOMINAL SUPPORT L 39-47"',N,'เวชภัณฑ์มิใช่ยา','',0,0,1,0,360,null,'บริษัท เมดิทอป จำกัด'),
-      it('2131856','pravastatin','MEVALOTIN PROTECT 40 MG',S,'NED','',0,0,0,0,11.5,[20,80,3],'บริษัท ซิลลิค ฟาร์มา จำกัด')
+      it('1012110','bupivacaine','MARCAINE SPINAL HEAVY 0.5% 4 ML',D,'b:basic list (EDข)',180,25923,0,142,144.02,[40,160,52],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
+      it('2131822','doxazosin','CARDURA XL 4 MG TABLET',D,'NED',0,0,14,591,23.5,[300,1200,410],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
+      it('2251286','paracetamol','PARACETAMOL 500 MG TABLET',D,'b:basic list (EDก)',80,36000,1223,1201,0.45,[5000,20000,15200],'องค์การเภสัชกรรม'),
+      it('2263090','acetylcysteine','ACETYLCYSTEINE 100 MG SACHET',D,'b:basic list (EDก)',400,25680,4077,1432,1.28,[900,3600,2400],'บริษัท เบอร์ลินฟาร์มาซูติคอลอินดัสตรี้ จำกัด'),
+      it('2272210','sodium acetate','ACETAR 1000 ML',D,'s:supplemental list (EDค)',120,5160,40,85,43,[232.5,930,232.5],'บริษัท วี.แอนด์.วี. จำกัด'),
+      it('2306697','abacavir + lamivudine','ABACAVIR 600 + LAMIVUDINE 300 TABLET',D,'ex:exclusive list (EDง)',0,0,28,0,28.67,null,'องค์การเภสัชกรรม'),
+      it('2307015','ammonia aromatic','แอมโมเนียหอม 15 ml',D,'b:basic list (EDก)',0,0,12,20,15,null,'องค์การเภสัชกรรม'),
+      it('2307349','ceftriaxone','CEFTRIAXONE 1 G INJ',D,'R2:restricted list (EDจ(2))',20,9600,82,842,48,[600,2400,700],'บริษัท โรช ไทยแลนด์ จำกัด'),
+      it('2307517','molnupiravir','MOLNUPIRAVIR (GPO) 200 MG CAPSULE',D,'ยา Covid 19',0,0,0,40,11.77,null,'องค์การเภสัชกรรม'),
+      it('2307967','risedronate','ACTONEL FCT 150 MG ONCE-A-MONTH',D,'NED',6,5136,0,4,856,[30,90,8.4],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
+      it('2308001','andrographis','ฟ้าทะลายโจร แคปซูล',D,'บัญชียาสมุนไพร',0,0,300,120,1.1,null,'องค์การเภสัชกรรม'),
+      it('2309120','hq cream','HQ 5% IN CREAM BASE 500 GM (HF)',D,'สูตรตำรับ รพ.',0,0,0,2,3035,null,'ผลิตใน รพ.'),
+      it('160044','formalin','10% NEUTRAL BUFFERED FORMALIN 1000 ML',C,'ไม่ระบุ',0,0,0,2,140,null,'บริษัท เมดิทอป จำกัด'),
+      it('4381089','abdominal support','ABDOMINAL SUPPORT L 39-47"',N,'เวชภัณฑ์มิใช่ยา',0,0,1,0,360,null,'บริษัท เมดิทอป จำกัด'),
+      it('2131856','pravastatin','MEVALOTIN PROTECT 40 MG',S,'NED',0,0,0,0,11.5,[20,80,3],'บริษัท ซิลลิค ฟาร์มา จำกัด')
     ];
   })();
 
@@ -486,7 +481,6 @@
       var id = idOf(r.hospdrugid);
       if(id) regMap[id] = { regType:squash(r.medrgttype_name), costrate:num(r.costrate) };
     });
-    var groupMap = {};
     var locMaps = {};
     var missingSheets = [];
     LOCATIONS.forEach(function(loc){
@@ -501,8 +495,6 @@
           var value = num(r['รวมมูลค่า']) || qty * num(r['ราคาต่อหน่วย']);
           var prev = m[id] || { qty:0, value:0 };
           m[id] = { qty:prev.qty + qty, value:prev.value + value };
-          var g = squash(r['ชื่อกลุ่ม']);
-          if(g && g.indexOf('ประเภท') !== 0) groupMap[id] = g;
         } else {
           var fid = idOf(r.meditem);
           if(!fid) return;
@@ -534,7 +526,6 @@
         regType:regType,
         isedRaw:squash(r.ised),
         acct:acctKey(r.ised),
-        group:groupMap[id] || '',
         distribute:squash(r.distribute),
         stock:stock,
         proc:procMap[id] || null
@@ -778,17 +769,21 @@
     ACCT_CATS.forEach(function(c){
       var n = counts[c.key];
       var per = total ? n / total * 100 : 0;
-      var row = barRow(c.label, n, max, GROUP_COLOR[c.group],
-        fmt(n) + ' <small>· ' + fmt1(per) + '/100</small>', c.label + ' · ' + fmt(n) + ' รายการ · ' + fmt1(per) + ' ต่อ 100');
-      row.classList.add('clickable');
-      if(state.acct === c.key) row.classList.add('selected');
-      else if(state.acct !== 'all') row.classList.add('dim');
-      row.setAttribute('role','button'); row.tabIndex = 0;
-      var toggle = function(){ state.acct = state.acct === c.key ? 'all' : c.key; renderAll(); };
-      row.addEventListener('click', toggle);
-      row.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
-      box.appendChild(row);
+      box.appendChild(acctRow(c, n, max, fmt(n) + ' <small>· ' + fmt1(per) + '/100</small>',
+        c.label + ' · ' + fmt(n) + ' รายการ · ' + fmt1(per) + ' ต่อ 100'));
     });
+  }
+
+  function acctRow(c, value, max, valueHtml, tip){
+    var row = barRow(c.label, value, max, GROUP_COLOR[c.group], valueHtml, tip);
+    row.classList.add('clickable');
+    if(state.acct === c.key) row.classList.add('selected');
+    else if(state.acct !== 'all') row.classList.add('dim');
+    row.setAttribute('role','button'); row.tabIndex = 0;
+    var toggle = function(){ state.acct = state.acct === c.key ? 'all' : c.key; renderAll(); };
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
+    return row;
   }
 
   function renderValue(visible){
@@ -802,24 +797,19 @@
       locBox.appendChild(barRow(x.l.label, x.v, maxL, x.l.color, '฿' + fmt(x.v), x.l.label + ' · ฿' + fmt(x.v)));
     });
 
+    var base = state.items.filter(function(it){ return inStock(it) && matchReg(it); });
     var totals = {};
-    visible.forEach(function(it){
-      var v = valueIn(it, ids); if(v <= 0) return;
-      var g = it.group || 'ไม่ระบุกลุ่ม';
-      totals[g] = (totals[g] || 0) + v;
+    ACCT_CATS.forEach(function(c){ totals[c.key] = 0; });
+    base.forEach(function(it){ totals[it.acct] += valueIn(it, ids); });
+    var sum = ACCT_CATS.reduce(function(s, c){ return s + totals[c.key]; }, 0);
+    var maxA = Math.max.apply(null, ACCT_CATS.map(function(c){ return totals[c.key]; }).concat([1]));
+    var aBox = document.getElementById('chart-value-acct'); aBox.innerHTML = '';
+    ACCT_CATS.forEach(function(c){
+      var v = totals[c.key];
+      var per = sum ? v / sum * 100 : 0;
+      aBox.appendChild(acctRow(c, v, maxA, '฿' + fmt(v) + ' <small>· ' + fmt1(per) + '%</small>',
+        c.label + ' · ฿' + fmt(v) + ' · ' + fmt1(per) + '% ของมูลค่ารวม'));
     });
-    var entries = Object.keys(totals).map(function(k){ return { g:k, v:totals[k] }; }).sort(function(a, b){ return b.v - a.v; });
-    var named = entries.filter(function(e){ return e.g !== 'ไม่ระบุกลุ่ม'; });
-    var top = named.slice(0, 5);
-    var rest = named.slice(5).reduce(function(s, e){ return s + e.v; }, 0);
-    var palette = ['var(--cat-1)','var(--cat-2)','var(--cat-3)','var(--cat-4)','var(--cat-5)'];
-    var rows = top.map(function(e, i){ return { label:'กลุ่ม ' + e.g, v:e.v, color:palette[i] }; });
-    if(rest > 0) rows.push({ label:'กลุ่มอื่น ๆ (' + (named.length - 5) + ' กลุ่ม)', v:rest, color:'var(--ink-faint)' });
-    if(totals['ไม่ระบุกลุ่ม']) rows.push({ label:'ไม่ระบุกลุ่ม', v:totals['ไม่ระบุกลุ่ม'], color:'var(--border-strong)' });
-    var gBox = document.getElementById('chart-value-group'); gBox.innerHTML = '';
-    if(!rows.length){ gBox.innerHTML = '<div class="table-note">ไม่มีมูลค่าในตัวกรองนี้</div>'; return; }
-    var maxG = Math.max.apply(null, rows.map(function(r){ return r.v; }));
-    rows.forEach(function(r){ gBox.appendChild(barRow(r.label, r.v, maxG, r.color, '฿' + fmt(r.v), r.label + ' · ฿' + fmt(r.v))); });
   }
 
   var STATUS_LABEL = { high:'สูงกว่าเกณฑ์', low:'ต่ำกว่าเกณฑ์', normal:'ปกติ' };
