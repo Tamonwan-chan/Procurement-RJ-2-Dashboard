@@ -243,6 +243,24 @@
 
 <section class="panel">
   <header>
+    <h2>คงคลังยา — 10 อันดับที่มีจำนวนสต็อกมากที่สุด</h2>
+    <span class="hint">ตอบสนองตัวกรองด้านบน</span>
+  </header>
+  <p class="desc">คลังยานับเป็นหน่วยจัดหา (กล่อง/ขวด ฯลฯ) ส่วนหน่วยย่อยนับเป็นหน่วยย่อย (เม็ด/แผง ฯลฯ) จึงแยกอันดับกันคนละฝั่ง — หน่วยย่อยรวมยอดตามห้องที่เลือก</p>
+  <div class="two-col">
+    <div>
+      <div class="subhead" id="top-central-head">คลังยา — Top 10</div>
+      <div class="barlist" id="chart-top-central"></div>
+    </div>
+    <div>
+      <div class="subhead" id="top-floor-head">หน่วยย่อย — Top 10</div>
+      <div class="barlist" id="chart-top-floor"></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <header>
     <h2>สัดส่วนประเภทบัญชียา</h2>
     <span class="hint">นับรายการละ 1 ครั้ง · ต่อ 100 รายการ · คลิกแถวเพื่อกรอง</span>
   </header>
@@ -669,6 +687,37 @@
     }).join('');
   }
 
+  var TOP_N = 10;
+  function renderTopList(boxId, ids, color){
+    var box = document.getElementById(boxId); box.innerHTML = '';
+    var rows = state.items.filter(function(it){ return matchReg(it) && matchAcct(it); })
+      .map(function(it){ return { it:it, q:qtyIn(it, ids) }; })
+      .filter(function(x){ return x.q > 0; })
+      .sort(function(a, b){ return b.q - a.q; })
+      .slice(0, TOP_N);
+    if(!rows.length){ box.innerHTML = '<div class="table-note">ไม่มีสต็อกในตัวกรองนี้</div>'; return; }
+    rows.forEach(function(x, i){
+      var name = x.it.tradename || x.it.generic;
+      box.appendChild(barRow((i + 1) + '. ' + name, x.q, rows[0].q, color, fmt1(x.q),
+        (i + 1) + '. ' + name + ' (' + x.it.hospcode + ') · ' + fmt1(x.q)));
+    });
+  }
+
+  function renderTop(){
+    var floorLocs = LOCATIONS.filter(function(l){ return l.kind === 'floor'; });
+    var showCentral = state.room === 'all' || state.room === 'central';
+    var floorIds = state.room === 'all' ? floorLocs.map(function(l){ return l.id; })
+      : floorLocs.some(function(l){ return l.id === state.room; }) ? [state.room] : [];
+
+    if(showCentral) renderTopList('chart-top-central', ['central'], 'var(--cat-3)');
+    else document.getElementById('chart-top-central').innerHTML = '<div class="table-note">เลือก "ทั้งหมด" หรือ "รายการคลังยา" เพื่อดูอันดับคลังยา</div>';
+
+    var floorLabel = floorIds.map(function(id){ return LOCATIONS.filter(function(l){ return l.id === id; })[0].short; }).join(' + ');
+    document.getElementById('top-floor-head').textContent = 'หน่วยย่อย' + (floorLabel ? ' (' + floorLabel + ')' : '') + ' — Top ' + TOP_N;
+    if(floorIds.length) renderTopList('chart-top-floor', floorIds, floorIds.length === 1 ? LOCATIONS.filter(function(l){ return l.id === floorIds[0]; })[0].color : 'var(--cat-2)');
+    else document.getElementById('chart-top-floor').innerHTML = '<div class="table-note">เลือก "ทั้งหมด" หรือห้องจ่ายยาเพื่อดูอันดับหน่วยย่อย</div>';
+  }
+
   function renderAcct(){
     var base = state.items.filter(function(it){ return inStock(it) && matchReg(it); });
     var total = base.length;
@@ -790,6 +839,7 @@
     var visible = state.items.filter(function(it){ return inStock(it) && matchReg(it) && matchAcct(it); });
     renderFilters();
     renderKpis(visible);
+    renderTop();
     renderAcct();
     renderValue(visible);
     renderRates();
