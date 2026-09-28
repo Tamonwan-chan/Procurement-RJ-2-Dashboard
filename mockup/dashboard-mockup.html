@@ -66,19 +66,28 @@
   .dropzone .dz-hint{ font-size:12.5px; color:var(--ink-faint); margin-top:5px; }
   .dropzone input[type="file"]{ display:none; }
 
-  .sourcebar{
-    display:none; flex-wrap:wrap; gap:8px 18px; align-items:center; justify-content:space-between;
-    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
-    padding:10px 16px; margin-bottom:16px; font-size:12.5px; color:var(--ink-muted);
-  }
-  .sourcebar.show{ display:flex; }
-  .sourcebar .file{ color:var(--ink); font-weight:500; }
-  .sourcebar .stats{ display:flex; flex-wrap:wrap; gap:4px 14px; }
   .btn-ghost{
     font-family:inherit; font-size:12.5px; background:none; border:1px solid var(--border-strong); color:var(--ink);
     border-radius:99px; padding:5px 12px; cursor:pointer;
   }
   .btn-ghost:hover{ border-color:var(--accent); color:var(--accent); }
+  .filestatus{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:16px; }
+  .fs-head{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px 16px; margin-bottom:12px; }
+  .fs-title{ font-size:13.5px; font-weight:600; color:var(--ink-muted); }
+  .fs-actions{ display:flex; flex-wrap:wrap; gap:8px; }
+  .fs-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:8px; }
+  .fs-slot{ border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:12.5px; display:flex; flex-direction:column; gap:2px; }
+  .fs-slot .fs-name{ font-weight:600; color:var(--ink); display:flex; align-items:center; gap:7px; }
+  .fs-slot .fs-dot{ width:8px; height:8px; border-radius:50%; background:var(--good); flex:none; }
+  .fs-slot.missing{ border-style:dashed; }
+  .fs-slot.missing .fs-dot{ background:var(--warning); }
+  .fs-slot.fresh{ background:var(--good-soft); border-color:var(--good); }
+  .fs-slot .fs-meta{ color:var(--ink-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .btn-ghost:disabled{ opacity:.5; cursor:not-allowed; }
+  .importnote{ background:var(--good-soft); color:var(--ink); border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:16px; }
+  .stackbar{ display:flex; height:100%; }
+  .stackbar > div{ height:100%; }
+  .stackbar > div + div{ border-left:2px solid var(--surface); }
   .errorbar{ display:none; background:var(--critical-soft); color:var(--critical); border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:16px; }
   .errorbar.show{ display:block; }
 
@@ -225,15 +234,22 @@
 </div>
 
 <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือกไฟล์">
-  <div class="dz-title">ลากไฟล์ Excel มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</div>
-  <div class="dz-hint">ไฟล์ .xlsx ที่มีชีต "รายการต้องจัดซื้อ" + คงคลัง / ชั้น G / ชั้น 1 / จัดหา / ทะเบียน</div>
-  <input type="file" id="file-input" accept=".xlsx,.xls">
+  <div class="dz-title">ลากไฟล์ Excel ที่ export จาก HIS มาวางที่นี่ (เลือกได้หลายไฟล์พร้อมกัน) หรือคลิกเพื่อเลือกไฟล์</div>
+  <div class="dz-hint">Meditem · DrugCatNow · gpsc · inventory · ห้องจ่ายยา ชั้น G · ห้องจ่ายยา ชั้น 1 · list — โปรแกรมดูจากหัวคอลัมน์ ไม่ต้องตั้งชื่อไฟล์ให้ตรง ไฟล์ที่ไม่ได้นำเข้าใหม่จะใช้ข้อมูลครั้งล่าสุดที่บันทึกไว้</div>
+  <input type="file" id="file-input" accept=".xlsx,.xls" multiple>
 </div>
 <div class="errorbar" id="errorbar"></div>
-<div class="sourcebar" id="sourcebar">
-  <div>นำเข้าแล้ว: <span class="file" id="src-filename"></span></div>
-  <div class="stats" id="src-stats"></div>
-  <button class="btn-ghost" id="btn-reset">เปลี่ยนไฟล์ / กลับไปดูตัวอย่าง</button>
+<div class="importnote" id="importnote" hidden></div>
+<div class="filestatus">
+  <div class="fs-head">
+    <span class="fs-title">ข้อมูลที่ใช้อยู่ (นำเข้าครั้งล่าสุดของแต่ละไฟล์)</span>
+    <span class="fs-actions">
+      <button class="btn-ghost" id="btn-export" type="button">ส่งออก Excel (รายการต้องจัดซื้อ)</button>
+      <button class="btn-ghost" id="btn-clear" type="button">ล้างข้อมูลที่บันทึกไว้</button>
+    </span>
+  </div>
+  <div class="fs-grid" id="file-slots"></div>
+  <div class="table-note" id="fs-note" style="margin-top:10px"></div>
 </div>
 
 <div class="filters">
@@ -268,17 +284,9 @@
     <h2>คงคลังยา — 10 อันดับที่มีจำนวนสต็อกมากที่สุด</h2>
     <span class="hint">ตอบสนองตัวกรองด้านบน</span>
   </header>
-  <p class="desc">คลังยานับเป็นหน่วยจัดหา (กล่อง/ขวด ฯลฯ) ส่วนหน่วยย่อยนับเป็นหน่วยย่อย (เม็ด/แผง ฯลฯ) จึงแยกอันดับกันคนละฝั่ง — หน่วยย่อยรวมยอดตามห้องที่เลือก</p>
-  <div class="two-col">
-    <div>
-      <div class="subhead" id="top-central-head">คลังยา — Top 10</div>
-      <div class="barlist" id="chart-top-central"></div>
-    </div>
-    <div>
-      <div class="subhead" id="top-floor-head">หน่วยย่อย — Top 10</div>
-      <div class="barlist" id="chart-top-floor"></div>
-    </div>
-  </div>
+  <p class="desc">นับเป็น "กล่อง" ทั้งหมด: จำนวนคงคลัง (กล่อง) + (ห้องจ่ายยา ชั้น 1 + ชั้น G) ÷ packsize — แท่งแบ่งสีตามที่เก็บ</p>
+  <div class="legend" id="top-legend"></div>
+  <div class="barlist" id="chart-top"></div>
 </section>
 
 <section class="panel">
@@ -304,7 +312,7 @@
     <h2>มูลค่าคงคลังพัสดุ</h2>
     <span class="hint">ตอบสนองตัวกรองด้านบน</span>
   </header>
-  <p class="desc">คลังยา = "รวมมูลค่า" จากชีตคงคลัง · หน่วยย่อย (ชั้น G, ชั้น 1 และห้องใหม่ในอนาคต) = จำนวนคงเหลือ × costrate จากชีตทะเบียน</p>
+  <p class="desc">คลังยา = "มูลค่ารวมคงคลัง" จาก inventory (รวมทุก lot) · ห้องจ่ายยา (ชั้น G, ชั้น 1 และห้องใหม่ในอนาคต) = จำนวน (unit) × ราคาทุน/หน่วย (costrate จาก Meditem)</p>
   <div class="subhead">แยกตามที่เก็บ</div>
   <div class="barlist" id="chart-value-loc" style="margin-bottom:26px"></div>
   <div class="subhead">แยกตามประเภทบัญชี — คลิกแถวเพื่อกรองทั้งหน้า</div>
@@ -319,7 +327,7 @@
 <section class="panel">
   <header>
     <h2>อัตราการใช้ยา</h2>
-    <span class="hint">จากชีต "จัดหา" · กรองตามทะเบียนและประเภทบัญชี</span>
+    <span class="hint">จากไฟล์ list (แจ้งความต้องการซื้อ) · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
   <p class="desc">เทียบอัตราการใช้จริง (userate) กับ lowrate / highrate — แสดงทุกรายการในรอบจัดซื้อ แม้สต็อกเป็น 0 เพราะเป็นรายการที่อาจต้องสั่งซื้อ</p>
   <div class="table-tools">
@@ -361,8 +369,8 @@
       <thead>
         <tr>
           <th>hospcode</th><th>generic</th><th>ชื่อยา (tradename)</th><th>ทะเบียน</th><th>ised (ประเภทบัญชี)</th>
-          <th class="mono">คลังยา<br><small>หน่วยจัดหา</small></th><th class="mono">ชั้น G<br><small>หน่วยย่อย</small></th><th class="mono">ชั้น 1<br><small>หน่วยย่อย</small></th>
-          <th class="mono">มูลค่า (บาท)</th><th>distribute</th>
+          <th class="mono">คลังยา<br><small>กล่อง</small></th><th class="mono">ชั้น G<br><small>กล่อง</small></th><th class="mono">ชั้น 1<br><small>กล่อง</small></th>
+          <th class="mono">รวม<br><small>กล่อง</small></th><th class="mono">มูลค่า (บาท)</th><th>distribute</th>
         </tr>
       </thead>
       <tbody id="item-table"></tbody>
@@ -377,17 +385,25 @@
     <li>นับรายการยาเฉพาะที่มีสต็อกรวม &gt; 0 และนับรายการละ 1 ครั้ง ไม่นับตามจำนวนห้อง</li>
     <li>เพิ่มตัวกรองทะเบียน (6 ประเภท) และประเภทบัญชี (12 ประเภท) พร้อม "ทั้งหมด"</li>
     <li>เพิ่ม "รายการคลังยา" ในแถบมุมมองห้องยา และเตรียมโค้ดรองรับห้องจ่ายยาใหม่ปี 70–71 แล้ว</li>
-    <li>มูลค่าหน่วยย่อย = จำนวน × costrate จากชีตทะเบียน</li>
-    <li>มูลค่าคงคลังแยกตามประเภทบัญชี 12 ประเภท แทน "ชื่อกลุ่ม" / gpscode</li>
+    <li>มูลค่าห้องจ่ายยา = จำนวน (unit) × ราคาทุน/หน่วย (costrate จาก Meditem)</li>
+    <li>มูลค่าคงคลังแยกตามประเภทบัญชี 12 ประเภท</li>
+    <li>นำเข้าไฟล์ HIS ได้หลายไฟล์พร้อมกัน และจำข้อมูลครั้งล่าสุดของแต่ละไฟล์ไว้ ถ้าไม่ได้นำเข้าใหม่</li>
+    <li>ทะเบียนจาก medrgttype (1–8) และประเภทบัญชีจาก accnation ตามที่พี่ยืนยัน</li>
+    <li>Top 10 และตารางแสดงเป็นกล่อง: คงคลัง (กล่อง) + (ชั้น 1 + ชั้น G) ÷ packsize</li>
+    <li>ส่งออก Excel หัวตารางแบบเดิม (hospcode … medrgttype_name)</li>
   </ul>
   <ol class="qlist">
-    <li><span class="qn">1</span><span class="qtext">ห้องจ่ายยาใหม่ปี 70–71 จะใช้ชื่อห้องและชื่อชีตใน Excel ว่าอะไร (โค้ดเตรียมไว้แล้ว เพิ่มชื่อชีตอย่างเดียวก็ใช้ได้)</span></li>
-    <li><span class="qn">2</span><span class="qtext">ในสัดส่วน ED : NED — บัญชียาสมุนไพร, ยา Covid 19 และสูตรตำรับ รพ. ควรนับเป็น ED หรือไม่ (ตอนนี้ไม่นับทั้งฝั่ง ED และ NED แต่แสดงแยกในกราฟ) และ "R:restricted list (EDจ)" 2 รายการ ตอนนี้อยู่ในกลุ่ม "ไม่ระบุ" ถูกต้องไหม</span></li>
-    <li><span class="qn">3</span><span class="qtext">คอลัมน์ inventory (P) ในชีตรายการต้องจัดซื้อ ไม่ตรงกับชีตคงคลัง 4 รายการ เช่น hospcode 1272010 (P = 4,650 แต่ชีตคงคลัง = 200) — ควรยึดตัวเลขจากที่ไหน (ตอนนี้ยึดชีตคงคลัง)</span></li>
-    <li><span class="qn">4</span><span class="qtext">lowrate / highrate / userate ในชีตจัดหา คือเกณฑ์อัตราการใช้ต่ำสุด–สูงสุด เทียบกับอัตราการใช้จริง ใช่หรือไม่</span></li>
-    <li><span class="qn">5</span><span class="qtext">ในชีตทะเบียนยังมี "ทะเบียนรังสี" (256 รายการ) และ "ทะเบียนอวัยวะเทียม" แบบไม่มี (IR) (22 รายการ) — ต้องการให้เป็นตัวเลือกด้วยหรือไม่</span></li>
-    <li><span class="qn">6</span><span class="qtext">Import ไฟล์ใหม่ได้ทุกครั้งโดยใช้ชื่อชีตและหัวคอลัมน์เดิม — ต่อไปจะมีการเปลี่ยนชื่อชีตหรือหัวคอลัมน์หรือไม่</span></li>
-    <li><span class="qn">7</span><span class="qtext">drug cat — ต้องการ key เข้าเองในระบบ หรือ import ทับบัญชีเดิม (ชีต drugcat มี 4,335 รายการ)</span></li>
+    <li><span class="qn">1</span><span class="qtext">inventory บางรายการมี 2 แถว (คนละ lot คนละราคา) เช่น 1272010: 4,650 กล่อง @25 + 200 กล่อง @28 — โปรแกรมรวมเป็น 4,850 กล่อง แต่สูตร VLOOKUP ในไฟล์เดิมดึงแค่ lot แรก ยืนยันให้รวมทุก lot ใช่ไหมครับ</span></li>
+    <li><span class="qn">2</span><span class="qtext">ห้องจ่ายยามียอดติดลบ 8 รายการ เช่น BETADINE SOLUTION 120 ML (−2) — บนหน้าจอตอนนี้นับเป็น 0 ส่วนไฟล์ส่งออกใส่ตัวเลขจริงตาม HIS ถูกต้องไหมครับ</span></li>
+    <li><span class="qn">3</span><span class="qtext">ในสูตรเดิม "list want" ดึงจาก sumqty ของไฟล์ list แต่คำอธิบายในไฟล์ list เขียนว่า sumqty = จำนวนคงเหลือในคลัง — list want = sumqty ถูกต้องไหมครับ และ lowrate / highrate ควรเทียบกับ sumqty หรือ userate</span></li>
+    <li><span class="qn">4</span><span class="qtext">ไฟล์ list มีสถานะ "สั่งซื้อ" (262) กับ "เบิกจากคลังหลัก" (23) — ต้องการให้กรองตามสถานะนี้ไหมครับ</span></li>
+    <li><span class="qn">5</span><span class="qtext">packsize: ใช้จาก DrugCatNow ตามสูตรพี่ ถ้ารายการไหนไม่มีจะใช้ packqty จาก Meditem แทน (2 ไฟล์ไม่ตรงกัน 33 รายการ) — แบบนี้ได้ไหมครับ</span></li>
+    <li><span class="qn">6</span><span class="qtext">BCP NO พี่กรอกเองใช่ไหมครับ (มี 15 รายการ ไม่มีในไฟล์ HIS) — ในไฟล์ส่งออกตอนนี้เว้นว่างไว้</span></li>
+    <li><span class="qn">7</span><span class="qtext">มี gpscode จริงแล้ว (Meditem → gpsc) เช่น 99000051101500 = ยาปฏิชีวนะ — อยากให้เพิ่มกราฟมูลค่าตามกลุ่ม GPSC หรือใช้เป็นตัวกรองด้วยไหมครับ</span></li>
+    <li><span class="qn">8</span><span class="qtext">สัดส่วน ED : NED — บัญชียาสมุนไพร, ยา Covid 19, สูตรตำรับ รพ. ควรนับเป็น ED ไหมครับ (ตอนนี้แสดงแยกเป็น "อื่น ๆ") และ accnation 5 (R:restricted list (EDจ)) กับ 11 (โครงการแพทย์แผนไทย) อยู่ใน "ไม่ระบุ" ถูกต้องไหม</span></li>
+    <li><span class="qn">9</span><span class="qtext">ทะเบียนรังสี (5) และทะเบียนอวัยวะเทียมแบบไม่มี (IR) (7) — ต้องการให้เป็นตัวเลือกประจำด้วยไหมครับ (ตอนนี้จะโผล่มาเองเมื่อมีรายการที่มีสต็อก)</span></li>
+    <li><span class="qn">10</span><span class="qtext">drugcode (24 หลัก), tpucode, gpucode ใน Meditem ต้องการใช้ทำอะไรครับ (แสดงในตาราง / ค้นหา / นับ ED-NED)</span></li>
+    <li><span class="qn">11</span><span class="qtext">packprice ใน DrugCatNow (ไฮไลต์แต่ซ่อนไว้) ต้องการใช้ทำอะไรครับ — และห้องจ่ายยาใหม่ปี 70–71 จะ export จาก HIS ในรูปแบบเดียวกับชั้น 1 / ชั้น G ไหม (โปรแกรมแยกห้องจากชื่อห้องในคอลัมน์ dspname)</span></li>
   </ol>
 </section>
 
@@ -395,13 +411,30 @@
 
 <script>
 (function(){
-  /* ห้องยา: เพิ่มห้องใหม่ (ปี 70–71) ได้โดยเพิ่มบรรทัดในรายการนี้ โดยใส่ชื่อชีตใน Excel ให้ตรง
-     kind 'central' = อ่านแบบชีตคงคลัง, kind 'floor' = อ่านแบบชีตชั้น G / ชั้น 1 */
+  /* ห้องยา: เพิ่มห้องใหม่ (ปี 70–71) ได้โดยเพิ่มบรรทัด kind 'floor' ในรายการนี้
+     match = ข้อความที่ใช้จำไฟล์ของห้องนั้น (ดูจากคอลัมน์ dspname ในไฟล์ ถ้าไม่มีดูจากชื่อไฟล์) */
   var LOCATIONS = [
-    { id:'central', label:'รายการคลังยา',    short:'คลังยา', sheet:'คงคลัง', kind:'central', color:'var(--cat-3)' },
-    { id:'G',       label:'ห้องจ่ายยาชั้น G', short:'ชั้น G',  sheet:'ชั้น G',  kind:'floor',   color:'var(--cat-1)' },
-    { id:'1',       label:'ห้องจ่ายชั้น 1',   short:'ชั้น 1',  sheet:'ชั้น 1',  kind:'floor',   color:'var(--cat-2)' }
+    { id:'central', label:'รายการคลังยา',    short:'คลังยา', kind:'central', color:'var(--cat-3)' },
+    { id:'G',       label:'ห้องจ่ายยาชั้น G', short:'ชั้น G',  kind:'floor', match:/ชั้น\s*G/i, color:'var(--cat-1)' },
+    { id:'1',       label:'ห้องจ่ายชั้น 1',   short:'ชั้น 1',  kind:'floor', match:/ชั้น\s*1/,  color:'var(--cat-2)' }
   ];
+
+  /* รหัสจาก Meditem ที่พี่โอมยืนยันแล้ว */
+  var RGT_LABEL = { '1':'ทะเบียนยา', '2':'ทะเบียนเวชภัณฑ์ที่มิใช่ยา', '3':'ทะเบียนเภสัชเคมีภัณฑ์', '4':'ทะเบียนวัสดุเภสัชกรรมและอื่น ๆ',
+    '5':'ทะเบียนรังสี', '6':'ทะเบียนยาตัวอย่าง (SAMPLE)', '7':'ทะเบียนอวัยวะเทียม', '8':'ทะเบียนอวัยวะเทียม(IR)' };
+  var ACC_LABEL = { '1':'b:basic list (EDก)', '2':'b:basic list (EDข)', '3':'s:supplemental list (EDค)', '4':'ex:exclusive list (EDง)',
+    '5':'R:restricted list (EDจ)', '6':'R1:restricted list (EDจ(1))', '7':'R2:restricted list (EDจ(2))', '8':'สูตรตำรับ รพ.', '9':'NED',
+    '10':'เวชภัณฑ์มิใช่ยา', '11':'โครงการแพทย์แผนไทย', '12':'บัญชียาสมุนไพร', '13':'ยา Covid 19', '99':'ไม่ระบุ' };
+
+  /* ไฟล์ที่รับได้ — จำจากหัวคอลัมน์ */
+  var FILE_SLOTS = [
+    { slot:'meditem',   label:'Meditem',        desc:'ทะเบียนหลัก / ราคาทุน / รหัส' },
+    { slot:'drugcat',   label:'DrugCatNow',     desc:'ชื่อยา / บริษัท / packsize' },
+    { slot:'gpsc',      label:'gpsc',           desc:'ชื่อกลุ่ม GPSC' },
+    { slot:'inventory', label:'inventory',      desc:'คงคลัง (กล่อง)' }
+  ].concat(LOCATIONS.filter(function(l){ return l.kind === 'floor'; }).map(function(l){
+    return { slot:'room:' + l.id, label:'ห้องจ่ายยา ' + l.short, desc:'ยอดคงเหลือ (unit)', room:l.id };
+  })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }]);
   var PLANNED_ROOM_LABEL = '+ ห้องจ่ายยา (แผนปี 70–71)';
 
   var REG_TYPES = [
@@ -477,89 +510,228 @@
     ];
   })();
 
-  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', searchField:'all', groupByCompany:false, rateSearch:'', rateStatus:'all', rateSel:null, fileName:'', meta:null, regList:REG_TYPES.slice() };
+  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', searchField:'all', groupByCompany:false, rateSearch:'', rateStatus:'all', rateSel:null, datasets:{}, meta:null, regList:REG_TYPES.slice() };
 
-  /* ---------------- Excel import ---------------- */
-  function normalizeRows(ws){
-    if(!ws) return [];
-    return XLSX.utils.sheet_to_json(ws, { defval:'' }).map(function(r){
-      var o = {};
-      Object.keys(r).forEach(function(k){ o[String(k).trim().toLowerCase()] = r[k]; });
-      return o;
+  /* ---------------- Excel import (ไฟล์ HIS หลายไฟล์) ---------------- */
+  function norm(h){ return String(h == null ? '' : h).replace(/\s+/g,' ').trim().toLowerCase(); }
+  function idOf(v){ return String(v == null ? '' : v).trim(); }
+  function isCode(v){ var s = idOf(v); return /^-?\d+$/.test(s) && s !== '0'; }
+  function txt(v){ return String(v == null ? '' : v).trim(); }
+  function clean(v){ var s = txt(v); return s === '0' || s === 'undefined' ? '' : s; }
+
+  function readTable(ws){
+    if(!ws || !ws['!ref']) return null;
+    var aoa = XLSX.utils.sheet_to_json(ws, { header:1, defval:'', raw:true, blankrows:false });
+    if(!aoa.length) return null;
+    var col = {};
+    aoa[0].forEach(function(h, i){ h = norm(h); if(h && !(h in col)) col[h] = i; });
+    return { col:col, rows:aoa.slice(1) };
+  }
+  function has(t, names){ return names.every(function(n){ return n in t.col; }); }
+
+  function detectSlot(t, fileName){
+    if(has(t, ['meditem','packqty','costrate','accnation'])) return 'meditem';
+    if(has(t, ['gpsc','detail'])) return 'gpsc';
+    if(has(t, ['รหัสเวชภัณฑ์','จำนวน','รวมมูลค่า'])) return 'inventory';
+    if(has(t, ['meditem','lowrate','highrate'])) return 'list';
+    if(has(t, ['meditem','stkqty'])){
+      var dsp = '';
+      if('dspname' in t.col) for(var i = 0; i < t.rows.length && !dsp; i++) dsp = squash(t.rows[i][t.col.dspname]);
+      var floors = LOCATIONS.filter(function(l){ return l.kind === 'floor'; });
+      var hit = floors.filter(function(l){ return l.match.test(dsp); })[0] || floors.filter(function(l){ return l.match.test(fileName); })[0];
+      return hit ? 'room:' + hit.id : null;
+    }
+    if(has(t, ['hospcode','distribute','manufact','packsize']) && !('list want' in t.col)) return 'drugcat';
+    return null;
+  }
+
+  function extractRows(slot, t){
+    var c = t.col;
+    function g(r, name){ return name in c ? r[c[name]] : ''; }
+    var key = slot === 'inventory' ? 'รหัสเวชภัณฑ์' : slot === 'drugcat' ? 'hospcode' : 'meditem';
+    var out = [];
+    t.rows.forEach(function(r){
+      if(slot === 'gpsc'){
+        var code = clean(g(r, 'gpsc'));
+        if(code) out.push([code, txt(g(r, 'detail'))]);
+        return;
+      }
+      if(!isCode(g(r, key))) return;
+      var id = idOf(g(r, key));
+      if(slot === 'meditem') out.push({ id:id, name:txt(g(r,'medname')), packqty:num(g(r,'packqty')), costrate:num(g(r,'costrate')),
+        gpscode:clean(g(r,'gpscode')), rgt:clean(g(r,'medrgttype')), acc:clean(g(r,'accnation')), ised:clean(g(r,'ised')),
+        drugcode:clean(g(r,'drugcode')), tpucode:clean(g(r,'tpucode')), gpucode:clean(g(r,'gpucode')),
+        content:clean(g(r,'content')), gnrname:clean(g(r,'gnrname')) });
+      else if(slot === 'drugcat') out.push({ id:id, generic:txt(g(r,'generic')), tradename:txt(g(r,'tradename')), content:txt(g(r,'content')),
+        packsize:num(g(r,'packsize')), distribute:clean(g(r,'distribute')), manufact:clean(g(r,'manufact')), ndc24:clean(g(r,'ndc24')) });
+      else if(slot === 'inventory') out.push({ id:id, name:txt(g(r,'ชื่อเวชภัณฑ์')), qty:num(g(r,'จำนวน')),
+        value:num(g(r,'รวมมูลค่า')) || num(g(r,'จำนวน')) * num(g(r,'ราคาต่อหน่วย')) });
+      else if(slot === 'list') out.push({ id:id, name:txt(g(r,'medname')), lowrate:num(g(r,'lowrate')), highrate:num(g(r,'highrate')),
+        userate:num(g(r,'userate')), sumqty:num(g(r,'sumqty')), source:txt(g(r,'sourcename')) });
+      else out.push({ id:id, name:txt(g(r,'medname')), qty:num(g(r,'stkqty')) });
+    });
+    return out;
+  }
+
+  /* ---------------- เก็บข้อมูลนำเข้าครั้งล่าสุดไว้ในเครื่อง (IndexedDB) ---------------- */
+  var DB_NAME = 'rj2-procurement-dashboard', DB_STORE = 'datasets';
+  var storageOk = true;
+  function idb(){
+    return new Promise(function(resolve, reject){
+      if(!window.indexedDB) return reject(new Error('no indexedDB'));
+      var req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = function(){ req.result.createObjectStore(DB_STORE, { keyPath:'slot' }); };
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(){ reject(req.error); };
     });
   }
-  function idOf(v){ var s = String(v == null ? '' : v).trim(); return s === '0' ? '' : s; }
-
-  function buildFromWorkbook(wb){
-    var main = normalizeRows(wb.Sheets['รายการต้องจัดซื้อ']);
-    var regMap = {};
-    normalizeRows(wb.Sheets['ทะเบียน']).forEach(function(r){
-      var id = idOf(r.hospdrugid);
-      if(id) regMap[id] = { regType:squash(r.medrgttype_name), costrate:num(r.costrate) };
-    });
-    var locMaps = {};
-    var missingSheets = [];
-    LOCATIONS.forEach(function(loc){
-      var m = {};
-      var ws = wb.Sheets[loc.sheet];
-      if(!ws){ missingSheets.push(loc.sheet); locMaps[loc.id] = m; return; }
-      normalizeRows(ws).forEach(function(r){
-        if(loc.kind === 'central'){
-          var id = idOf(r['รหัสเวชภัณฑ์']);
-          if(!id || !squash(r['ชื่อเวชภัณฑ์'])) return;
-          var qty = num(r['จำนวน']);
-          var value = num(r['รวมมูลค่า']) || qty * num(r['ราคาต่อหน่วย']);
-          var prev = m[id] || { qty:0, value:0 };
-          m[id] = { qty:prev.qty + qty, value:prev.value + value };
-        } else {
-          var fid = idOf(r.meditem);
-          if(!fid) return;
-          var fq = num(r.stkqty);
-          var reg = regMap[fid];
-          var cost = reg && reg.costrate > 0 ? reg.costrate : num(r.costrate);
-          var fprev = m[fid] || { qty:0, value:0 };
-          m[fid] = { qty:fprev.qty + fq, value:fprev.value + fq * cost };
-        }
+  function dbTx(mode, work){
+    return idb().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(DB_STORE, mode), store = tx.objectStore(DB_STORE), result;
+        work(store, function(v){ result = v; });
+        tx.oncomplete = function(){ resolve(result); };
+        tx.onerror = function(){ reject(tx.error); };
       });
-      locMaps[loc.id] = m;
     });
-    var procMap = {};
-    normalizeRows(wb.Sheets['จัดหา']).forEach(function(r){
-      var id = idOf(r.meditem);
-      if(id) procMap[id] = { lowrate:num(r.lowrate), highrate:num(r.highrate), userate:num(r.userate) };
-    });
+  }
+  function dbAll(){ return dbTx('readonly', function(s, done){ var q = s.getAll(); q.onsuccess = function(){ done(q.result || []); }; }); }
+  function dbPut(recs){ return dbTx('readwrite', function(s){ recs.forEach(function(r){ s.put(r); }); }); }
+  function dbClear(){ return dbTx('readwrite', function(s){ s.clear(); }); }
 
-    var items = main.map(function(r){
-      var id = idOf(r.hospcode);
-      if(!id) return null;
-      var stock = {};
-      LOCATIONS.forEach(function(loc){ stock[loc.id] = locMaps[loc.id][id] || { qty:0, value:0 }; });
-      var regType = squash(r.medrgttype_name) || (regMap[id] ? regMap[id].regType : '') || REG_UNKNOWN;
+  /* ---------------- รวมข้อมูลจากทุกไฟล์เป็นรายการยา ---------------- */
+  var ACC_KEY = { '1':'EDก', '2':'EDข', '3':'EDค', '4':'EDง', '6':'EDจ1', '7':'EDจ2', '8':'formula', '9':'NED', '10':'nondrug', '12':'herb', '13':'covid' };
+  var FLOOR_LOCS = LOCATIONS.filter(function(l){ return l.kind === 'floor'; });
+
+  function buildLookups(ds){
+    function rowsOf(s){ return ds[s] ? ds[s].rows : []; }
+    var L = { med:{}, dc:{}, gp:{}, list:{}, stock:{}, names:{}, negatives:[] };
+    rowsOf('meditem').forEach(function(r){ L.med[r.id] = r; });
+    rowsOf('drugcat').forEach(function(r){ L.dc[r.id] = r; });
+    rowsOf('gpsc').forEach(function(r){ L.gp[r[0]] = r[1]; });
+    rowsOf('list').forEach(function(r){ L.list[r.id] = r; L.names[r.id] = L.names[r.id] || r.name; });
+    function slotFor(id){ return L.stock[id] || (L.stock[id] = { central:{ raw:0, value:0, lots:0 }, rooms:{} }); }
+    rowsOf('inventory').forEach(function(r){
+      var s = slotFor(r.id).central; s.raw += r.qty; s.value += r.value; s.lots++;
+      L.names[r.id] = L.names[r.id] || r.name;
+    });
+    FLOOR_LOCS.forEach(function(l){
+      rowsOf('room:' + l.id).forEach(function(r){
+        var s = slotFor(r.id); s.rooms[l.id] = (s.rooms[l.id] || 0) + r.qty;
+        if(r.qty < 0) L.negatives.push(r.name + ' (' + l.short + ' ' + fmt1(r.qty) + ')');
+        L.names[r.id] = L.names[r.id] || r.name;
+      });
+    });
+    return L;
+  }
+
+  function packOf(L, id){
+    var d = L.dc[id], m = L.med[id];
+    return d && d.packsize > 0 ? d.packsize : m && m.packqty > 0 ? m.packqty : 0;
+  }
+
+  function buildItems(L){
+    var ids = {};
+    Object.keys(L.stock).forEach(function(k){ ids[k] = 1; });
+    Object.keys(L.list).forEach(function(k){ ids[k] = 1; });
+    var noPack = 0;
+    var items = Object.keys(ids).map(function(id){
+      var m = L.med[id] || {}, d = L.dc[id] || {}, st = L.stock[id] || { central:{ raw:0, value:0 }, rooms:{} };
+      var pack = packOf(L, id), cost = m.costrate || 0, roomUnits = 0;
+      var stock = { central:{ qty:Math.max(0, st.central.raw), raw:st.central.raw, value:st.central.value } };
+      FLOOR_LOCS.forEach(function(l){
+        var u = Math.max(0, st.rooms[l.id] || 0);
+        roomUnits += u;
+        stock[l.id] = { qty:pack > 0 ? u / pack : u, raw:u, value:u * cost };
+      });
+      if(!pack && roomUnits > 0) noPack++;
+      var lr = L.list[id];
       return {
         hospcode:id,
-        generic:squash(r.generic),
-        tradename:squash(r.tradename),
-        regType:regType,
-        isedRaw:squash(r.ised),
-        acct:acctKey(r.ised),
-        distribute:squash(r.distribute) === '0' ? '' : squash(r.distribute),
+        generic:d.generic || m.gnrname || '',
+        tradename:d.tradename || m.name || L.names[id] || '',
+        content:d.content || m.content || '',
+        packsize:pack,
+        regType:RGT_LABEL[m.rgt] || REG_UNKNOWN,
+        isedRaw:ACC_LABEL[m.acc] || 'ไม่ระบุ',
+        acct:ACC_KEY[m.acc] || 'other',
+        distribute:d.distribute || '',
+        manufact:d.manufact || '',
+        gpscode:m.gpscode || '',
+        gpsName:L.gp[m.gpscode] || '',
         stock:stock,
-        proc:procMap[id] || null
+        proc:lr ? { lowrate:lr.lowrate, highrate:lr.highrate, userate:lr.userate, sumqty:lr.sumqty, source:lr.source } : null
       };
-    }).filter(Boolean);
-
+    });
     var extraRegs = [];
     items.forEach(function(it){ if(REG_TYPES.indexOf(it.regType) < 0 && extraRegs.indexOf(it.regType) < 0) extraRegs.push(it.regType); });
-    return {
-      items:items,
-      regList:REG_TYPES.concat(extraRegs),
-      meta:{ total:items.length, withProc:items.filter(function(i){ return i.proc; }).length, missingSheets:missingSheets,
-             hasColZ: main.length > 0 && Object.prototype.hasOwnProperty.call(main[0], 'medrgttype_name') }
-    };
+    return { items:items, regList:REG_TYPES.concat(extraRegs), noPack:noPack };
   }
 
+  function rebuild(){
+    var ds = state.datasets;
+    var any = Object.keys(ds).length > 0;
+    var hasData = ['inventory','list'].concat(FLOOR_LOCS.map(function(l){ return 'room:' + l.id; })).some(function(s){ return ds[s]; });
+    state.lookups = any ? buildLookups(ds) : null;
+    if(hasData){
+      var b = buildItems(state.lookups);
+      state.mode = 'real'; state.items = b.items; state.regList = b.regList; state.noPack = b.noPack;
+    } else {
+      state.mode = 'sample'; state.items = SAMPLE_ITEMS; state.regList = REG_TYPES.slice(); state.noPack = 0;
+    }
+    updateSourceUI();
+  }
+
+  /* ---------------- ส่งออก Excel หัวตารางแบบเดิม ---------------- */
+  var EXPORT_HEAD = ['hospcode','generic','tradename','content','packsize','list want','inventory','total floor','floor1','floor G',
+    'distribute','manufact','ised','ndc24','BCP NO','medaccnation_name','medrgttype_name'];
+
+  function exportRows(L){
+    var ids = {};
+    [L.dc, L.stock, L.list].forEach(function(o){ Object.keys(o).forEach(function(k){ ids[k] = 1; }); });
+    return Object.keys(ids).sort(function(a, b){ return a.localeCompare(b, undefined, { numeric:true }); }).map(function(id){
+      var d = L.dc[id] || {}, m = L.med[id] || {}, st = L.stock[id], lr = L.list[id];
+      var f1 = st && ('1' in st.rooms) ? st.rooms['1'] : '';
+      var fG = st && ('G' in st.rooms) ? st.rooms['G'] : '';
+      var hasFloor = st && FLOOR_LOCS.some(function(l){ return l.id in st.rooms; });
+      var totalFloor = hasFloor ? FLOOR_LOCS.reduce(function(s, l){ return s + (st.rooms[l.id] || 0); }, 0) : '';
+      var acc = ACC_LABEL[m.acc] || '';
+      return [
+        /^-?\d+$/.test(id) ? Number(id) : id,
+        d.generic || m.gnrname || '',
+        d.tradename || m.name || L.names[id] || '',
+        d.content || m.content || '',
+        packOf(L, id) || '',
+        lr ? lr.sumqty : '',
+        st && st.central.lots ? st.central.raw : '',
+        totalFloor, f1, fG,
+        d.distribute || '', d.manufact || '',
+        acc, d.ndc24 || '', '', acc, RGT_LABEL[m.rgt] || ''
+      ];
+    });
+  }
+
+  function exportExcel(){
+    if(!state.lookups) return;
+    var rows = exportRows(state.lookups);
+    var ws = XLSX.utils.aoa_to_sheet([EXPORT_HEAD].concat(rows));
+    ws['!cols'] = [10,26,34,12,9,9,9,10,9,9,34,30,24,26,8,24,24].map(function(w){ return { wch:w }; });
+    ws['!autofilter'] = { ref:XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:rows.length, c:EXPORT_HEAD.length - 1 } }) };
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'รายการต้องจัดซื้อ');
+    var d = new Date(), pad = function(n){ return (n < 10 ? '0' : '') + n; };
+    XLSX.writeFile(wb, 'รายการยาจัดหา_' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.xlsx');
+  }
+
+  /* ---------------- UI นำเข้า ---------------- */
   function showError(msg){ var b = document.getElementById('errorbar'); b.textContent = msg; b.classList.add('show'); }
   function hideError(){ document.getElementById('errorbar').classList.remove('show'); }
+  function showNote(msg){ var n = document.getElementById('importnote'); n.textContent = msg; n.hidden = !msg; }
+  function slotLabel(slot){ var s = FILE_SLOTS.filter(function(x){ return x.slot === slot; })[0]; return s ? s.label : slot; }
+  function fmtDate(iso){
+    try{ return new Date(iso).toLocaleString('th-TH', { day:'numeric', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit' }); }
+    catch(e){ return iso; }
+  }
 
   function resetFilters(){
     state.room = 'all'; state.reg = 'all'; state.acct = 'all'; state.search = '';
@@ -568,63 +740,109 @@
     document.getElementById('rate-search').value = '';
   }
 
-  function handleFile(file){
+  function readFile(file){
+    return new Promise(function(resolve, reject){
+      var fr = new FileReader();
+      fr.onload = function(e){ resolve(e.target.result); };
+      fr.onerror = function(){ reject(fr.error); };
+      fr.readAsArrayBuffer(file);
+    });
+  }
+
+  function handleFiles(fileList){
+    var files = Array.prototype.slice.call(fileList || []);
+    if(!files.length) return;
     hideError();
-    var reader = new FileReader();
-    reader.onload = function(e){
-      try{
-        var wb = XLSX.read(e.target.result, { type:'array' });
-        if(!wb.Sheets['รายการต้องจัดซื้อ']){
-          showError('ไม่พบชีต "รายการต้องจัดซื้อ" ในไฟล์นี้ — ตรวจสอบว่าเป็นไฟล์รูปแบบเดียวกับที่ใช้อยู่และชื่อชีตตรงกัน');
+    showNote('กำลังอ่านไฟล์ ' + files.length + ' ไฟล์…');
+    var found = {}, unknown = [], dup = [];
+    var chain = Promise.resolve();
+    files.forEach(function(f){
+      chain = chain.then(function(){ return readFile(f); }).then(function(buf){
+        var wb = XLSX.read(buf, { type:'array' });
+        var hit = false;
+        wb.SheetNames.forEach(function(sn){
+          var t = readTable(wb.Sheets[sn]); if(!t) return;
+          var slot = detectSlot(t, f.name); if(!slot) return;
+          var rows = extractRows(slot, t); if(!rows.length) return;
+          if(found[slot]) dup.push(slotLabel(slot));
+          found[slot] = { slot:slot, fileName:f.name + (wb.SheetNames.length > 1 ? ' [' + sn + ']' : ''),
+            importedAt:new Date().toISOString(), rowCount:rows.length, rows:rows };
+          hit = true;
+        });
+        if(!hit) unknown.push(f.name);
+      }).catch(function(err){ unknown.push(f.name + ' (' + (err && err.message ? err.message : err) + ')'); });
+    });
+    chain.then(function(){
+      var recs = Object.keys(found).map(function(k){ return found[k]; });
+      recs.forEach(function(r){ state.datasets[r.slot] = r; });
+      state.fresh = Object.keys(found);
+      var save = recs.length ? dbPut(recs).catch(function(){ storageOk = false; }) : Promise.resolve();
+      return save.then(function(){
+        if(!recs.length){
+          showNote('');
+          showError('ไม่รู้จักไฟล์ที่นำเข้า: ' + unknown.join(', ') + ' — ต้องเป็นไฟล์ที่ export จาก HIS ที่มีหัวคอลัมน์เดิม');
           return;
         }
-        var built = buildFromWorkbook(wb);
-        if(!built.items.length){ showError('อ่านไฟล์ได้ แต่ไม่พบแถวข้อมูลในชีต "รายการต้องจัดซื้อ"'); return; }
-        state.mode = 'real'; state.items = built.items; state.regList = built.regList; state.meta = built.meta; state.fileName = file.name;
-        resetFilters();
-        if(built.meta.missingSheets.length) showError('ไม่พบชีต: ' + built.meta.missingSheets.join(', ') + ' — ยอดของห้องนั้นจะเป็น 0');
-        updateSourceUI(); renderAll();
-      }catch(err){
-        showError('อ่านไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : String(err)));
-      }
-    };
-    reader.onerror = function(){ showError('อ่านไฟล์ไม่สำเร็จ กรุณาลองใหม่'); };
-    reader.readAsArrayBuffer(file);
+        rebuild(); resetFilters(); renderAll();
+        showNote('นำเข้าแล้ว ' + recs.length + ' ไฟล์: ' + recs.map(function(r){ return slotLabel(r.slot); }).join(', ') +
+          (dup.length ? ' · มีไฟล์ซ้ำประเภทเดียวกัน ใช้ไฟล์ที่วางทีหลัง: ' + dup.join(', ') : '') +
+          (storageOk ? '' : ' · บันทึกลงเครื่องไม่ได้ ข้อมูลจะหายเมื่อปิดหน้า'));
+        if(unknown.length) showError('ไม่รู้จักไฟล์: ' + unknown.join(', ') + ' — ไฟล์นี้ไม่ได้ถูกนำเข้า');
+      });
+    });
   }
 
   function updateSourceUI(){
     var badge = document.getElementById('mode-badge');
-    var bar = document.getElementById('sourcebar');
+    var ds = state.datasets;
     if(state.mode === 'real'){
       badge.classList.add('real');
-      badge.innerHTML = '<span class="dot"></span>ข้อมูลจริงจากไฟล์ที่นำเข้า';
-      bar.classList.add('show');
-      document.getElementById('src-filename').textContent = state.fileName;
-      var m = state.meta;
-      document.getElementById('src-stats').innerHTML =
-        '<span>ในทะเบียน ' + fmt(m.total) + ' รายการ</span>' +
-        '<span>มีอัตราการใช้ ' + fmt(m.withProc) + ' รายการ</span>' +
-        '<span>ทะเบียนอ่านจาก ' + (m.hasColZ ? 'คอลัมน์ medrgttype_name' : 'ชีตทะเบียน') + '</span>';
+      badge.innerHTML = '<span class="dot"></span>ข้อมูลจริงจากไฟล์ HIS ที่นำเข้า';
     } else {
       badge.classList.remove('real');
       badge.innerHTML = '<span class="dot"></span>ข้อมูลตัวอย่าง — ลากไฟล์จริงมาวางเพื่อแทนที่';
-      bar.classList.remove('show');
     }
+    var fresh = state.fresh || [];
+    document.getElementById('file-slots').innerHTML = FILE_SLOTS.map(function(s){
+      var r = ds[s.slot];
+      return '<div class="fs-slot' + (r ? '' : ' missing') + (fresh.indexOf(s.slot) >= 0 ? ' fresh' : '') + '">' +
+        '<span class="fs-name"><span class="fs-dot"></span>' + esc(s.label) + '</span>' +
+        '<span class="fs-meta">' + esc(s.desc) + '</span>' +
+        '<span class="fs-meta" title="' + esc(r ? r.fileName : '') + '">' +
+          (r ? esc(fmtDate(r.importedAt)) + ' · ' + fmt(r.rowCount) + ' แถว' : 'ยังไม่มีข้อมูล') + '</span></div>';
+    }).join('');
+    var notes = [];
+    if(state.mode === 'real'){
+      if(!ds.meditem) notes.push('ยังไม่มี Meditem — ทะเบียน ประเภทบัญชี และมูลค่าห้องจ่ายยาจะยังไม่ครบ');
+      if(!ds.drugcat) notes.push('ยังไม่มี DrugCatNow — ชื่อ generic บริษัท และ packsize จะยังไม่ครบ');
+      if(state.noPack) notes.push(fmt(state.noPack) + ' รายการในห้องจ่ายยาไม่มี packsize จึงแสดงเป็น unit แทนกล่อง');
+      if(state.lookups && state.lookups.negatives.length) notes.push('ยอดติดลบในห้องจ่ายยา ' + state.lookups.negatives.length + ' รายการ นับเป็น 0: ' + state.lookups.negatives.slice(0, 3).join(', ') + (state.lookups.negatives.length > 3 ? ' …' : ''));
+    }
+    if(!storageOk) notes.push('เบราว์เซอร์นี้บันทึกข้อมูลไม่ได้ ต้องนำเข้าไฟล์ใหม่ทุกครั้งที่เปิดหน้า');
+    notes.push('ข้อมูลที่บันทึกไว้อยู่ในเบราว์เซอร์ของเครื่องนี้เท่านั้น — เปิดจากเครื่องอื่นต้องนำเข้าใหม่');
+    document.getElementById('fs-note').textContent = notes.join(' · ');
+    var canExport = !!(state.lookups && (ds.drugcat || state.mode === 'real'));
+    var btn = document.getElementById('btn-export');
+    btn.disabled = !canExport;
+    btn.title = canExport ? '' : 'นำเข้าไฟล์ HIS ก่อนจึงจะส่งออกได้';
+    document.getElementById('btn-clear').disabled = !Object.keys(ds).length;
   }
 
-  document.getElementById('btn-reset').addEventListener('click', function(){
-    state.mode = 'sample'; state.items = SAMPLE_ITEMS; state.regList = REG_TYPES.slice(); state.meta = null; state.fileName = '';
-    resetFilters(); hideError(); updateSourceUI(); renderAll();
+  document.getElementById('btn-export').addEventListener('click', exportExcel);
+  document.getElementById('btn-clear').addEventListener('click', function(){
+    if(!window.confirm('ล้างข้อมูลที่นำเข้าไว้ทั้งหมดในเบราว์เซอร์นี้? (ไฟล์ Excel ในเครื่องไม่ถูกลบ)')) return;
+    var done = function(){ state.datasets = {}; state.fresh = []; showNote(''); hideError(); rebuild(); resetFilters(); renderAll(); };
+    dbClear().then(done, done);
   });
 
   var dz = document.getElementById('dropzone');
   var fileInput = document.getElementById('file-input');
   dz.addEventListener('click', function(){ fileInput.click(); });
   dz.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileInput.click(); } });
-  fileInput.addEventListener('change', function(){ if(fileInput.files[0]) handleFile(fileInput.files[0]); fileInput.value = ''; });
+  fileInput.addEventListener('change', function(){ handleFiles(fileInput.files); fileInput.value = ''; });
   ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.add('drag'); }); });
   ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.remove('drag'); }); });
-  dz.addEventListener('drop', function(e){ var f = e.dataTransfer.files[0]; if(f) handleFile(f); });
+  dz.addEventListener('drop', function(e){ handleFiles(e.dataTransfer.files); });
 
   /* ---------------- filtering ---------------- */
   function activeLocIds(){ return state.room === 'all' ? LOCATIONS.map(function(l){ return l.id; }) : [state.room]; }
@@ -724,8 +942,13 @@
   }
 
   var TOP_N = 10;
-  function renderTopList(boxId, ids, color){
-    var box = document.getElementById(boxId); box.innerHTML = '';
+  function renderTop(){
+    var ids = activeLocIds();
+    var locs = LOCATIONS.filter(function(l){ return ids.indexOf(l.id) >= 0; });
+    document.getElementById('top-legend').innerHTML = locs.map(function(l){
+      return '<span><i style="background:' + l.color + '"></i>' + l.short + '</span>';
+    }).join('');
+    var box = document.getElementById('chart-top'); box.innerHTML = '';
     var rows = state.items.filter(function(it){ return matchReg(it) && matchAcct(it); })
       .map(function(it){ return { it:it, q:qtyIn(it, ids) }; })
       .filter(function(x){ return x.q > 0; })
@@ -734,24 +957,20 @@
     if(!rows.length){ box.innerHTML = '<div class="table-note">ไม่มีสต็อกในตัวกรองนี้</div>'; return; }
     rows.forEach(function(x, i){
       var name = x.it.tradename || x.it.generic;
-      box.appendChild(barRow((i + 1) + '. ' + name, x.q, rows[0].q, color, fmt1(x.q),
-        (i + 1) + '. ' + name + ' (' + x.it.hospcode + ') · ' + fmt1(x.q)));
+      var parts = locs.map(function(l){ return { l:l, q:x.it.stock[l.id] ? x.it.stock[l.id].qty : 0 }; }).filter(function(p){ return p.q > 0; });
+      var tip = (i + 1) + '. ' + name + ' (' + x.it.hospcode + ') · รวม ' + fmt1(x.q) + ' กล่อง' +
+        (parts.length > 1 ? ' = ' + parts.map(function(p){ return p.l.short + ' ' + fmt1(p.q); }).join(' + ') : '');
+      var row = barRow((i + 1) + '. ' + name, x.q, rows[0].q, 'transparent', fmt1(x.q) + ' <small>กล่อง</small>', tip);
+      var fill = row.querySelector('.fill');
+      fill.classList.add('stackbar');
+      parts.forEach(function(p){
+        var seg = document.createElement('div');
+        seg.style.width = (p.q / x.q * 100) + '%';
+        seg.style.background = p.l.color;
+        fill.appendChild(seg);
+      });
+      box.appendChild(row);
     });
-  }
-
-  function renderTop(){
-    var floorLocs = LOCATIONS.filter(function(l){ return l.kind === 'floor'; });
-    var showCentral = state.room === 'all' || state.room === 'central';
-    var floorIds = state.room === 'all' ? floorLocs.map(function(l){ return l.id; })
-      : floorLocs.some(function(l){ return l.id === state.room; }) ? [state.room] : [];
-
-    if(showCentral) renderTopList('chart-top-central', ['central'], 'var(--cat-3)');
-    else document.getElementById('chart-top-central').innerHTML = '<div class="table-note">เลือก "ทั้งหมด" หรือ "รายการคลังยา" เพื่อดูอันดับคลังยา</div>';
-
-    var floorLabel = floorIds.map(function(id){ return LOCATIONS.filter(function(l){ return l.id === id; })[0].short; }).join(' + ');
-    document.getElementById('top-floor-head').textContent = 'หน่วยย่อย' + (floorLabel ? ' (' + floorLabel + ')' : '') + ' — Top ' + TOP_N;
-    if(floorIds.length) renderTopList('chart-top-floor', floorIds, floorIds.length === 1 ? LOCATIONS.filter(function(l){ return l.id === floorIds[0]; })[0].color : 'var(--cat-2)');
-    else document.getElementById('chart-top-floor').innerHTML = '<div class="table-note">เลือก "ทั้งหมด" หรือห้องจ่ายยาเพื่อดูอันดับหน่วยย่อย</div>';
   }
 
   function renderAcct(){
@@ -898,7 +1117,7 @@
       '</div>' +
       '<div class="rd-scale"><span style="left:0;transform:none">0</span><span style="left:' + pos(p.lowrate) + '">low ' + fmt1(p.lowrate) + '</span><span style="left:' + pos(p.highrate) + '">high ' + fmt1(p.highrate) + '</span></div>' +
       '<div class="rd-stock">' + LOCATIONS.map(function(l){
-        var s = it.stock[l.id]; return '<span>' + l.short + ' <b>' + fmt1(s ? s.qty : 0) + '</b></span>';
+        var s = it.stock[l.id]; return '<span>' + l.short + ' <b>' + fmt1(s ? s.qty : 0) + '</b> กล่อง</span>';
       }).join('') + '<span>มูลค่ารวม <b>฿' + fmt(valueIn(it, LOCATIONS.map(function(l){ return l.id; }))) + '</b></span></div>';
     document.getElementById('rate-detail-close').addEventListener('click', function(){ state.rateSel = null; renderRates(); });
   }
@@ -953,22 +1172,27 @@
     }).sort(function(a, b){ return a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
     var ids = activeLocIds();
     function cell(it, id){
-      var qn = it.stock[id] ? it.stock[id].qty : 0;
-      return '<td class="mono' + (qn ? '' : ' zero') + '">' + (qn ? fmt1(qn) : '–') + '</td>';
+      var s = it.stock[id], qn = s ? s.qty : 0;
+      var unitTip = s && id !== 'central' && s.raw != null && s.raw !== qn ? ' title="' + fmt1(s.raw) + ' unit"' : '';
+      return '<td class="mono' + (qn ? '' : ' zero') + '"' + unitTip + '>' + (qn ? fmt1(qn) : '–') + '</td>';
+    }
+    function totalCell(it){
+      var q = qtyIn(it, LOCATIONS.map(function(l){ return l.id; }));
+      return '<td class="mono"><b>' + fmt1(q) + '</b></td>';
     }
     function rowHtml(it){
       var cat = ACCT_BY_KEY[it.acct];
       return '<tr><td>' + esc(it.hospcode) + '</td><td>' + esc(it.generic) + '</td><td>' + esc(it.tradename) + '</td>' +
         '<td>' + esc(it.regType) + '</td>' +
         '<td><span class="pill' + (cat.group === 'ED' ? ' ed' : '') + '">' + esc(isedText(it)) + '</span></td>' +
-        cell(it, 'central') + cell(it, 'G') + cell(it, '1') +
+        cell(it, 'central') + cell(it, 'G') + cell(it, '1') + totalCell(it) +
         '<td class="mono">' + fmt(valueIn(it, ids)) + '</td><td>' + esc(it.distribute) + '</td></tr>';
     }
 
     var body = document.getElementById('item-table');
     var countText = 'แสดง ' + fmt(rows.length) + ' รายการ' + (q ? ' (จาก ' + fmt(visible.length) + ')' : '');
     if(!rows.length){
-      body.innerHTML = '<tr><td colspan="10" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
+      body.innerHTML = '<tr><td colspan="11" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
     } else if(state.groupByCompany){
       var groups = {}, names = [];
       rows.forEach(function(it){
@@ -983,7 +1207,7 @@
       body.innerHTML = names.map(function(k){
         var list = groups[k];
         var v = list.reduce(function(s, it){ return s + valueIn(it, ids); }, 0);
-        return '<tr class="grp"><td colspan="10">' + esc(k) + '<span class="grp-meta">' + fmt(list.length) + ' รายการ · ฿' + fmt(v) + '</span></td></tr>' +
+        return '<tr class="grp"><td colspan="11">' + esc(k) + '<span class="grp-meta">' + fmt(list.length) + ' รายการ · ฿' + fmt(v) + '</span></td></tr>' +
           list.map(rowHtml).join('');
       }).join('');
       countText += ' ใน ' + fmt(names.length) + ' บริษัท';
@@ -1023,6 +1247,12 @@
     }, 150);
   });
 
+  rebuild();
   renderAll();
+  dbAll().then(function(recs){
+    if(!recs.length) return;
+    recs.forEach(function(r){ state.datasets[r.slot] = r; });
+    rebuild(); renderAll();
+  }).catch(function(){ storageOk = false; updateSourceUI(); });
 })();
 </script>
