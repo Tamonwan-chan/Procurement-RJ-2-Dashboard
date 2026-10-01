@@ -195,7 +195,9 @@
   tr.lots td td{ background:none; padding:3px 14px 3px 0; border:none; }
   .track.pair{ background:none; height:auto; display:flex; flex-direction:column; gap:2px; }
   .track.pair .fill{ height:8px; border-radius:3px; }
-  .rvalue.over{ color:var(--critical); font-weight:600; }
+  .track.has-target{ position:relative; overflow:visible; }
+  .target-line{ position:absolute; top:-4px; bottom:-4px; width:0; border-left:2px dashed var(--ink-muted); pointer-events:none; }
+  .legend i.target-key{ width:0; height:12px; border-radius:0; border-left:2px dashed var(--ink-muted); background:none; }
   tr.pick{ cursor:pointer; }
   tr.pick.sel, tr.pick.sel:hover{ background:var(--accent-soft); }
 
@@ -308,7 +310,7 @@
   <div class="table-note" id="prop-footnote" style="margin:-10px 0 22px"></div>
   <div class="subhead">แยกตามประเภทบัญชี — คลิกแถวเพื่อกรองทั้งหน้า</div>
   <div class="legend">
-    <span><i style="background:var(--cat-5)"></i>บัญชี ED (ก ข ค ง จ(1) จ(2))</span>
+    <span><i style="background:var(--cat-5)"></i>บัญชี ED (ก ข ค ง)</span>
     <span><i style="background:var(--cat-4)"></i>NED</span>
     <span><i style="background:var(--ink-faint)"></i>อื่น ๆ</span>
   </div>
@@ -325,7 +327,7 @@
   <div class="barlist" id="chart-value-loc" style="margin-bottom:26px"></div>
   <div class="subhead">แยกตามประเภทบัญชี — คลิกแถวเพื่อกรองทั้งหน้า</div>
   <div class="legend">
-    <span><i style="background:var(--cat-5)"></i>บัญชี ED (ก ข ค ง จ(1) จ(2))</span>
+    <span><i style="background:var(--cat-5)"></i>บัญชี ED (ก ข ค ง)</span>
     <span><i style="background:var(--cat-4)"></i>NED</span>
     <span><i style="background:var(--ink-faint)"></i>อื่น ๆ</span>
   </div>
@@ -341,7 +343,8 @@
     <h2>มูลค่ารวมตาม GPU</h2>
     <span class="hint">ตอบสนองตัวกรองด้านบน</span>
   </header>
-  <p class="desc">รวมทุกยี่ห้อที่มี gpucode เดียวกัน (เช่น paracetamol: SARA + PATAR) — <b style="color:var(--critical)">ตัวแดง</b> = มูลค่า ≥ ฿500,000 ต้องประกวดราคาตามระเบียบพัสดุ · ตอนนี้ใช้มูลค่าคงคลัง (ต้นทุน) ไปก่อน รอพี่โอมยืนยันว่ามูลค่าจัดซื้อคิดจากอะไร</p>
+  <p class="desc">รวมมูลค่าคงคลัง (ต้นทุน) ของทุกยี่ห้อที่มี gpucode เดียวกัน (เช่น paracetamol: SARA + PATAR)</p>
+  <div class="legend"><span><i class="target-key"></i>เส้น target ฿500,000</span></div>
   <div class="barlist" id="chart-gpu"></div>
   <div class="table-note" id="gpu-note"></div>
 </section>
@@ -361,7 +364,7 @@
   <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
   <div class="table-scroll" style="max-height:380px">
     <table>
-      <thead><tr><th>hospcode</th><th>ชื่อยา</th><th class="mono">lowrate</th><th class="mono">userate</th><th class="mono">highrate</th><th>สถานะ</th></tr></thead>
+      <thead><tr><th>hospcode</th><th>ชื่อยา</th><th class="mono">lowrate</th><th class="mono">userate</th><th class="mono">highrate</th><th class="mono">คงเหลือในคลัง<br><small>sumqty</small></th><th>สถานะ</th></tr></thead>
       <tbody id="rate-table"></tbody>
     </table>
   </div>
@@ -392,7 +395,7 @@
         <tr>
           <th>hospcode</th><th>generic</th><th>ชื่อยา (tradename)</th><th>ทะเบียน</th><th>ised (ประเภทบัญชี)</th>
           <th class="mono">คลังยา<br><small>กล่อง</small></th><th class="mono">ชั้น G<br><small>กล่อง</small></th><th class="mono">ชั้น 1<br><small>กล่อง</small></th>
-          <th class="mono">รวม<br><small>กล่อง</small></th><th class="mono">มูลค่า (บาท)</th><th>distribute</th>
+          <th class="mono">รวม<br><small>กล่อง</small></th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th class="mono">มูลค่า (บาท)</th><th>distribute</th>
         </tr>
       </thead>
       <tbody id="item-table"></tbody>
@@ -406,31 +409,25 @@
   <p class="desc" style="margin-bottom:8px">ปรับตามที่พี่โอมแจ้งแล้ว:</p>
   <ul class="done">
     <li>นับรายการยาเฉพาะที่มีสต็อกรวม &gt; 0 และนับรายการละ 1 ครั้ง ไม่นับตามจำนวนห้อง</li>
-    <li>เพิ่มตัวกรองทะเบียน (6 ประเภท) และประเภทบัญชี (12 ประเภท) พร้อม "ทั้งหมด"</li>
+    <li>ตัวกรองทะเบียน 8 ประเภท (รวมทะเบียนรังสีและทะเบียนอวัยวะเทียมเป็นตัวเลือกประจำ) และประเภทบัญชี 12 ประเภท พร้อม "ทั้งหมด"</li>
+    <li>ประเภทบัญชีเรียงตามที่พี่กำหนด — สถิติ ED : NED นับเฉพาะ ED (ก ข ค ง) กับ NED ส่วน เวชภัณฑ์มิใช่ยา, EDจ(1), EDจ(2), สมุนไพร, Covid 19, สูตรตำรับ, ไม่ระบุ แสดงแยก</li>
     <li>เพิ่ม "รายการคลังยา" ในแถบมุมมองห้องยา และเตรียมโค้ดรองรับห้องจ่ายยาใหม่ปี 70–71 แล้ว</li>
-    <li>มูลค่าห้องจ่ายยา = จำนวน (unit) × ราคาทุน/หน่วย (costrate จาก Meditem)</li>
-    <li>มูลค่าคงคลังแยกตามประเภทบัญชี 12 ประเภท</li>
+    <li>มูลค่าห้องจ่ายยา = จำนวน (unit) × ราคาทุน/หน่วย (costrate จาก Meditem) — ไม่ใช้ packprice (ราคาขาย)</li>
     <li>นำเข้าไฟล์ HIS ได้หลายไฟล์พร้อมกัน และจำข้อมูลครั้งล่าสุดของแต่ละไฟล์ไว้ ถ้าไม่ได้นำเข้าใหม่</li>
     <li>ทะเบียนจาก medrgttype (1–8) และประเภทบัญชีจาก accnation ตามที่พี่ยืนยัน</li>
-    <li>Top 10 และตารางแสดงเป็นกล่อง: คงคลัง (กล่อง) + (ชั้น 1 + ชั้น G) ÷ packsize</li>
-    <li>ส่งออก Excel หัวตารางแบบเดิม (hospcode … medrgttype_name)</li>
-    <li>packsize ยึด packqty จาก Meditem (ถ้าไม่มีจึงใช้ packsize จาก DrugCatNow)</li>
-    <li>inventory หลาย lot รวมทุก lot — ตัวเลขรวมสีน้ำเงินในตารางรายการยา คลิกเพื่อดูแต่ละ lot / Exp ทั้งคลังและห้องจ่ายยา</li>
+    <li>Top 10 และตารางแสดงเป็นกล่อง: คงคลัง (กล่อง) + (ชั้น 1 + ชั้น G) ÷ packsize — packsize ยึด packqty จาก Meditem (ถ้าไม่มีจึงใช้ DrugCatNow)</li>
+    <li>inventory หลาย lot รวมทุก lot — ตัวเลขรวมสีน้ำเงินในตาราง คลิกเพื่อดูแต่ละ lot / Exp ทั้งคลังและห้องจ่ายยา และเพิ่มคอลัมน์ expdate (วันหมดอายุที่ใกล้ที่สุด)</li>
     <li>ยอดติดลบในห้องจ่ายยานับเป็น 0 ทั้งบนหน้าจอและในไฟล์ส่งออก</li>
-    <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน (นำเข้าใหม่ ค่าเก่าจะเลื่อนเป็น "ครั้งก่อน")</li>
+    <li>list want = sumqty — ถ้า sumqty เป็น 0 แสดงสถานะ "ขาดคลัง" (กรองดูได้ในส่วนอัตราการใช้) · ไม่ใช้คอลัมน์ sourcename</li>
     <li>อัตราการใช้: เทียบ lowrate / highrate กับ userate</li>
-    <li>กราฟมูลค่ารวมตาม GPU — ตัวแดงเมื่อ ≥ ฿500,000 · ไฟล์ส่งออกเพิ่มคอลัมน์ drugcode / tpucode / gpucode ท้ายตาราง (ช่องว่าง = ยังลงข้อมูลไม่ครบ)</li>
+    <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน และกราฟมูลค่ารวมตาม GPU มีเส้น target ฿500,000</li>
+    <li>ส่งออก Excel: ตัด BCP NO ออก เพิ่ม expdate ต่อจาก floor G และเพิ่ม drugcode / tpucode / gpucode ท้ายตาราง</li>
     <li>manufact / distribute ใช้จาก DrugCatNow</li>
   </ul>
   <ol class="qlist">
-    <li><span class="qn">1</span><span class="qtext">กราฟ GPU: "มูลค่าจัดซื้อ" ที่ใช้เทียบเกณฑ์ ฿500,000 คิดจากอะไรครับ — ตอนนี้ใช้มูลค่าคงคลังไปก่อน (เช่น ต้องใช้ อัตราการใช้ × ราคา ต่อปี หรือจำนวนที่จะสั่งในรอบนี้ × ราคา)</span></li>
-    <li><span class="qn">2</span><span class="qtext">lot / วันหมดอายุ: ไฟล์ inventory และห้องจ่ายยามีคอลัมน์ lot กับวันหมดอายุชื่ออะไรครับ — โปรแกรมหาคอลัมน์ที่มีคำว่า lot / ล็อต / exp / หมดอายุ ถ้าไม่เจอจะแสดงเป็น lot 1, lot 2 ตามแถวในไฟล์</span></li>
-    <li><span class="qn">3</span><span class="qtext">"list want" ในไฟล์ส่งออกดึงจาก sumqty ของไฟล์ list แต่คำอธิบายในไฟล์ list เขียนว่า sumqty = จำนวนคงเหลือในคลัง — list want = sumqty ถูกต้องไหมครับ</span></li>
-    <li><span class="qn">4</span><span class="qtext">ไฟล์ list มีสถานะ "สั่งซื้อ" (262) กับ "เบิกจากคลังหลัก" (23) — ต้องการให้กรองตามสถานะนี้ไหมครับ</span></li>
-    <li><span class="qn">5</span><span class="qtext">BCP NO พี่กรอกเองใช่ไหมครับ (มี 15 รายการ ไม่มีในไฟล์ HIS) — ในไฟล์ส่งออกตอนนี้เว้นว่างไว้</span></li>
-    <li><span class="qn">6</span><span class="qtext">สัดส่วน ED : NED — บัญชียาสมุนไพร, ยา Covid 19, สูตรตำรับ รพ. ควรนับเป็น ED ไหมครับ (ตอนนี้แสดงแยกเป็น "อื่น ๆ") และ accnation 5 (R:restricted list (EDจ)) กับ 11 (โครงการแพทย์แผนไทย) อยู่ใน "ไม่ระบุ" ถูกต้องไหม</span></li>
-    <li><span class="qn">7</span><span class="qtext">ทะเบียนรังสี (5) และทะเบียนอวัยวะเทียมแบบไม่มี (IR) (7) — ต้องการให้เป็นตัวเลือกประจำด้วยไหมครับ (ตอนนี้จะโผล่มาเองเมื่อมีรายการที่มีสต็อก)</span></li>
-    <li><span class="qn">8</span><span class="qtext">packprice ใน DrugCatNow (ไฮไลต์แต่ซ่อนไว้) ต้องการใช้ทำอะไรครับ — และห้องจ่ายยาใหม่ปี 70–71 จะ export จาก HIS ในรูปแบบเดียวกับชั้น 1 / ชั้น G ไหม</span></li>
+    <li><span class="qn">1</span><span class="qtext">ไฟล์ inventory และห้องจ่ายยาที่ export จาก HIS จะมีคอลัมน์ชื่อ "expdate" ใช่ไหมครับ และมีคอลัมน์เลข lot ด้วยไหม ชื่ออะไร (ถ้าไม่มี จะแสดงเป็น lot 1, lot 2) — ถ้ามีไฟล์ตัวอย่างที่มีคอลัมน์นี้แล้ว ส่งมาให้ทดสอบได้เลยครับ</span></li>
+    <li><span class="qn">2</span><span class="qtext">ในไฟล์ส่งออก คอลัมน์ expdate วางต่อจาก floor G และใส่วันหมดอายุที่ใกล้ที่สุดของรายการนั้น (กรณีมีหลาย lot) — ตำแหน่งและแบบนี้ได้ไหมครับ</span></li>
+    <li><span class="qn">3</span><span class="qtext">ห้องจ่ายยาใหม่ปี 70–71 จะ export จาก HIS ในรูปแบบเดียวกับชั้น 1 / ชั้น G ไหมครับ (โปรแกรมแยกห้องจากชื่อห้องในคอลัมน์ dspname)</span></li>
   </ol>
 </section>
 
@@ -470,21 +467,24 @@
     'ทะเบียนเวชภัณฑ์ที่มิใช่ยา',
     'ทะเบียนยาตัวอย่าง (SAMPLE)',
     'ทะเบียนวัสดุเภสัชกรรมและอื่น ๆ',
+    'ทะเบียนรังสี',
+    'ทะเบียนอวัยวะเทียม',
     'ทะเบียนอวัยวะเทียม(IR)'
   ];
   var REG_UNKNOWN = 'ไม่ระบุทะเบียน';
 
+  /* ลำดับและกลุ่มตามที่พี่โอมกำหนด — สถิติ ED : NED นับเฉพาะ ED ก ข ค ง กับ NED ที่เหลือแสดงแยก */
   var ACCT_CATS = [
     { key:'EDก',  label:'b:basic list (EDก)',          group:'ED' },
     { key:'EDข',  label:'b:basic list (EDข)',          group:'ED' },
     { key:'EDค',  label:'s:supplemental list (EDค)',   group:'ED' },
     { key:'EDง',  label:'ex:exclusive list (EDง)',     group:'ED' },
-    { key:'EDจ1', label:'R1:restricted list (EDจ(1))', group:'ED' },
-    { key:'EDจ2', label:'R2:restricted list (EDจ(2))', group:'ED' },
-    { key:'herb', label:'บัญชียาสมุนไพร',              group:'other' },
-    { key:'covid',label:'ยา Covid 19',                 group:'other' },
     { key:'NED',  label:'NED',                         group:'NED' },
     { key:'nondrug', label:'เวชภัณฑ์มิใช่ยา',           group:'other' },
+    { key:'EDจ1', label:'R1:restricted list (EDจ(1))', group:'other' },
+    { key:'EDจ2', label:'R2:restricted list (EDจ(2))', group:'other' },
+    { key:'herb', label:'บัญชียาสมุนไพร',              group:'other' },
+    { key:'covid',label:'ยา Covid 19',                 group:'other' },
     { key:'formula', label:'สูตรตำรับ รพ.',             group:'other' },
     { key:'other',label:'ไม่ระบุ (อื่น ๆ)',             group:'other' }
   ];
@@ -515,7 +515,7 @@
       };
       return { hospcode:hospcode, generic:generic, tradename:tradename, regType:reg, isedRaw:ised, acct:acctKey(ised),
         distribute:distribute, stock:stock,
-        proc: rate ? { lowrate:rate[0], highrate:rate[1], userate:rate[2] } : null };
+        proc: rate ? { lowrate:rate[0], highrate:rate[1], userate:rate[2], sumqty:rate[3] != null ? rate[3] : rate[2] } : null };
     }
     var D='ทะเบียนยา', C='ทะเบียนเภสัชเคมีภัณฑ์', N='ทะเบียนเวชภัณฑ์ที่มิใช่ยา', S='ทะเบียนยาตัวอย่าง (SAMPLE)';
     var items = [
@@ -528,7 +528,7 @@
       it('2307015','ammonia aromatic','แอมโมเนียหอม 15 ml',D,'b:basic list (EDก)',0,0,12,20,15,null,'องค์การเภสัชกรรม'),
       it('2307349','ceftriaxone','CEFTRIAXONE 1 G INJ',D,'R2:restricted list (EDจ(2))',20,9600,82,842,48,[600,2400,700],'บริษัท โรช ไทยแลนด์ จำกัด'),
       it('2307517','molnupiravir','MOLNUPIRAVIR (GPO) 200 MG CAPSULE',D,'ยา Covid 19',0,0,0,40,11.77,null,'องค์การเภสัชกรรม'),
-      it('2307967','risedronate','ACTONEL FCT 150 MG ONCE-A-MONTH',D,'NED',6,5136,0,4,856,[30,90,8.4],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
+      it('2307967','risedronate','ACTONEL FCT 150 MG ONCE-A-MONTH',D,'NED',6,5136,0,4,856,[30,90,8.4,0],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
       it('2308001','andrographis','ฟ้าทะลายโจร แคปซูล',D,'บัญชียาสมุนไพร',0,0,300,120,1.1,null,'องค์การเภสัชกรรม'),
       it('2309120','hq cream','HQ 5% IN CREAM BASE 500 GM (HF)',D,'สูตรตำรับ รพ.',0,0,0,2,3035,null,'ผลิตใน รพ.'),
       it('160044','formalin','10% NEUTRAL BUFFERED FORMALIN 1000 ML',C,'ไม่ระบุ',0,0,0,2,140,null,'บริษัท เมดิทอป จำกัด'),
@@ -579,6 +579,39 @@
   function colLike(c, re){ return Object.keys(c).filter(function(h){ return re.test(h); })[0]; }
   function dateText(v){ return typeof v === 'number' && v > 20000 && v < 80000 ? XLSX.SSF.format('dd/mm/yyyy', v) : clean(v); }
 
+  /* แปลงวันหมดอายุเป็นตัวเลขเรียงได้ (yyyymmdd) — รองรับ dd/mm/yyyy (พ.ศ. หรือ ค.ศ.), yyyy-mm-dd และชื่อเดือนภาษาไทย */
+  var TH_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  var TH_MONTHS_ABBR = ['ม.ค','ก.พ','มี.ค','เม.ย','พ.ค','มิ.ย','ก.ค','ส.ค','ก.ย','ต.ค','พ.ย','ธ.ค'];
+  function expKey(s){
+    s = txt(s); if(!s) return null;
+    var m, d, mo, y;
+    if((m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/))){ d = +m[1]; mo = +m[2]; y = +m[3]; }
+    else if((m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/))){ y = +m[1]; mo = +m[2]; d = +m[3]; }
+    else {
+      m = s.match(/^(\d{1,2})\s*(\S+?)\.?\s*(?:พ\.ศ\.|ค\.ศ\.)?\s*(\d{2,4})$/);
+      if(!m) return null;
+      d = +m[1]; y = +m[3];
+      var name = m[2].replace(/\.$/, '');
+      mo = TH_MONTHS.indexOf(name) + 1 || TH_MONTHS_ABBR.indexOf(name) + 1;
+      if(!mo) return null;
+    }
+    if(y < 100) y += y >= 60 ? 2500 : 2000;
+    if(y > 2400) y -= 543;
+    if(!(mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return null;
+    return y * 10000 + mo * 100 + d;
+  }
+  /* วันหมดอายุที่ใกล้ที่สุดของ lot ที่ยังมีของ */
+  function nearestExp(lots){
+    var best = null, bestKey = Infinity, fallback = '';
+    (lots || []).forEach(function(x){
+      if(!x.exp || !(x.qty > 0)) return;
+      var k = expKey(x.exp);
+      if(k == null){ fallback = fallback || x.exp; return; }
+      if(k < bestKey){ bestKey = k; best = x.exp; }
+    });
+    return best || fallback;
+  }
+
   function extractRows(slot, t){
     var c = t.col;
     function g(r, name){ return name in c ? r[c[name]] : ''; }
@@ -603,7 +636,7 @@
         value:num(g(r,'รวมมูลค่า')) || num(g(r,'จำนวน')) * num(g(r,'ราคาต่อหน่วย')), price:num(g(r,'ราคาต่อหน่วย')),
         lot:clean(g(r, lotCol)), exp:dateText(g(r, expCol)) });
       else if(slot === 'list') out.push({ id:id, name:txt(g(r,'medname')), lowrate:num(g(r,'lowrate')), highrate:num(g(r,'highrate')),
-        userate:num(g(r,'userate')), sumqty:num(g(r,'sumqty')), source:txt(g(r,'sourcename')) });
+        userate:num(g(r,'userate')), sumqty:num(g(r,'sumqty')) });
       else out.push({ id:id, name:txt(g(r,'medname')), qty:num(g(r,'stkqty')), lot:clean(g(r, lotCol)), exp:dateText(g(r, expCol)) });
     });
     return out;
@@ -703,7 +736,7 @@
         gpscode:m.gpscode || '',
         gpsName:L.gp[m.gpscode] || '',
         stock:stock,
-        proc:lr ? { lowrate:lr.lowrate, highrate:lr.highrate, userate:lr.userate, sumqty:lr.sumqty, source:lr.source } : null
+        proc:lr ? { lowrate:lr.lowrate, highrate:lr.highrate, userate:lr.userate, sumqty:lr.sumqty } : null
       };
     });
     var extraRegs = [];
@@ -726,8 +759,8 @@
   }
 
   /* ---------------- ส่งออก Excel หัวตารางแบบเดิม ---------------- */
-  var EXPORT_HEAD = ['hospcode','generic','tradename','content','packsize','list want','inventory','total floor','floor1','floor G',
-    'distribute','manufact','ised','ndc24','BCP NO','medaccnation_name','medrgttype_name','drugcode','tpucode','gpucode'];
+  var EXPORT_HEAD = ['hospcode','generic','tradename','content','packsize','list want','inventory','total floor','floor1','floor G','expdate',
+    'distribute','manufact','ised','ndc24','medaccnation_name','medrgttype_name','drugcode','tpucode','gpucode'];
 
   function exportRows(L){
     var ids = {};
@@ -749,9 +782,9 @@
         packOf(L, id) || '',
         lr ? lr.sumqty : '',
         st && st.central.lots ? Math.max(0, st.central.raw) : '',
-        totalFloor, f1, fG,
+        totalFloor, f1, fG, nearestExp(L.lots[id]),
         d.distribute || '', d.manufact || '',
-        acc, d.ndc24 || '', '', acc, RGT_LABEL[m.rgt] || '',
+        acc, d.ndc24 || '', acc, RGT_LABEL[m.rgt] || '',
         m.drugcode || '', m.tpucode || '', m.gpucode || ''
       ];
     });
@@ -761,7 +794,7 @@
     if(!state.lookups) return;
     var rows = exportRows(state.lookups);
     var ws = XLSX.utils.aoa_to_sheet([EXPORT_HEAD].concat(rows));
-    ws['!cols'] = [10,26,34,12,9,9,9,10,9,9,34,30,24,26,8,24,24,26,12,12].map(function(w){ return { wch:w }; });
+    ws['!cols'] = [10,26,34,12,9,9,9,10,9,9,12,34,30,24,26,24,24,26,12,12].map(function(w){ return { wch:w }; });
     ws['!autofilter'] = { ref:XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:rows.length, c:EXPORT_HEAD.length - 1 } }) };
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'รายการต้องจัดซื้อ');
@@ -1061,7 +1094,7 @@
       });
     }
     document.getElementById('prop-footnote').textContent = both
-      ? 'ED ' + fmt(groups.ED) + ' : NED ' + fmt(groups.NED) + ' รายการ — ไม่รวมประเภทอื่น ' + fmt(groups.other) + ' รายการ (สมุนไพร, Covid 19, เวชภัณฑ์มิใช่ยา, สูตรตำรับ, ไม่ระบุ) ซึ่งแยกให้ดูด้านล่าง'
+      ? 'ED ' + fmt(groups.ED) + ' : NED ' + fmt(groups.NED) + ' รายการ — ไม่รวมประเภทอื่น ' + fmt(groups.other) + ' รายการ (เวชภัณฑ์มิใช่ยา, EDจ(1), EDจ(2), สมุนไพร, Covid 19, สูตรตำรับ, ไม่ระบุ) ซึ่งแยกให้ดูด้านล่าง'
       : 'ไม่มีรายการ ED/NED ในตัวกรองนี้';
 
     var box = document.getElementById('chart-acct'); box.innerHTML = '';
@@ -1112,7 +1145,7 @@
     });
   }
 
-  var TOP_GROUPS = 15, NO_GPS = 'ไม่ระบุกลุ่ม GPSC', BID_LIMIT = 500000;
+  var TOP_GROUPS = 15, NO_GPS = 'ไม่ระบุกลุ่ม GPSC', GPU_TARGET = 500000;
   function moreButton(noteId, shown, total, key, rerender){
     var note = document.getElementById(noteId);
     if(total <= TOP_GROUPS) return;
@@ -1171,22 +1204,29 @@
     var shown = state.gpuAll ? list : list.slice(0, TOP_GROUPS);
     var box = document.getElementById('chart-gpu'); box.innerHTML = '';
     if(!list.length) box.innerHTML = '<div class="table-note">ยังไม่มีรายการที่มี gpucode ในตัวกรองนี้ (ต้องนำเข้า Meditem)</div>';
-    var max = shown.length ? shown[0].value : 1;
+    /* สเกลต้องยาวพอให้เห็นเส้น target เสมอ */
+    var max = Math.max(shown.length ? shown[0].value : 0, GPU_TARGET * 1.08);
+    var targetAt = (GPU_TARGET / max * 100) + '%';
     shown.forEach(function(g){
-      var over = g.value >= BID_LIMIT, first = g.items[0];
+      var first = g.items[0];
       var label = (first.generic || first.tradename) + (g.items.length > 1 ? ' (' + g.items.length + ' ยี่ห้อ)' : '');
-      var row = barRow(label, g.value, max, over ? 'var(--critical)' : 'var(--cat-1)', '฿' + fmt(g.value),
+      var row = barRow(label, g.value, max, 'var(--cat-1)', '฿' + fmt(g.value),
         'GPU ' + g.code + ' · ' + g.items.map(function(it){ return it.tradename; }).join(' / ') + ' · ฿' + fmt(g.value));
-      if(over) row.querySelector('.rvalue').classList.add('over');
+      var track = row.querySelector('.track');
+      track.classList.add('has-target');
+      var line = document.createElement('div'); line.className = 'target-line'; line.style.left = targetAt;
+      track.appendChild(line);
       box.appendChild(row);
     });
-    var overN = list.filter(function(g){ return g.value >= BID_LIMIT; }).length;
     var note = document.getElementById('gpu-note');
-    note.textContent = (overN ? overN + ' GPU มูลค่า ≥ ฿500,000 · ' : '') + (missing ? fmt(missing) + ' รายการยังไม่มี gpucode (ยังลงข้อมูลไม่ครบ) · ' : '');
+    note.textContent = missing ? fmt(missing) + ' รายการยังไม่มี gpucode (ยังลงข้อมูลไม่ครบ) · ' : '';
     moreButton('gpu-note', shown.length, list.length, 'gpuAll', function(){ renderGpu(visibleItems()); });
   }
 
-  var STATUS_LABEL = { high:'สูงกว่าเกณฑ์', low:'ต่ำกว่าเกณฑ์', normal:'ปกติ' };
+  var STATUS_LABEL = { high:'สูงกว่าเกณฑ์', low:'ต่ำกว่าเกณฑ์', normal:'ปกติ', out:'ขาดคลัง' };
+  /* sumqty = 0 ในไฟล์ list หมายถึงไม่มีของ (สถานะขาดคลัง) */
+  function isOut(it){ return !!it.proc && it.proc.sumqty <= 0; }
+  var OUT_PILL = '<span class="pill status-high">ขาดคลัง</span>';
   function rateStatus(it){
     if(it.proc.userate < it.proc.lowrate) return 'low';
     if(it.proc.userate > it.proc.highrate) return 'high';
@@ -1206,16 +1246,18 @@
     var searched = pool.filter(function(r){
       return !q || rateOptionLabel(r.it).toLowerCase().indexOf(q) >= 0 || r.it.generic.toLowerCase().indexOf(q) >= 0;
     });
-    var counts = { high:0, low:0, normal:0 };
-    searched.forEach(function(r){ counts[r.status]++; });
+    var counts = { high:0, low:0, normal:0, out:0 };
+    searched.forEach(function(r){ counts[r.status]++; if(isOut(r.it)) counts.out++; });
 
     var statusBox = document.getElementById('rate-status'); statusBox.innerHTML = '';
     statusBox.appendChild(chip('ทั้งหมด', state.rateStatus === 'all', function(){ state.rateStatus = 'all'; renderRates(); }, { sm:true, count:searched.length }));
-    ['high','low','normal'].forEach(function(s){
+    ['high','low','normal','out'].forEach(function(s){
       statusBox.appendChild(chip(STATUS_LABEL[s], state.rateStatus === s, function(){ state.rateStatus = s; renderRates(); }, { sm:true, count:counts[s], empty:!counts[s] }));
     });
 
-    var rows = searched.filter(function(r){ return state.rateStatus === 'all' || r.status === state.rateStatus; });
+    var rows = searched.filter(function(r){
+      return state.rateStatus === 'all' || (state.rateStatus === 'out' ? isOut(r.it) : r.status === state.rateStatus);
+    });
     document.getElementById('rate-count').textContent = 'แสดง ' + fmt(rows.length) + ' จาก ' + fmt(pool.length) + ' รายการที่มีข้อมูลอัตราการใช้ · คลิกรายการเพื่อดูรายละเอียด';
 
     var selected = null;
@@ -1224,11 +1266,12 @@
     renderRateDetail(selected);
 
     var body = document.getElementById('rate-table');
-    if(!rows.length){ body.innerHTML = '<tr><td colspan="6" class="table-note" style="padding:14px">ไม่พบรายการตามที่เลือก</td></tr>'; return; }
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="7" class="table-note" style="padding:14px">ไม่พบรายการตามที่เลือก</td></tr>'; return; }
     body.innerHTML = rows.map(function(r){
       return '<tr class="pick' + (r.it.hospcode === state.rateSel ? ' sel' : '') + '" tabindex="0" data-hc="' + esc(r.it.hospcode) + '">' +
         '<td>' + esc(r.it.hospcode) + '</td><td>' + esc(r.it.tradename || r.it.generic) + '</td>' +
         '<td class="mono">' + fmt1(r.it.proc.lowrate) + '</td><td class="mono">' + fmt1(r.it.proc.userate) + '</td><td class="mono">' + fmt1(r.it.proc.highrate) + '</td>' +
+        '<td class="mono">' + (isOut(r.it) ? OUT_PILL : fmt1(r.it.proc.sumqty || 0)) + '</td>' +
         '<td><span class="pill status-' + r.status + '">' + STATUS_LABEL[r.status] + '</span></td></tr>';
     }).join('');
   }
@@ -1257,7 +1300,8 @@
       '<div class="rd-scale"><span style="left:0;transform:none">0</span><span style="left:' + pos(p.lowrate) + '">low ' + fmt1(p.lowrate) + '</span><span style="left:' + pos(p.highrate) + '">high ' + fmt1(p.highrate) + '</span></div>' +
       '<div class="rd-stock">' + LOCATIONS.map(function(l){
         var s = it.stock[l.id]; return '<span>' + l.short + ' <b>' + fmt1(s ? s.qty : 0) + '</b> กล่อง</span>';
-      }).join('') + '<span>มูลค่ารวม <b>฿' + fmt(valueIn(it, LOCATIONS.map(function(l){ return l.id; }))) + '</b></span></div>';
+      }).join('') + '<span>มูลค่ารวม <b>฿' + fmt(valueIn(it, LOCATIONS.map(function(l){ return l.id; }))) + '</b></span>' +
+      '<span>คงเหลือในคลัง (sumqty) ' + (isOut(it) ? OUT_PILL : '<b>' + fmt1(p.sumqty || 0) + '</b>') + '</span></div>';
     document.getElementById('rate-detail-close').addEventListener('click', function(){ state.rateSel = null; renderRates(); });
   }
 
@@ -1324,7 +1368,7 @@
     LOCATIONS.forEach(function(l){ LOC_SHORT[l.id] = l.short; });
     function lotRow(it){
       var n = {};
-      return '<tr class="lots"><td colspan="11"><table><thead><tr><th>ที่เก็บ</th><th>lot</th><th>Exp</th><th class="mono">จำนวน</th><th class="mono">ราคา/กล่อง</th></tr></thead><tbody>' +
+      return '<tr class="lots"><td colspan="12"><table><thead><tr><th>ที่เก็บ</th><th>lot</th><th>Exp</th><th class="mono">จำนวน</th><th class="mono">ราคา/กล่อง</th></tr></thead><tbody>' +
         it.lots.map(function(x){
           n[x.loc] = (n[x.loc] || 0) + 1;
           return '<tr><td>' + esc(LOC_SHORT[x.loc] || x.loc) + '</td><td>' + esc(x.lot || 'lot ' + n[x.loc]) + '</td><td>' + esc(x.exp || '–') + '</td>' +
@@ -1340,13 +1384,14 @@
         '<td>' + esc(it.regType) + '</td>' +
         '<td><span class="pill' + (cat.group === 'ED' ? ' ed' : '') + '">' + esc(isedText(it)) + '</span></td>' +
         cell(it, 'central') + cell(it, 'G') + cell(it, '1') + totalCell(it) +
+        '<td' + (nearestExp(it.lots) ? '' : ' class="zero"') + '>' + esc(nearestExp(it.lots) || '–') + '</td>' +
         '<td class="mono">' + fmt(valueIn(it, ids)) + '</td><td>' + esc(it.distribute) + '</td></tr>';
     }
 
     var body = document.getElementById('item-table');
     var countText = 'แสดง ' + fmt(rows.length) + ' รายการ' + (q ? ' (จาก ' + fmt(visible.length) + ')' : '');
     if(!rows.length){
-      body.innerHTML = '<tr><td colspan="11" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
+      body.innerHTML = '<tr><td colspan="12" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
     } else if(state.groupByCompany){
       var groups = {}, names = [];
       rows.forEach(function(it){
@@ -1361,7 +1406,7 @@
       body.innerHTML = names.map(function(k){
         var list = groups[k];
         var v = list.reduce(function(s, it){ return s + valueIn(it, ids); }, 0);
-        return '<tr class="grp"><td colspan="11">' + esc(k) + '<span class="grp-meta">' + fmt(list.length) + ' รายการ · ฿' + fmt(v) + '</span></td></tr>' +
+        return '<tr class="grp"><td colspan="12">' + esc(k) + '<span class="grp-meta">' + fmt(list.length) + ' รายการ · ฿' + fmt(v) + '</span></td></tr>' +
           list.map(rowHtml).join('');
       }).join('');
       countText += ' ใน ' + fmt(names.length) + ' บริษัท';
