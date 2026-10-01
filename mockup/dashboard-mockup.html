@@ -364,7 +364,7 @@
   <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
   <div class="table-scroll" style="max-height:380px">
     <table>
-      <thead><tr><th>hospcode</th><th>ชื่อยา</th><th class="mono">lowrate</th><th class="mono">userate</th><th class="mono">highrate</th><th class="mono">คงเหลือในคลัง<br><small>sumqty</small></th><th>สถานะ</th></tr></thead>
+      <thead><tr><th>hospcode</th><th>ชื่อยา</th><th class="mono">lowrate</th><th class="mono">userate</th><th class="mono">highrate</th><th class="mono">จำนวน<br><small>sumqty</small></th><th>สถานะ</th></tr></thead>
       <tbody id="rate-table"></tbody>
     </table>
   </div>
@@ -386,6 +386,11 @@
     </select>
     <input class="search" id="item-search" type="search" list="item-options" placeholder="พิมพ์คำค้นหา" aria-label="คำค้นหารายการยา">
     <datalist id="item-options"></datalist>
+    <select class="search field-select" id="item-stock" aria-label="กรองตามรวมกล่อง">
+      <option value="pos">รวมกล่อง: มีของ (&gt; 0)</option>
+      <option value="zero">รวมกล่อง: เป็น 0</option>
+      <option value="all">รวมกล่อง: ทั้งหมด</option>
+    </select>
     <label class="check"><input type="checkbox" id="item-group"> จัดกลุ่มตามบริษัท (distribute)</label>
     <span class="table-note" id="item-count" style="margin:0"></span>
   </div>
@@ -393,7 +398,7 @@
     <table class="wide">
       <thead>
         <tr>
-          <th>hospcode</th><th>generic</th><th>ชื่อยา (tradename)</th><th>ทะเบียน</th><th>ised (ประเภทบัญชี)</th>
+          <th>hospcode</th><th>ชื่อยา (tradename)</th><th>ทะเบียน</th><th>ised (ประเภทบัญชี)</th>
           <th class="mono">คลังยา<br><small>กล่อง</small></th><th class="mono">ชั้น G<br><small>กล่อง</small></th><th class="mono">ชั้น 1<br><small>กล่อง</small></th>
           <th class="mono">รวม<br><small>กล่อง</small></th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th class="mono">มูลค่า (บาท)</th><th>distribute</th>
         </tr>
@@ -423,11 +428,13 @@
     <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน และกราฟมูลค่ารวมตาม GPU มีเส้น target ฿500,000</li>
     <li>ส่งออก Excel: ตัด BCP NO ออก เพิ่ม expdate ต่อจาก floor G และเพิ่ม drugcode / tpucode / gpucode ท้ายตาราง</li>
     <li>manufact / distribute ใช้จาก DrugCatNow</li>
+    <li>ตารางรายการยาแสดงเฉพาะชื่อการค้า (ยังค้นหาด้วย generic ได้) และเพิ่มตัวกรอง "รวมกล่อง": มีของ / เป็น 0 / ทั้งหมด</li>
   </ul>
   <ol class="qlist">
     <li><span class="qn">1</span><span class="qtext">ไฟล์ inventory และห้องจ่ายยาที่ export จาก HIS จะมีคอลัมน์ชื่อ "expdate" ใช่ไหมครับ และมีคอลัมน์เลข lot ด้วยไหม ชื่ออะไร (ถ้าไม่มี จะแสดงเป็น lot 1, lot 2) — ถ้ามีไฟล์ตัวอย่างที่มีคอลัมน์นี้แล้ว ส่งมาให้ทดสอบได้เลยครับ</span></li>
     <li><span class="qn">2</span><span class="qtext">ในไฟล์ส่งออก คอลัมน์ expdate วางต่อจาก floor G และใส่วันหมดอายุที่ใกล้ที่สุดของรายการนั้น (กรณีมีหลาย lot) — ตำแหน่งและแบบนี้ได้ไหมครับ</span></li>
     <li><span class="qn">3</span><span class="qtext">ห้องจ่ายยาใหม่ปี 70–71 จะ export จาก HIS ในรูปแบบเดียวกับชั้น 1 / ชั้น G ไหมครับ (โปรแกรมแยกห้องจากชื่อห้องในคอลัมน์ dspname)</span></li>
+    <li><span class="qn">4</span><span class="qtext">อัตราการใช้ยา: ตอนนี้มีคอลัมน์ "จำนวน" (sumqty) แล้ว ถ้าเป็น 0 แสดง "ขาดคลัง" — ที่พี่อยากให้สถานะเป็น "สั่งซื้อ" หมายถึงแบบไหนครับ (ก) แสดงสถานะ "สั่งซื้อ" จากไฟล์ list คู่กับจำนวน หรือ (ข) เปลี่ยนคำว่า "ขาดคลัง" เป็น "สั่งซื้อ" เมื่อจำนวนเป็น 0 หรือ (ค) แบบอื่น</span></li>
   </ol>
 </section>
 
@@ -540,7 +547,7 @@
     return items;
   })();
 
-  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', searchField:'all', groupByCompany:false, rateSearch:'', rateStatus:'all', rateSel:null, datasets:{}, prev:null, openLots:{}, gpsAll:false, gpuAll:false, meta:null, regList:REG_TYPES.slice() };
+  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', searchField:'all', stockFilter:'pos', groupByCompany:false, rateSearch:'', rateStatus:'all', rateSel:null, datasets:{}, prev:null, openLots:{}, gpsAll:false, gpuAll:false, meta:null, regList:REG_TYPES.slice() };
 
   /* ---------------- Excel import (ไฟล์ HIS หลายไฟล์) ---------------- */
   function norm(h){ return String(h == null ? '' : h).replace(/\s+/g,' ').trim().toLowerCase(); }
@@ -706,6 +713,8 @@
     var ids = {};
     Object.keys(L.stock).forEach(function(k){ ids[k] = 1; });
     Object.keys(L.list).forEach(function(k){ ids[k] = 1; });
+    /* รายการใน DrugCatNow ที่ไม่มีของ — ใช้ในตารางรายการยาเมื่อกรอง "รวมกล่อง เป็น 0" */
+    Object.keys(L.dc).forEach(function(k){ ids[k] = 1; });
     var noPack = 0;
     var items = Object.keys(ids).map(function(id){
       var m = L.med[id] || {}, d = L.dc[id] || {}, st = L.stock[id] || { central:{ raw:0, value:0 }, rooms:{} };
@@ -1301,7 +1310,7 @@
       '<div class="rd-stock">' + LOCATIONS.map(function(l){
         var s = it.stock[l.id]; return '<span>' + l.short + ' <b>' + fmt1(s ? s.qty : 0) + '</b> กล่อง</span>';
       }).join('') + '<span>มูลค่ารวม <b>฿' + fmt(valueIn(it, LOCATIONS.map(function(l){ return l.id; }))) + '</b></span>' +
-      '<span>คงเหลือในคลัง (sumqty) ' + (isOut(it) ? OUT_PILL : '<b>' + fmt1(p.sumqty || 0) + '</b>') + '</span></div>';
+      '<span>จำนวน (sumqty) ' + (isOut(it) ? OUT_PILL : '<b>' + fmt1(p.sumqty || 0) + '</b>') + '</span></div>';
     document.getElementById('rate-detail-close').addEventListener('click', function(){ state.rateSel = null; renderRates(); });
   }
 
@@ -1347,28 +1356,31 @@
     document.getElementById('item-options').innerHTML = opts.map(function(v){ return '<option value="' + esc(v) + '"></option>'; }).join('');
   }
 
-  function renderTable(visible){
+  function renderTable(){
+    var visible = tableItems();
     renderItemOptions(visible);
     var q = state.search.trim().toLowerCase();
     var rows = visible.filter(function(it){
       return !q || fieldText(it, state.searchField).toLowerCase().indexOf(q) >= 0;
     }).sort(function(a, b){ return a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
     var ids = activeLocIds();
+    /* เศษกล่องเล็กมาก (เช่น 2 unit จากกล่องละ 1000) ไม่ให้ปัดเป็น "0" จนดูเหมือนไม่มีของ */
+    function fmtBox(q){ return q > 0 && q < 0.05 ? '<0.1' : fmt1(q); }
     function cell(it, id){
       var s = it.stock[id], qn = s ? s.qty : 0;
       var unitTip = s && id !== 'central' && s.raw != null && s.raw !== qn ? ' title="' + fmt1(s.raw) + ' unit"' : '';
-      return '<td class="mono' + (qn ? '' : ' zero') + '"' + unitTip + '>' + (qn ? fmt1(qn) : '–') + '</td>';
+      return '<td class="mono' + (qn ? '' : ' zero') + '"' + unitTip + '>' + (qn ? esc(fmtBox(qn)) : '–') + '</td>';
     }
     function totalCell(it){
       var q = qtyIn(it, LOCATIONS.map(function(l){ return l.id; }));
-      if(!it.multiLot) return '<td class="mono"><b>' + fmt1(q) + '</b></td>';
-      return '<td class="mono"><button type="button" class="lotbtn" data-hc="' + esc(it.hospcode) + '" aria-expanded="' + !!state.openLots[it.hospcode] + '">' + fmt1(q) + '</button></td>';
+      if(!it.multiLot) return '<td class="mono"><b>' + esc(fmtBox(q)) + '</b></td>';
+      return '<td class="mono"><button type="button" class="lotbtn" data-hc="' + esc(it.hospcode) + '" aria-expanded="' + !!state.openLots[it.hospcode] + '">' + esc(fmtBox(q)) + '</button></td>';
     }
     var LOC_SHORT = {};
     LOCATIONS.forEach(function(l){ LOC_SHORT[l.id] = l.short; });
     function lotRow(it){
       var n = {};
-      return '<tr class="lots"><td colspan="12"><table><thead><tr><th>ที่เก็บ</th><th>lot</th><th>Exp</th><th class="mono">จำนวน</th><th class="mono">ราคา/กล่อง</th></tr></thead><tbody>' +
+      return '<tr class="lots"><td colspan="11"><table><thead><tr><th>ที่เก็บ</th><th>lot</th><th>Exp</th><th class="mono">จำนวน</th><th class="mono">ราคา/กล่อง</th></tr></thead><tbody>' +
         it.lots.map(function(x){
           n[x.loc] = (n[x.loc] || 0) + 1;
           return '<tr><td>' + esc(LOC_SHORT[x.loc] || x.loc) + '</td><td>' + esc(x.lot || 'lot ' + n[x.loc]) + '</td><td>' + esc(x.exp || '–') + '</td>' +
@@ -1380,7 +1392,7 @@
     }
     function mainRow(it){
       var cat = ACCT_BY_KEY[it.acct];
-      return '<tr><td>' + esc(it.hospcode) + '</td><td>' + esc(it.generic) + '</td><td>' + esc(it.tradename) + '</td>' +
+      return '<tr><td>' + esc(it.hospcode) + '</td><td title="' + esc(it.generic) + '">' + esc(it.tradename || it.generic) + '</td>' +
         '<td>' + esc(it.regType) + '</td>' +
         '<td><span class="pill' + (cat.group === 'ED' ? ' ed' : '') + '">' + esc(isedText(it)) + '</span></td>' +
         cell(it, 'central') + cell(it, 'G') + cell(it, '1') + totalCell(it) +
@@ -1391,7 +1403,7 @@
     var body = document.getElementById('item-table');
     var countText = 'แสดง ' + fmt(rows.length) + ' รายการ' + (q ? ' (จาก ' + fmt(visible.length) + ')' : '');
     if(!rows.length){
-      body.innerHTML = '<tr><td colspan="12" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
+      body.innerHTML = '<tr><td colspan="11" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
     } else if(state.groupByCompany){
       var groups = {}, names = [];
       rows.forEach(function(it){
@@ -1406,7 +1418,7 @@
       body.innerHTML = names.map(function(k){
         var list = groups[k];
         var v = list.reduce(function(s, it){ return s + valueIn(it, ids); }, 0);
-        return '<tr class="grp"><td colspan="12">' + esc(k) + '<span class="grp-meta">' + fmt(list.length) + ' รายการ · ฿' + fmt(v) + '</span></td></tr>' +
+        return '<tr class="grp"><td colspan="11">' + esc(k) + '<span class="grp-meta">' + fmt(list.length) + ' รายการ · ฿' + fmt(v) + '</span></td></tr>' +
           list.map(rowHtml).join('');
       }).join('');
       countText += ' ใน ' + fmt(names.length) + ' บริษัท';
@@ -1430,6 +1442,18 @@
   }
 
   function visibleItems(){ return state.items.filter(function(it){ return inStock(it) && matchReg(it) && matchAcct(it); }); }
+  function tableItems(){
+    var ids = activeLocIds();
+    return state.items.filter(function(it){
+      if(!matchReg(it) || !matchAcct(it)) return false;
+      var q = qtyIn(it, ids);
+      return state.stockFilter === 'all' || (state.stockFilter === 'zero' ? q <= 0 : q > 0);
+    });
+  }
+  document.getElementById('item-stock').addEventListener('change', function(e){
+    state.stockFilter = e.target.value;
+    renderTable();
+  });
   document.getElementById('item-field').addEventListener('change', function(e){
     state.searchField = e.target.value;
     renderTable(visibleItems());
