@@ -180,6 +180,7 @@
   .pill.ed{ background:var(--good-soft); color:var(--good); }
   .pill.status-high{ background:var(--critical-soft); color:var(--critical); }
   .pill.status-low{ background:var(--warning-soft); color:var(--warning); }
+  .pill.order{ background:var(--accent-soft); color:var(--accent); }
   .pill.status-normal{ background:var(--good-soft); color:var(--good); }
   .table-note{ font-size:12px; color:var(--ink-faint); margin-top:8px; }
   .field-select{ width:auto; cursor:pointer; }
@@ -423,7 +424,9 @@
     <li>Top 10 และตารางแสดงเป็นกล่อง: คงคลัง (กล่อง) + (ชั้น 1 + ชั้น G) ÷ packsize — packsize ยึด packqty จาก Meditem (ถ้าไม่มีจึงใช้ DrugCatNow)</li>
     <li>inventory หลาย lot รวมทุก lot — ตัวเลขรวมสีน้ำเงินในตาราง คลิกเพื่อดูแต่ละ lot / Exp ทั้งคลังและห้องจ่ายยา และเพิ่มคอลัมน์ expdate (วันหมดอายุที่ใกล้ที่สุด)</li>
     <li>ยอดติดลบในห้องจ่ายยานับเป็น 0 ทั้งบนหน้าจอและในไฟล์ส่งออก</li>
-    <li>list want = sumqty — ถ้า sumqty เป็น 0 แสดงสถานะ "ขาดคลัง" (กรองดูได้ในส่วนอัตราการใช้) · ไม่ใช้คอลัมน์ sourcename</li>
+    <li>list want = sumqty — ถ้า sumqty เป็น 0 แสดงสถานะ "สั่งซื้อ" (ปุ่มกรองต่อจาก "ปกติ" ในส่วนอัตราการใช้) · ไม่ใช้คอลัมน์ sourcename</li>
+    <li>คลังยารับไฟล์ inventory_exp (แยก lot / expdate) แทน inventory ได้ — มูลค่า = sumqty × unitcost · ไฟล์ส่งออกคอลัมน์ "lot / expdate" รวมทุก lot และวันหมดอายุ</li>
+    <li>ห้องจ่ายยาใหม่ปี 70–71 export รูปแบบเดียวกับชั้น 1 / ชั้น G — เพิ่มได้ทันทีเมื่อรู้ชื่อห้อง</li>
     <li>อัตราการใช้: เทียบ lowrate / highrate กับ userate</li>
     <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน และกราฟมูลค่ารวมตาม GPU มีเส้น target ฿500,000</li>
     <li>ส่งออก Excel: ตัด BCP NO ออก เพิ่ม expdate ต่อจาก floor G และเพิ่ม drugcode / tpucode / gpucode ท้ายตาราง</li>
@@ -431,10 +434,9 @@
     <li>ตารางรายการยาแสดงเฉพาะชื่อการค้า (ยังค้นหาด้วย generic ได้) และเพิ่มตัวกรอง "รวมกล่อง": มีของ / เป็น 0 / ทั้งหมด</li>
   </ul>
   <ol class="qlist">
-    <li><span class="qn">1</span><span class="qtext">ไฟล์ inventory และห้องจ่ายยาที่ export จาก HIS จะมีคอลัมน์ชื่อ "expdate" ใช่ไหมครับ และมีคอลัมน์เลข lot ด้วยไหม ชื่ออะไร (ถ้าไม่มี จะแสดงเป็น lot 1, lot 2) — ถ้ามีไฟล์ตัวอย่างที่มีคอลัมน์นี้แล้ว ส่งมาให้ทดสอบได้เลยครับ</span></li>
-    <li><span class="qn">2</span><span class="qtext">ในไฟล์ส่งออก คอลัมน์ expdate วางต่อจาก floor G และใส่วันหมดอายุที่ใกล้ที่สุดของรายการนั้น (กรณีมีหลาย lot) — ตำแหน่งและแบบนี้ได้ไหมครับ</span></li>
-    <li><span class="qn">3</span><span class="qtext">ห้องจ่ายยาใหม่ปี 70–71 จะ export จาก HIS ในรูปแบบเดียวกับชั้น 1 / ชั้น G ไหมครับ (โปรแกรมแยกห้องจากชื่อห้องในคอลัมน์ dspname)</span></li>
-    <li><span class="qn">4</span><span class="qtext">อัตราการใช้ยา: ตอนนี้มีคอลัมน์ "จำนวน" (sumqty) แล้ว ถ้าเป็น 0 แสดง "ขาดคลัง" — ที่พี่อยากให้สถานะเป็น "สั่งซื้อ" หมายถึงแบบไหนครับ (ก) แสดงสถานะ "สั่งซื้อ" จากไฟล์ list คู่กับจำนวน หรือ (ข) เปลี่ยนคำว่า "ขาดคลัง" เป็น "สั่งซื้อ" เมื่อจำนวนเป็น 0 หรือ (ค) แบบอื่น</span></li>
+    <li><span class="qn">1</span><span class="qtext">ต่อไปใช้ไฟล์ inventory_exp แทน inventory เลยใช่ไหมครับ (จำนวนคงคลังตรงกัน และมี lot / expdate เพิ่ม) — ถ้าลากมาพร้อมกันโปรแกรมจะเลือกไฟล์ที่มี lot</span></li>
+    <li><span class="qn">2</span><span class="qtext">คอลัมน์ unitcost ใน inventory_exp พี่เขียนว่า "ราคาขาย/กล่อง" แต่ตัวเลขตรงกับ "ราคาทุน/กล่อง" ใน inventory 427 จาก 430 แถว — เป็นราคาทุนใช่ไหมครับ (โปรแกรมใช้คิดมูลค่าคงคลัง)</span></li>
+    <li><span class="qn">3</span><span class="qtext">ไฟล์ห้องจ่ายยาที่มี lot / expdate — รอพี่หาอยู่ (โปรแกรมเปิดรอไว้แล้ว ถ้ามีคอลัมน์ lotno / expdate จะอ่านได้ทันที) และห้องจ่ายยาใหม่ปี 70–71 จะใช้ชื่อห้องว่าอะไรครับ</span></li>
   </ol>
 </section>
 
@@ -462,7 +464,7 @@
     { slot:'meditem',   label:'Meditem',        desc:'ทะเบียนหลัก / ราคาทุน / packsize / GPU' },
     { slot:'drugcat',   label:'DrugCatNow',     desc:'ชื่อยา / บริษัท' },
     { slot:'gpsc',      label:'gpsc',           desc:'ชื่อกลุ่ม GPSC' },
-    { slot:'inventory', label:'inventory',      desc:'คงคลัง (กล่อง)' }
+    { slot:'inventory', label:'inventory / inventory_exp', desc:'คงคลัง (กล่อง) + lot / Exp' }
   ].concat(LOCATIONS.filter(function(l){ return l.kind === 'floor'; }).map(function(l){
     return { slot:'room:' + l.id, label:'ห้องจ่ายยา ' + l.short, desc:'ยอดคงเหลือ (unit)', room:l.id };
   })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }]);
@@ -570,6 +572,7 @@
     if(has(t, ['meditem','packqty','costrate','accnation'])) return 'meditem';
     if(has(t, ['gpsc','detail'])) return 'gpsc';
     if(has(t, ['รหัสเวชภัณฑ์','จำนวน','รวมมูลค่า'])) return 'inventory';
+    if(has(t, ['meditem','sumqty','unitcost'])) return 'inventory';
     if(has(t, ['meditem','lowrate','highrate'])) return 'list';
     if(has(t, ['meditem','stkqty'])){
       var dsp = '';
@@ -607,6 +610,18 @@
     if(!(mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return null;
     return y * 10000 + mo * 100 + d;
   }
+  /* รวม lot / Exp ทุก lot ที่ยังมีของ เรียงวันหมดอายุใกล้สุดก่อน (สำหรับไฟล์ส่งออก) */
+  function lotExpText(lots){
+    var locShort = {};
+    LOCATIONS.forEach(function(l){ locShort[l.id] = l.short; });
+    return (lots || []).filter(function(x){ return x.qty > 0 && (x.lot || x.exp); }).map(function(x){
+      var k = expKey(x.exp); return { x:x, k:k == null ? Infinity : k };
+    }).sort(function(a, b){ return a.k - b.k; }).map(function(o){
+      var x = o.x;
+      return (x.loc !== 'central' ? (locShort[x.loc] || x.loc) + ' ' : '') + (x.lot ? 'lot ' + x.lot : '') +
+        (x.exp ? (x.lot ? ' ' : '') + 'exp ' + x.exp : '') + ' (' + fmt1(x.qty) + ' ' + x.unit + ')';
+    }).join('; ');
+  }
   /* วันหมดอายุที่ใกล้ที่สุดของ lot ที่ยังมีของ */
   function nearestExp(lots){
     var best = null, bestKey = Infinity, fallback = '';
@@ -623,7 +638,9 @@
     var c = t.col;
     function g(r, name){ return name in c ? r[c[name]] : ''; }
     var lotCol = colLike(c, /lot|ล็อต|ล๊อต|batch/), expCol = colLike(c, /exp|หมดอายุ/);
-    var key = slot === 'inventory' ? 'รหัสเวชภัณฑ์' : slot === 'drugcat' ? 'hospcode' : 'meditem';
+    var key = slot === 'inventory' ? ('รหัสเวชภัณฑ์' in c ? 'รหัสเวชภัณฑ์' : 'meditem') : slot === 'drugcat' ? 'hospcode' : 'meditem';
+    /* คลังยามี 2 แบบ: inventory (จำนวน / ราคาต่อหน่วย / รวมมูลค่า) และ inventory_exp (sumqty / unitcost แยกตาม lot) */
+    var invQty = 'จำนวน' in c ? 'จำนวน' : 'sumqty', invPrice = 'ราคาต่อหน่วย' in c ? 'ราคาต่อหน่วย' : 'unitcost', invName = 'ชื่อเวชภัณฑ์' in c ? 'ชื่อเวชภัณฑ์' : 'medname';
     var out = [];
     t.rows.forEach(function(r){
       if(slot === 'gpsc'){
@@ -639,8 +656,8 @@
         content:clean(g(r,'content')), gnrname:clean(g(r,'gnrname')) });
       else if(slot === 'drugcat') out.push({ id:id, generic:txt(g(r,'generic')), tradename:txt(g(r,'tradename')), content:txt(g(r,'content')),
         packsize:num(g(r,'packsize')), distribute:clean(g(r,'distribute')), manufact:clean(g(r,'manufact')), ndc24:clean(g(r,'ndc24')) });
-      else if(slot === 'inventory') out.push({ id:id, name:txt(g(r,'ชื่อเวชภัณฑ์')), qty:num(g(r,'จำนวน')),
-        value:num(g(r,'รวมมูลค่า')) || num(g(r,'จำนวน')) * num(g(r,'ราคาต่อหน่วย')), price:num(g(r,'ราคาต่อหน่วย')),
+      else if(slot === 'inventory') out.push({ id:id, name:txt(g(r,invName)), qty:num(g(r,invQty)),
+        value:num(g(r,'รวมมูลค่า')) || num(g(r,invQty)) * num(g(r,invPrice)), price:num(g(r,invPrice)),
         lot:clean(g(r, lotCol)), exp:dateText(g(r, expCol)) });
       else if(slot === 'list') out.push({ id:id, name:txt(g(r,'medname')), lowrate:num(g(r,'lowrate')), highrate:num(g(r,'highrate')),
         userate:num(g(r,'userate')), sumqty:num(g(r,'sumqty')) });
@@ -768,7 +785,7 @@
   }
 
   /* ---------------- ส่งออก Excel หัวตารางแบบเดิม ---------------- */
-  var EXPORT_HEAD = ['hospcode','generic','tradename','content','packsize','list want','inventory','total floor','floor1','floor G','expdate',
+  var EXPORT_HEAD = ['hospcode','generic','tradename','content','packsize','list want','inventory','total floor','floor1','floor G','lot / expdate',
     'distribute','manufact','ised','ndc24','medaccnation_name','medrgttype_name','drugcode','tpucode','gpucode'];
 
   function exportRows(L){
@@ -791,7 +808,7 @@
         packOf(L, id) || '',
         lr ? lr.sumqty : '',
         st && st.central.lots ? Math.max(0, st.central.raw) : '',
-        totalFloor, f1, fG, nearestExp(L.lots[id]),
+        totalFloor, f1, fG, lotExpText(L.lots[id]),
         d.distribute || '', d.manufact || '',
         acc, d.ndc24 || '', acc, RGT_LABEL[m.rgt] || '',
         m.drugcode || '', m.tpucode || '', m.gpucode || ''
@@ -803,7 +820,7 @@
     if(!state.lookups) return;
     var rows = exportRows(state.lookups);
     var ws = XLSX.utils.aoa_to_sheet([EXPORT_HEAD].concat(rows));
-    ws['!cols'] = [10,26,34,12,9,9,9,10,9,9,12,34,30,24,26,24,24,26,12,12].map(function(w){ return { wch:w }; });
+    ws['!cols'] = [10,26,34,12,9,9,9,10,9,9,40,34,30,24,26,24,24,26,12,12].map(function(w){ return { wch:w }; });
     ws['!autofilter'] = { ref:XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:rows.length, c:EXPORT_HEAD.length - 1 } }) };
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'รายการต้องจัดซื้อ');
@@ -855,7 +872,7 @@
     if(!files.length) return;
     hideError();
     showNote('กำลังอ่านไฟล์ ' + files.length + ' ไฟล์…');
-    var found = {}, unknown = [], dup = [];
+    var found = {}, unknown = [], dup = [], keptLot = false;
     var chain = Promise.resolve();
     files.forEach(function(f){
       chain = chain.then(function(){ return readFile(f); }).then(function(buf){
@@ -865,8 +882,14 @@
           var t = readTable(wb.Sheets[sn]); if(!t) return;
           var slot = detectSlot(t, f.name); if(!slot) return;
           var rows = extractRows(slot, t); if(!rows.length) return;
-          if(found[slot]) dup.push(slotLabel(slot));
-          found[slot] = { slot:slot, fileName:f.name + (wb.SheetNames.length > 1 ? ' [' + sn + ']' : ''),
+          var hasExp = rows.some(function(r){ return r.exp || r.lot; });
+          if(found[slot]){
+            if(slot === 'inventory' && found[slot].hasExp !== hasExp){
+              keptLot = true;
+              if(found[slot].hasExp){ hit = true; return; }
+            } else dup.push(slotLabel(slot));
+          }
+          found[slot] = { slot:slot, hasExp:hasExp, fileName:f.name + (wb.SheetNames.length > 1 ? ' [' + sn + ']' : ''),
             importedAt:new Date().toISOString(), rowCount:rows.length, rows:rows };
           hit = true;
         });
@@ -893,6 +916,7 @@
         rebuild(); resetFilters(); renderAll();
         showNote('นำเข้าแล้ว ' + recs.length + ' ไฟล์: ' + recs.map(function(r){ return slotLabel(r.slot); }).join(', ') +
           (dup.length ? ' · มีไฟล์ซ้ำประเภทเดียวกัน ใช้ไฟล์ที่วางทีหลัง: ' + dup.join(', ') : '') +
+          (keptLot ? ' · คลังยามี 2 ไฟล์ ใช้ไฟล์ที่มี lot / expdate' : '') +
           (storageOk ? '' : ' · บันทึกลงเครื่องไม่ได้ ข้อมูลจะหายเมื่อปิดหน้า'));
         if(unknown.length) showError('ไม่รู้จักไฟล์: ' + unknown.join(', ') + ' — ไฟล์นี้ไม่ได้ถูกนำเข้า');
       });
@@ -1232,10 +1256,10 @@
     moreButton('gpu-note', shown.length, list.length, 'gpuAll', function(){ renderGpu(visibleItems()); });
   }
 
-  var STATUS_LABEL = { high:'สูงกว่าเกณฑ์', low:'ต่ำกว่าเกณฑ์', normal:'ปกติ', out:'ขาดคลัง' };
-  /* sumqty = 0 ในไฟล์ list หมายถึงไม่มีของ (สถานะขาดคลัง) */
+  var STATUS_LABEL = { high:'สูงกว่าเกณฑ์', low:'ต่ำกว่าเกณฑ์', normal:'ปกติ', out:'สั่งซื้อ' };
+  /* sumqty = 0 ในไฟล์ list หมายถึงไม่มีของ ต้องสั่งซื้อ */
   function isOut(it){ return !!it.proc && it.proc.sumqty <= 0; }
-  var OUT_PILL = '<span class="pill status-high">ขาดคลัง</span>';
+  var OUT_PILL = '<span class="pill order">สั่งซื้อ</span>';
   function rateStatus(it){
     if(it.proc.userate < it.proc.lowrate) return 'low';
     if(it.proc.userate > it.proc.highrate) return 'high';
@@ -1383,7 +1407,8 @@
       return '<tr class="lots"><td colspan="11"><table><thead><tr><th>ที่เก็บ</th><th>lot</th><th>Exp</th><th class="mono">จำนวน</th><th class="mono">ราคา/กล่อง</th></tr></thead><tbody>' +
         it.lots.map(function(x){
           n[x.loc] = (n[x.loc] || 0) + 1;
-          return '<tr><td>' + esc(LOC_SHORT[x.loc] || x.loc) + '</td><td>' + esc(x.lot || 'lot ' + n[x.loc]) + '</td><td>' + esc(x.exp || '–') + '</td>' +
+          var rowsAtLoc = it.lots.filter(function(y){ return y.loc === x.loc; }).length;
+          return '<tr><td>' + esc(LOC_SHORT[x.loc] || x.loc) + '</td><td>' + esc(x.lot || (rowsAtLoc > 1 ? 'lot ' + n[x.loc] : '–')) + '</td><td>' + esc(x.exp || '–') + '</td>' +
             '<td class="mono">' + fmt1(x.qty) + ' ' + x.unit + '</td><td class="mono">' + (x.price ? fmt1(x.price) : '–') + '</td></tr>';
         }).join('') + '</tbody></table></td></tr>';
     }
