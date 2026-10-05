@@ -178,6 +178,7 @@
   .pill.ed{ background:var(--good-soft); color:var(--good); }
   .pill.status-high{ background:var(--critical-soft); color:var(--critical); }
   .pill.status-low{ background:var(--warning-soft); color:var(--warning); }
+  .rate-inv{ color:var(--warning); font-size:11px; }
   .pill.order{ background:var(--accent-soft); color:var(--accent); }
   .pill.status-normal{ background:var(--good-soft); color:var(--good); }
   .table-note{ font-size:12px; color:var(--ink-faint); margin-top:8px; }
@@ -353,7 +354,7 @@
     <h2>อัตราการใช้ยา</h2>
     <span class="hint">จากไฟล์ list (แจ้งความต้องการซื้อ) · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
-  <p class="desc">เทียบอัตราการใช้จริง (userate) กับ lowrate / highrate — แสดงทุกรายการในรอบจัดซื้อ แม้สต็อกเป็น 0 เพราะเป็นรายการที่อาจต้องสั่งซื้อ</p>
+  <p class="desc">ใช้ดูเพื่อสั่งจัดซื้อยา — รายการจากไฟล์ list (แจ้งความต้องการซื้อ) เทียบ userate กับ lowrate / highrate พร้อมยอดคงคลังทุกห้อง · คลังยา = sumqty ถ้าไม่มีของแสดง "สั่งซื้อ" (ถ้าไฟล์คลังยาที่นำเข้าล่าสุดมียอดต่างไปจะแสดง "คลังล่าสุด" ไว้ใต้ตัวเลข)</p>
   <div class="table-tools">
     <input class="search" id="rate-search" type="search" list="rate-options" placeholder="เลือกหรือค้นหารายการยา (hospcode / ชื่อยา)" aria-label="เลือกรายการยา">
     <datalist id="rate-options"></datalist>
@@ -361,9 +362,9 @@
   </div>
   <div class="rate-detail" id="rate-detail" hidden></div>
   <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
-  <div class="table-scroll" style="max-height:380px">
-    <table>
-      <thead><tr><th>hospcode</th><th>ชื่อยา</th><th class="mono">lowrate</th><th class="mono">userate</th><th class="mono">highrate</th><th class="mono">จำนวน<br><small>sumqty</small></th><th>สถานะ</th></tr></thead>
+  <div class="table-scroll" style="max-height:460px">
+    <table style="min-width:1560px">
+      <thead><tr id="rate-head"></tr></thead>
       <tbody id="rate-table"></tbody>
     </table>
   </div>
@@ -374,6 +375,7 @@
     <h2>รายการยา</h2>
     <span class="hint">เรียงตาม hospcode · ตามตัวกรองด้านบน</span>
   </header>
+  <p class="desc">ใช้ดูทะเบียนยาและ stock คงคลัง — จำนวนเป็นกล่องทุกห้อง · ราคาทุน/กล่องจากไฟล์คลังยา (ถ้าไม่มีใช้ costrate × packsize)</p>
   <div class="table-tools">
     <select class="search field-select" id="item-field" aria-label="ค้นหาในช่อง">
       <option value="all">ค้นหาทุกช่อง</option>
@@ -397,9 +399,9 @@
     <table class="wide">
       <thead>
         <tr>
-          <th>hospcode</th><th>ชื่อยา (tradename)</th><th>ทะเบียน</th><th>ised (ประเภทบัญชี)</th>
+          <th>hospcode</th><th>ชื่อยา (tradename)</th><th>ทะเบียน</th><th>ised (ประเภทบัญชี)</th><th>GPU</th><th>TMT</th>
           <th id="loc-heads"></th>
-          <th class="mono">รวม<br><small>กล่อง</small></th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th class="mono">มูลค่า (บาท)</th><th>distribute</th>
+          <th class="mono">รวม<br><small>กล่อง</small></th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th class="mono">ราคาทุน<br><small>บาท/กล่อง</small></th><th class="mono">มูลค่า (บาท)</th><th>distribute</th><th>manufact</th><th>gpsc</th>
         </tr>
       </thead>
       <tbody id="item-table"></tbody>
@@ -425,6 +427,8 @@
     <li>list want = sumqty — ถ้า sumqty เป็น 0 แสดงสถานะ "สั่งซื้อ" (ปุ่มกรองต่อจาก "ปกติ" ในส่วนอัตราการใช้) · ไม่ใช้คอลัมน์ sourcename</li>
     <li>คลังยารับไฟล์ inventory_exp (แยก lot / expdate) แทน inventory ได้ — มูลค่า = sumqty × unitcost · ไฟล์ส่งออกคอลัมน์ "lot / expdate" รวมทุก lot และวันหมดอายุ</li>
     <li>ห้องจ่ายยาใหม่: ห้องจ่ายยา ชั้น 1 อาคารผู้ป่วยใน (ชั้น 1 IPD) — เปิดรอไว้แล้ว ลากไฟล์รูปแบบเดียวกับชั้น 1 / ชั้น G มาวางได้เลย (แยกจากคำว่า "ผู้ป่วยใน" ใน dspname) · ไฟล์ส่งออกเพิ่มคอลัมน์ floor 1 IPD</li>
+    <li>แยก 2 ตาราง: "อัตราการใช้ยา" ใช้ดูเพื่อสั่งจัดซื้อ (รายการจากไฟล์ list พร้อมยอดทุกห้อง มูลค่า expdate distribute manufact) · "รายการยา" ใช้ดูทะเบียนยาและ stock คงคลัง (เพิ่ม GPU, TMT, ราคาทุน/กล่อง, manufact, gpsc)</li>
+    <li>ข้อมูลไฟล์ที่ไม่ได้นำเข้าใหม่ คงไว้ ณ วันที่นำเข้าล่าสุด</li>
     <li>คลังยาใช้ inventory_exp (unitcost = ราคาทุน/กล่อง) · นำเข้า Medical Product Registration เป็นแหล่งชื่อทะเบียน / ประเภทบัญชี (ถ้าไม่มีจะแปลงจากรหัสใน Meditem)</li>
     <li>อัตราการใช้: เทียบ lowrate / highrate กับ userate</li>
     <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน และกราฟมูลค่ารวมตาม GPU มีเส้น target ฿500,000</li>
@@ -435,6 +439,7 @@
   <ol class="qlist">
     <li><span class="qn">1</span><span class="qtext">ไฟล์ห้องจ่ายยา (ชั้น G / ชั้น 1) ที่มี lot / expdate — รอพี่หาอยู่ โปรแกรมเปิดรอไว้แล้ว</span></li>
     <li><span class="qn">2</span><span class="qtext">ไฟล์ส่งออกเพิ่มคอลัมน์ "floor 1 IPD" ต่อจาก floor G สำหรับห้องจ่ายยาใหม่ และ total floor รวมทุกห้อง — แบบนี้ได้ไหมครับ</span></li>
+    <li><span class="qn">3</span><span class="qtext">มี 16 รายการที่ไฟล์ list ให้ sumqty = 0 (สถานะ "สั่งซื้อ") แต่ไฟล์คลังยาที่นำเข้าล่าสุด (inventory_exp) มีของแล้ว เช่น ARTRODAR 50 MG = 200 กล่อง — น่าจะเพราะไฟล์ list export ก่อนของเข้า ตอนนี้แสดง "สั่งซื้อ" และ "คลังล่าสุด 200" คู่กัน ต้องการให้ยึดตัวเลขไหนครับ (ก) sumqty จากไฟล์ list ตามเดิม (ข) ยอดคลังยาล่าสุด ถ้ามีของแล้วไม่ต้องขึ้น "สั่งซื้อ"</span></li>
   </ol>
 </section>
 
@@ -447,8 +452,8 @@
   var LOCATIONS = [
     { id:'central', label:'รายการคลังยา',    short:'คลังยา', kind:'central', color:'var(--cat-3)' },
     { id:'G',       label:'ห้องจ่ายยาชั้น G', short:'ชั้น G',  kind:'floor', match:/ชั้น\s*G/i, color:'var(--cat-1)' },
-    { id:'1',       label:'ห้องจ่ายชั้น 1',   short:'ชั้น 1',  kind:'floor', match:/^(?!.*ผู้ป่วยใน).*ชั้น\s*1/, color:'var(--cat-2)' },
-    { id:'IPD1',    label:'ห้องจ่ายยา ชั้น 1 อาคารผู้ป่วยใน', short:'ชั้น 1 IPD', kind:'floor', match:/ผู้ป่วยใน/, exportCol:'floor 1 IPD', color:'var(--cat-4)' }
+    { id:'1',       label:'ห้องจ่ายยาชั้น 1 (OPD)', short:'ชั้น 1 (OPD)', kind:'floor', match:/^(?!.*ผู้ป่วยใน).*ชั้น\s*1/, color:'var(--cat-2)' },
+    { id:'IPD1',    label:'ห้องจ่ายยาชั้น 1 (IPD) อาคารผู้ป่วยใน', short:'ชั้น 1 (IPD)', kind:'floor', match:/ผู้ป่วยใน/, exportCol:'floor 1 IPD', color:'var(--cat-4)' }
   ];
 
   /* รหัสจาก Meditem ที่พี่โอมยืนยันแล้ว */
@@ -469,7 +474,7 @@
     return { slot:'room:' + l.id, label:'ห้องจ่ายยา ' + l.short, desc:'ยอดคงเหลือ (unit)', room:l.id };
   })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }]);
   /* hospcode, ชื่อยา, ทะเบียน, ised + ห้องละ 1 คอลัมน์ + รวม, expdate, มูลค่า, distribute */
-  var TABLE_COLS = 8 + LOCATIONS.length;
+  var TABLE_COLS = 13 + LOCATIONS.length;
 
   var REG_TYPES = [
     'ทะเบียนยา',
@@ -512,6 +517,7 @@
     return isFinite(n) ? n : 0;
   }
   function fmt(n){ return Math.round(n).toLocaleString('th-TH'); }
+  function fmt2(n){ return n.toLocaleString('th-TH',{ minimumFractionDigits:2, maximumFractionDigits:2 }); }
   function fmt1(n){ return n.toLocaleString('th-TH',{ maximumFractionDigits:1 }); }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]; }); }
 
@@ -652,7 +658,7 @@
       }
       if(!isCode(g(r, key))) return;
       var id = idOf(g(r, key));
-      if(slot === 'registry') out.push({ id:id, rgtName:clean(g(r,'medrgttype_name')), accName:clean(g(r,'medaccnation_name')), gpucode:clean(g(r,'gpucode')) });
+      if(slot === 'registry') out.push({ id:id, rgtName:clean(g(r,'medrgttype_name')), accName:clean(g(r,'medaccnation_name')), gpucode:clean(g(r,'gpucode')), tmtcode:clean(g(r,'tmtcode')) });
       else if(slot === 'meditem') out.push({ id:id, name:txt(g(r,'medname')), packqty:num(g(r,'packqty')), costrate:num(g(r,'costrate')),
         gpscode:clean(g(r,'gpscode')), rgt:clean(g(r,'medrgttype')), acc:clean(g(r,'accnation')), ised:clean(g(r,'ised')),
         drugcode:clean(g(r,'drugcode')), tpucode:clean(g(r,'tpucode')), gpucode:clean(g(r,'gpucode')),
@@ -758,6 +764,9 @@
         lots:lots,
         multiLot:Object.keys(perLoc).some(function(k){ return perLoc[k] > 1; }),
         gpucode:m.gpucode || (L.reg[id] || {}).gpucode || '',
+        tmt:(L.reg[id] || {}).tmtcode || m.tpucode || '',
+        /* ราคาทุน/กล่อง: จากคลังยา (unitcost) ถ้ามี ไม่งั้น costrate × packsize */
+        boxCost:st.central.raw > 0 ? st.central.value / st.central.raw : cost * (pack || 1),
         hospcode:id,
         generic:d.generic || m.gnrname || '',
         tradename:d.tradename || m.name || L.names[id] || '',
@@ -1304,14 +1313,31 @@
     renderRateDetail(selected);
 
     var body = document.getElementById('rate-table');
-    if(!rows.length){ body.innerHTML = '<tr><td colspan="7" class="table-note" style="padding:14px">ไม่พบรายการตามที่เลือก</td></tr>'; return; }
-    body.innerHTML = rows.map(function(r){
-      return '<tr class="pick' + (r.it.hospcode === state.rateSel ? ' sel' : '') + '" tabindex="0" data-hc="' + esc(r.it.hospcode) + '">' +
-        '<td>' + esc(r.it.hospcode) + '</td><td>' + esc(r.it.tradename || r.it.generic) + '</td>' +
-        '<td class="mono">' + fmt1(r.it.proc.lowrate) + '</td><td class="mono">' + fmt1(r.it.proc.userate) + '</td><td class="mono">' + fmt1(r.it.proc.highrate) + '</td>' +
-        '<td class="mono">' + (isOut(r.it) ? OUT_PILL : fmt1(r.it.proc.sumqty || 0)) + '</td>' +
-        '<td><span class="pill status-' + r.status + '">' + STATUS_LABEL[r.status] + '</span></td></tr>';
-    }).join('');
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="' + (13 + FLOOR_LOCS.length) + '" class="table-note" style="padding:14px">ไม่พบรายการตามที่เลือก</td></tr>'; return; }
+    body.innerHTML = rows.map(function(r){ return rateRow(r.it, r.status); }).join('');
+  }
+
+  /* คลังยา (กล่อง) = sumqty จากไฟล์ list — ถ้าไฟล์คลังยาที่นำเข้าล่าสุดมียอดต่างไป แสดงไว้ใต้ตัวเลขให้เห็น */
+  function rateRow(it, status){
+    var p = it.proc, sq = p.sumqty || 0, inv = it.stock.central ? it.stock.central.qty : 0;
+    var invNote = state.mode === 'real' && Math.abs(inv - sq) > 1e-6 ? '<br><small class="rate-inv">คลังล่าสุด ' + fmt1(inv) + '</small>' : '';
+    var rooms = FLOOR_LOCS.map(function(l){ var s = it.stock[l.id]; return s ? s.qty : 0; });
+    var roomValue = FLOOR_LOCS.reduce(function(s, l){ return s + (it.stock[l.id] ? it.stock[l.id].value : 0); }, 0);
+    var total = sq + rooms.reduce(function(a, b){ return a + b; }, 0);
+    var value = sq * (it.boxCost || 0) + roomValue;
+    var exp = nearestExp(it.lots);
+    function q(v){ return '<td class="mono' + (v ? '' : ' zero') + '">' + (v ? esc(v > 0 && v < 0.05 ? '<0.1' : fmt1(v)) : '–') + '</td>'; }
+    return '<tr class="pick' + (it.hospcode === state.rateSel ? ' sel' : '') + '" tabindex="0" data-hc="' + esc(it.hospcode) + '">' +
+      '<td>' + esc(it.hospcode) + '</td><td title="' + esc(it.generic) + '">' + esc(it.tradename || it.generic) + '</td>' +
+      '<td><span class="pill' + (ACCT_BY_KEY[it.acct].group === 'ED' ? ' ed' : '') + '">' + esc(isedText(it)) + '</span></td>' +
+      '<td class="mono">' + fmt1(p.lowrate) + '</td><td class="mono">' + fmt1(p.highrate) + '</td><td class="mono">' + fmt1(p.userate) + '</td>' +
+      '<td><span class="pill status-' + status + '">' + STATUS_LABEL[status] + '</span></td>' +
+      '<td class="mono">' + (isOut(it) ? OUT_PILL : fmt1(sq)) + invNote + '</td>' +
+      rooms.map(q).join('') +
+      '<td class="mono"><b>' + esc(total > 0 && total < 0.05 ? '<0.1' : fmt1(total)) + '</b></td>' +
+      '<td class="mono">' + fmt(value) + '</td>' +
+      '<td' + (exp ? '' : ' class="zero"') + '>' + esc(exp || '–') + '</td>' +
+      '<td>' + esc(it.distribute) + '</td><td>' + esc(it.manufact || '') + '</td></tr>';
   }
 
   function renderRateDetail(r){
@@ -1425,9 +1451,12 @@
       return '<tr><td>' + esc(it.hospcode) + '</td><td title="' + esc(it.generic) + '">' + esc(it.tradename || it.generic) + '</td>' +
         '<td>' + esc(it.regType) + '</td>' +
         '<td><span class="pill' + (cat.group === 'ED' ? ' ed' : '') + '">' + esc(isedText(it)) + '</span></td>' +
+        '<td class="mono">' + esc(it.gpucode || '–') + '</td><td class="mono">' + esc(it.tmt || '–') + '</td>' +
         LOCATIONS.map(function(l){ return cell(it, l.id); }).join('') + totalCell(it) +
         '<td' + (nearestExp(it.lots) ? '' : ' class="zero"') + '>' + esc(nearestExp(it.lots) || '–') + '</td>' +
-        '<td class="mono">' + fmt(valueIn(it, ids)) + '</td><td>' + esc(it.distribute) + '</td></tr>';
+        '<td class="mono">' + (it.boxCost ? fmt2(it.boxCost) : '–') + '</td>' +
+        '<td class="mono">' + fmt(valueIn(it, ids)) + '</td><td>' + esc(it.distribute) + '</td><td>' + esc(it.manufact) + '</td>' +
+        '<td title="' + esc(it.gpscode) + '">' + esc(it.gpsName || it.gpscode || '–') + '</td></tr>';
     }
 
     var body = document.getElementById('item-table');
@@ -1512,6 +1541,11 @@
     var mk = document.getElementById('loc-heads');
     mk.insertAdjacentHTML('beforebegin', LOCATIONS.map(function(l){ return '<th class="mono">' + esc(l.short) + '<br><small>กล่อง</small></th>'; }).join(''));
     mk.parentNode.removeChild(mk);
+    document.getElementById('rate-head').innerHTML = '<th>hospcode</th><th>ชื่อยา</th><th>ised (ประเภทบัญชี)</th>' +
+      '<th class="mono">lowrate</th><th class="mono">highrate</th><th class="mono">userate</th><th>สถานะ</th>' +
+      '<th class="mono">คลังยา<br><small>กล่อง · sumqty</small></th>' +
+      FLOOR_LOCS.map(function(l){ return '<th class="mono">' + esc(l.short) + '<br><small>กล่อง</small></th>'; }).join('') +
+      '<th class="mono">จำนวนรวม<br><small>กล่อง</small></th><th class="mono">มูลค่า (บาท)</th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th>distribute</th><th>manufact</th>';
   })();
   rebuild();
   renderAll();
