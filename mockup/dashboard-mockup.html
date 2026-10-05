@@ -178,6 +178,7 @@
   .pill.ed{ background:var(--good-soft); color:var(--good); }
   .pill.status-high{ background:var(--critical-soft); color:var(--critical); }
   .pill.status-low{ background:var(--warning-soft); color:var(--warning); }
+  th.plan, td.plan{ color:var(--critical); font-weight:600; }
   .rate-inv{ color:var(--warning); font-size:11px; }
   .pill.order{ background:var(--accent-soft); color:var(--accent); }
   .pill.status-normal{ background:var(--good-soft); color:var(--good); }
@@ -363,7 +364,7 @@
   <div class="rate-detail" id="rate-detail" hidden></div>
   <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
   <div class="table-scroll" style="max-height:460px">
-    <table style="min-width:1560px">
+    <table style="min-width:1660px">
       <thead><tr id="rate-head"></tr></thead>
       <tbody id="rate-table"></tbody>
     </table>
@@ -429,6 +430,7 @@
     <li>ห้องจ่ายยาใหม่: ห้องจ่ายยา ชั้น 1 อาคารผู้ป่วยใน (ชั้น 1 IPD) — เปิดรอไว้แล้ว ลากไฟล์รูปแบบเดียวกับชั้น 1 / ชั้น G มาวางได้เลย (แยกจากคำว่า "ผู้ป่วยใน" ใน dspname) · ไฟล์ส่งออกเพิ่มคอลัมน์ floor 1 IPD</li>
     <li>แยก 2 ตาราง: "อัตราการใช้ยา" ใช้ดูเพื่อสั่งจัดซื้อ (รายการจากไฟล์ list พร้อมยอดทุกห้อง มูลค่า expdate distribute manufact) · "รายการยา" ใช้ดูทะเบียนยาและ stock คงคลัง (เพิ่ม GPU, TMT, ราคาทุน/กล่อง, manufact, gpsc)</li>
     <li>ข้อมูลไฟล์ที่ไม่ได้นำเข้าใหม่ คงไว้ ณ วันที่นำเข้าล่าสุด</li>
+    <li>นำเข้าไฟล์ planfin (แผนจัดซื้อรายปี) — ตารางอัตราการใช้ยามีคอลัมน์สีแดง "แผนปี 70 ห้ามซื้อเกิน" ต่อจากจำนวนรวม (ใช้ buytotalamount)</li>
     <li>คลังยาใช้ inventory_exp (unitcost = ราคาทุน/กล่อง) · นำเข้า Medical Product Registration เป็นแหล่งชื่อทะเบียน / ประเภทบัญชี (ถ้าไม่มีจะแปลงจากรหัสใน Meditem)</li>
     <li>อัตราการใช้: เทียบ lowrate / highrate กับ userate</li>
     <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน และกราฟมูลค่ารวมตาม GPU มีเส้น target ฿500,000</li>
@@ -440,6 +442,7 @@
     <li><span class="qn">1</span><span class="qtext">ไฟล์ห้องจ่ายยา (ชั้น G / ชั้น 1) ที่มี lot / expdate — รอพี่หาอยู่ โปรแกรมเปิดรอไว้แล้ว</span></li>
     <li><span class="qn">2</span><span class="qtext">ไฟล์ส่งออกเพิ่มคอลัมน์ "floor 1 IPD" ต่อจาก floor G สำหรับห้องจ่ายยาใหม่ และ total floor รวมทุกห้อง — แบบนี้ได้ไหมครับ</span></li>
     <li><span class="qn">3</span><span class="qtext">มี 16 รายการที่ไฟล์ list ให้ sumqty = 0 (สถานะ "สั่งซื้อ") แต่ไฟล์คลังยาที่นำเข้าล่าสุด (inventory_exp) มีของแล้ว เช่น ARTRODAR 50 MG = 200 กล่อง — น่าจะเพราะไฟล์ list export ก่อนของเข้า ตอนนี้แสดง "สั่งซื้อ" และ "คลังล่าสุด 200" คู่กัน ต้องการให้ยึดตัวเลขไหนครับ (ก) sumqty จากไฟล์ list ตามเดิม (ข) ยอดคลังยาล่าสุด ถ้ามีของแล้วไม่ต้องขึ้น "สั่งซื้อ"</span></li>
+    <li><span class="qn">4</span><span class="qtext">แผนปี 70: ตาราง Excel ของพี่ ACETAR 1000 ML = 1,680 แต่ไฟล์ planfin 70 ที่ export จาก HIS = 1,480 (buytotalamount, ตรงกับ aproxbuynextyear) — ไม่มีคอลัมน์ไหนในไฟล์ที่เป็น 1,680 ตัวเลขในตาราง Excel พี่มาจากไหนครับ (มีการปรับเพิ่มเอง หรือเป็นแผนอีกฉบับ) ตอนนี้โปรแกรมใช้ 1,480 จากไฟล์</span></li>
   </ol>
 </section>
 
@@ -472,7 +475,7 @@
     { slot:'inventory', label:'inventory_exp', desc:'คงคลัง (กล่อง) แยก lot / Exp' }
   ].concat(LOCATIONS.filter(function(l){ return l.kind === 'floor'; }).map(function(l){
     return { slot:'room:' + l.id, label:'ห้องจ่ายยา ' + l.short, desc:'ยอดคงเหลือ (unit)', room:l.id };
-  })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }]);
+  })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }, { slot:'plan', label:'planfin', desc:'แผนจัดซื้อรายปี (ห้ามซื้อเกิน)' }]);
   /* hospcode, ชื่อยา, ทะเบียน, ised + ห้องละ 1 คอลัมน์ + รวม, expdate, มูลค่า, distribute */
   var TABLE_COLS = 13 + LOCATIONS.length;
 
@@ -553,6 +556,7 @@
     ];
     items[2].lots = [{ loc:'central', lot:'P2401', exp:'31/03/2027', qty:60, unit:'กล่อง', price:450 }, { loc:'central', lot:'P2409', exp:'30/09/2027', qty:20, unit:'กล่อง', price:450 }];
     items[2].multiLot = true;
+    items[4].plan = { qty:1480, value:63640, year:2570 };
     return items;
   })();
 
@@ -581,6 +585,7 @@
     if(has(t, ['gpsc','detail'])) return 'gpsc';
     if(has(t, ['รหัสเวชภัณฑ์','จำนวน','รวมมูลค่า'])) return 'inventory';
     if(has(t, ['meditem','sumqty','unitcost'])) return 'inventory';
+    if(has(t, ['meditem','yearplan','buytotalamount'])) return 'plan';
     if(has(t, ['meditem','lowrate','highrate'])) return 'list';
     if(has(t, ['meditem','stkqty'])){
       var dsp = '';
@@ -668,6 +673,7 @@
       else if(slot === 'inventory') out.push({ id:id, name:txt(g(r,invName)), qty:num(g(r,invQty)),
         value:num(g(r,'รวมมูลค่า')) || num(g(r,invQty)) * num(g(r,invPrice)), price:num(g(r,invPrice)),
         lot:clean(g(r, lotCol)), exp:dateText(g(r, expCol)) });
+      else if(slot === 'plan') out.push({ id:id, year:num(g(r,'yearplan')), qty:num(g(r,'buytotalamount')), value:num(g(r,'buytotalvalue')) });
       else if(slot === 'list') out.push({ id:id, name:txt(g(r,'medname')), lowrate:num(g(r,'lowrate')), highrate:num(g(r,'highrate')),
         userate:num(g(r,'userate')), sumqty:num(g(r,'sumqty')) });
       else out.push({ id:id, name:txt(g(r,'medname')), qty:num(g(r,'stkqty')), lot:clean(g(r, lotCol)), exp:dateText(g(r, expCol)) });
@@ -712,6 +718,12 @@
     rowsOf('meditem').forEach(function(r){ L.med[r.id] = r; });
     L.reg = {};
     rowsOf('registry').forEach(function(r){ L.reg[r.id] = r; });
+    L.plan = {}; L.planYear = 0;
+    rowsOf('plan').forEach(function(r){
+      var x = L.plan[r.id] || (L.plan[r.id] = { qty:0, value:0, year:r.year });
+      x.qty += r.qty; x.value += r.value;
+      if(r.year > L.planYear) L.planYear = r.year;
+    });
     rowsOf('drugcat').forEach(function(r){ L.dc[r.id] = r; });
     rowsOf('gpsc').forEach(function(r){ L.gp[r[0]] = r[1]; });
     rowsOf('list').forEach(function(r){ L.list[r.id] = r; L.names[r.id] = L.names[r.id] || r.name; });
@@ -765,6 +777,7 @@
         multiLot:Object.keys(perLoc).some(function(k){ return perLoc[k] > 1; }),
         gpucode:m.gpucode || (L.reg[id] || {}).gpucode || '',
         tmt:(L.reg[id] || {}).tmtcode || m.tpucode || '',
+        plan:L.plan[id] || null,
         /* ราคาทุน/กล่อง: จากคลังยา (unitcost) ถ้ามี ไม่งั้น costrate × packsize */
         boxCost:st.central.raw > 0 ? st.central.value / st.central.raw : cost * (pack || 1),
         hospcode:id,
@@ -1312,8 +1325,10 @@
     if(!selected) state.rateSel = null;
     renderRateDetail(selected);
 
+    var py = state.lookups && state.lookups.planYear;
+    document.getElementById('plan-head').innerHTML = 'แผนปี ' + (py ? py % 100 : 70) + '<br><small>ห้ามซื้อเกิน (กล่อง)</small>';
     var body = document.getElementById('rate-table');
-    if(!rows.length){ body.innerHTML = '<tr><td colspan="' + (13 + FLOOR_LOCS.length) + '" class="table-note" style="padding:14px">ไม่พบรายการตามที่เลือก</td></tr>'; return; }
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="' + (14 + FLOOR_LOCS.length) + '" class="table-note" style="padding:14px">ไม่พบรายการตามที่เลือก</td></tr>'; return; }
     body.innerHTML = rows.map(function(r){ return rateRow(r.it, r.status); }).join('');
   }
 
@@ -1335,6 +1350,7 @@
       '<td class="mono">' + (isOut(it) ? OUT_PILL : fmt1(sq)) + invNote + '</td>' +
       rooms.map(q).join('') +
       '<td class="mono"><b>' + esc(total > 0 && total < 0.05 ? '<0.1' : fmt1(total)) + '</b></td>' +
+      '<td class="mono plan"' + (it.plan ? ' title="แผนจัดซื้อ ฿' + fmt(it.plan.value) + '"' : '') + '>' + (it.plan ? fmt1(it.plan.qty) : '–') + '</td>' +
       '<td class="mono">' + fmt(value) + '</td>' +
       '<td' + (exp ? '' : ' class="zero"') + '>' + esc(exp || '–') + '</td>' +
       '<td>' + esc(it.distribute) + '</td><td>' + esc(it.manufact || '') + '</td></tr>';
@@ -1365,7 +1381,8 @@
       '<div class="rd-stock">' + LOCATIONS.map(function(l){
         var s = it.stock[l.id]; return '<span>' + l.short + ' <b>' + fmt1(s ? s.qty : 0) + '</b> กล่อง</span>';
       }).join('') + '<span>มูลค่ารวม <b>฿' + fmt(valueIn(it, LOCATIONS.map(function(l){ return l.id; }))) + '</b></span>' +
-      '<span>จำนวน (sumqty) ' + (isOut(it) ? OUT_PILL : '<b>' + fmt1(p.sumqty || 0) + '</b>') + '</span></div>';
+      '<span>จำนวน (sumqty) ' + (isOut(it) ? OUT_PILL : '<b>' + fmt1(p.sumqty || 0) + '</b>') + '</span>' +
+      (it.plan ? '<span style="color:var(--critical)">แผนปี ' + (it.plan.year % 100) + ' ห้ามซื้อเกิน <b>' + fmt1(it.plan.qty) + '</b> กล่อง (฿' + fmt(it.plan.value) + ')</span>' : '') + '</div>';
     document.getElementById('rate-detail-close').addEventListener('click', function(){ state.rateSel = null; renderRates(); });
   }
 
@@ -1545,7 +1562,7 @@
       '<th class="mono">lowrate</th><th class="mono">highrate</th><th class="mono">userate</th><th>สถานะ</th>' +
       '<th class="mono">คลังยา<br><small>กล่อง · sumqty</small></th>' +
       FLOOR_LOCS.map(function(l){ return '<th class="mono">' + esc(l.short) + '<br><small>กล่อง</small></th>'; }).join('') +
-      '<th class="mono">จำนวนรวม<br><small>กล่อง</small></th><th class="mono">มูลค่า (บาท)</th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th>distribute</th><th>manufact</th>';
+      '<th class="mono">จำนวนรวม<br><small>กล่อง</small></th><th class="mono plan" id="plan-head">แผนปี 70<br><small>ห้ามซื้อเกิน (กล่อง)</small></th><th class="mono">มูลค่า (บาท)</th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th>distribute</th><th>manufact</th>';
   })();
   rebuild();
   renderAll();
