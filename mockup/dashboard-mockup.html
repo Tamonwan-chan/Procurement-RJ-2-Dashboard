@@ -112,11 +112,6 @@
   .chip .cnt{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-faint); font-variant-numeric:tabular-nums; }
   .chip[aria-pressed="true"] .cnt{ color:var(--accent-ink); opacity:.85; }
   .chip.empty{ color:var(--ink-faint); border-style:dashed; }
-  .chip.planned{
-    cursor:not-allowed; color:var(--ink-faint);
-    background-image:repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--surface) 6px 12px);
-  }
-  .chip.planned:hover{ border-color:var(--border-strong); }
 
   /* ---- kpi ---- */
   .kpi-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:28px; }
@@ -400,7 +395,7 @@
       <thead>
         <tr>
           <th>hospcode</th><th>ชื่อยา (tradename)</th><th>ทะเบียน</th><th>ised (ประเภทบัญชี)</th>
-          <th class="mono">คลังยา<br><small>กล่อง</small></th><th class="mono">ชั้น G<br><small>กล่อง</small></th><th class="mono">ชั้น 1<br><small>กล่อง</small></th>
+          <th id="loc-heads"></th>
           <th class="mono">รวม<br><small>กล่อง</small></th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th class="mono">มูลค่า (บาท)</th><th>distribute</th>
         </tr>
       </thead>
@@ -426,7 +421,8 @@
     <li>ยอดติดลบในห้องจ่ายยานับเป็น 0 ทั้งบนหน้าจอและในไฟล์ส่งออก</li>
     <li>list want = sumqty — ถ้า sumqty เป็น 0 แสดงสถานะ "สั่งซื้อ" (ปุ่มกรองต่อจาก "ปกติ" ในส่วนอัตราการใช้) · ไม่ใช้คอลัมน์ sourcename</li>
     <li>คลังยารับไฟล์ inventory_exp (แยก lot / expdate) แทน inventory ได้ — มูลค่า = sumqty × unitcost · ไฟล์ส่งออกคอลัมน์ "lot / expdate" รวมทุก lot และวันหมดอายุ</li>
-    <li>ห้องจ่ายยาใหม่ปี 70–71 export รูปแบบเดียวกับชั้น 1 / ชั้น G — เพิ่มได้ทันทีเมื่อรู้ชื่อห้อง</li>
+    <li>ห้องจ่ายยาใหม่: ห้องจ่ายยา ชั้น 1 อาคารผู้ป่วยใน (ชั้น 1 IPD) — เปิดรอไว้แล้ว ลากไฟล์รูปแบบเดียวกับชั้น 1 / ชั้น G มาวางได้เลย (แยกจากคำว่า "ผู้ป่วยใน" ใน dspname) · ไฟล์ส่งออกเพิ่มคอลัมน์ floor 1 IPD</li>
+    <li>คลังยาใช้ inventory_exp (unitcost = ราคาทุน/กล่อง) · นำเข้า Medical Product Registration เป็นแหล่งชื่อทะเบียน / ประเภทบัญชี (ถ้าไม่มีจะแปลงจากรหัสใน Meditem)</li>
     <li>อัตราการใช้: เทียบ lowrate / highrate กับ userate</li>
     <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน และกราฟมูลค่ารวมตาม GPU มีเส้น target ฿500,000</li>
     <li>ส่งออก Excel: ตัด BCP NO ออก เพิ่ม expdate ต่อจาก floor G และเพิ่ม drugcode / tpucode / gpucode ท้ายตาราง</li>
@@ -434,9 +430,8 @@
     <li>ตารางรายการยาแสดงเฉพาะชื่อการค้า (ยังค้นหาด้วย generic ได้) และเพิ่มตัวกรอง "รวมกล่อง": มีของ / เป็น 0 / ทั้งหมด</li>
   </ul>
   <ol class="qlist">
-    <li><span class="qn">1</span><span class="qtext">ต่อไปใช้ไฟล์ inventory_exp แทน inventory เลยใช่ไหมครับ (จำนวนคงคลังตรงกัน และมี lot / expdate เพิ่ม) — ถ้าลากมาพร้อมกันโปรแกรมจะเลือกไฟล์ที่มี lot</span></li>
-    <li><span class="qn">2</span><span class="qtext">คอลัมน์ unitcost ใน inventory_exp พี่เขียนว่า "ราคาขาย/กล่อง" แต่ตัวเลขตรงกับ "ราคาทุน/กล่อง" ใน inventory 427 จาก 430 แถว — เป็นราคาทุนใช่ไหมครับ (โปรแกรมใช้คิดมูลค่าคงคลัง)</span></li>
-    <li><span class="qn">3</span><span class="qtext">ไฟล์ห้องจ่ายยาที่มี lot / expdate — รอพี่หาอยู่ (โปรแกรมเปิดรอไว้แล้ว ถ้ามีคอลัมน์ lotno / expdate จะอ่านได้ทันที) และห้องจ่ายยาใหม่ปี 70–71 จะใช้ชื่อห้องว่าอะไรครับ</span></li>
+    <li><span class="qn">1</span><span class="qtext">ไฟล์ห้องจ่ายยา (ชั้น G / ชั้น 1) ที่มี lot / expdate — รอพี่หาอยู่ โปรแกรมเปิดรอไว้แล้ว</span></li>
+    <li><span class="qn">2</span><span class="qtext">ไฟล์ส่งออกเพิ่มคอลัมน์ "floor 1 IPD" ต่อจาก floor G สำหรับห้องจ่ายยาใหม่ และ total floor รวมทุกห้อง — แบบนี้ได้ไหมครับ</span></li>
   </ol>
 </section>
 
@@ -449,7 +444,8 @@
   var LOCATIONS = [
     { id:'central', label:'รายการคลังยา',    short:'คลังยา', kind:'central', color:'var(--cat-3)' },
     { id:'G',       label:'ห้องจ่ายยาชั้น G', short:'ชั้น G',  kind:'floor', match:/ชั้น\s*G/i, color:'var(--cat-1)' },
-    { id:'1',       label:'ห้องจ่ายชั้น 1',   short:'ชั้น 1',  kind:'floor', match:/ชั้น\s*1/,  color:'var(--cat-2)' }
+    { id:'1',       label:'ห้องจ่ายชั้น 1',   short:'ชั้น 1',  kind:'floor', match:/^(?!.*ผู้ป่วยใน).*ชั้น\s*1/, color:'var(--cat-2)' },
+    { id:'IPD1',    label:'ห้องจ่ายยา ชั้น 1 อาคารผู้ป่วยใน', short:'ชั้น 1 IPD', kind:'floor', match:/ผู้ป่วยใน/, exportCol:'floor 1 IPD', color:'var(--cat-4)' }
   ];
 
   /* รหัสจาก Meditem ที่พี่โอมยืนยันแล้ว */
@@ -462,13 +458,15 @@
   /* ไฟล์ที่รับได้ — จำจากหัวคอลัมน์ */
   var FILE_SLOTS = [
     { slot:'meditem',   label:'Meditem',        desc:'ทะเบียนหลัก / ราคาทุน / packsize / GPU' },
+    { slot:'registry',  label:'Medical Product Registration', desc:'ชื่อทะเบียน / ประเภทบัญชี' },
     { slot:'drugcat',   label:'DrugCatNow',     desc:'ชื่อยา / บริษัท' },
     { slot:'gpsc',      label:'gpsc',           desc:'ชื่อกลุ่ม GPSC' },
-    { slot:'inventory', label:'inventory / inventory_exp', desc:'คงคลัง (กล่อง) + lot / Exp' }
+    { slot:'inventory', label:'inventory_exp', desc:'คงคลัง (กล่อง) แยก lot / Exp' }
   ].concat(LOCATIONS.filter(function(l){ return l.kind === 'floor'; }).map(function(l){
     return { slot:'room:' + l.id, label:'ห้องจ่ายยา ' + l.short, desc:'ยอดคงเหลือ (unit)', room:l.id };
   })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }]);
-  var PLANNED_ROOM_LABEL = '+ ห้องจ่ายยา (แผนปี 70–71)';
+  /* hospcode, ชื่อยา, ทะเบียน, ised + ห้องละ 1 คอลัมน์ + รวม, expdate, มูลค่า, distribute */
+  var TABLE_COLS = 8 + LOCATIONS.length;
 
   var REG_TYPES = [
     'ทะเบียนยา',
@@ -570,6 +568,7 @@
 
   function detectSlot(t, fileName){
     if(has(t, ['meditem','packqty','costrate','accnation'])) return 'meditem';
+    if(has(t, ['hospdrugid','medrgttype_name','medaccnation_name'])) return 'registry';
     if(has(t, ['gpsc','detail'])) return 'gpsc';
     if(has(t, ['รหัสเวชภัณฑ์','จำนวน','รวมมูลค่า'])) return 'inventory';
     if(has(t, ['meditem','sumqty','unitcost'])) return 'inventory';
@@ -638,7 +637,7 @@
     var c = t.col;
     function g(r, name){ return name in c ? r[c[name]] : ''; }
     var lotCol = colLike(c, /lot|ล็อต|ล๊อต|batch/), expCol = colLike(c, /exp|หมดอายุ/);
-    var key = slot === 'inventory' ? ('รหัสเวชภัณฑ์' in c ? 'รหัสเวชภัณฑ์' : 'meditem') : slot === 'drugcat' ? 'hospcode' : 'meditem';
+    var key = slot === 'inventory' ? ('รหัสเวชภัณฑ์' in c ? 'รหัสเวชภัณฑ์' : 'meditem') : slot === 'drugcat' ? 'hospcode' : slot === 'registry' ? 'hospdrugid' : 'meditem';
     /* คลังยามี 2 แบบ: inventory (จำนวน / ราคาต่อหน่วย / รวมมูลค่า) และ inventory_exp (sumqty / unitcost แยกตาม lot) */
     var invQty = 'จำนวน' in c ? 'จำนวน' : 'sumqty', invPrice = 'ราคาต่อหน่วย' in c ? 'ราคาต่อหน่วย' : 'unitcost', invName = 'ชื่อเวชภัณฑ์' in c ? 'ชื่อเวชภัณฑ์' : 'medname';
     var out = [];
@@ -650,7 +649,8 @@
       }
       if(!isCode(g(r, key))) return;
       var id = idOf(g(r, key));
-      if(slot === 'meditem') out.push({ id:id, name:txt(g(r,'medname')), packqty:num(g(r,'packqty')), costrate:num(g(r,'costrate')),
+      if(slot === 'registry') out.push({ id:id, rgtName:clean(g(r,'medrgttype_name')), accName:clean(g(r,'medaccnation_name')), gpucode:clean(g(r,'gpucode')) });
+      else if(slot === 'meditem') out.push({ id:id, name:txt(g(r,'medname')), packqty:num(g(r,'packqty')), costrate:num(g(r,'costrate')),
         gpscode:clean(g(r,'gpscode')), rgt:clean(g(r,'medrgttype')), acc:clean(g(r,'accnation')), ised:clean(g(r,'ised')),
         drugcode:clean(g(r,'drugcode')), tpucode:clean(g(r,'tpucode')), gpucode:clean(g(r,'gpucode')),
         content:clean(g(r,'content')), gnrname:clean(g(r,'gnrname')) });
@@ -701,6 +701,8 @@
     var L = { med:{}, dc:{}, gp:{}, list:{}, stock:{}, names:{}, lots:{}, negatives:[] };
     function addLot(id, lot){ (L.lots[id] || (L.lots[id] = [])).push(lot); }
     rowsOf('meditem').forEach(function(r){ L.med[r.id] = r; });
+    L.reg = {};
+    rowsOf('registry').forEach(function(r){ L.reg[r.id] = r; });
     rowsOf('drugcat').forEach(function(r){ L.dc[r.id] = r; });
     rowsOf('gpsc').forEach(function(r){ L.gp[r[0]] = r[1]; });
     rowsOf('list').forEach(function(r){ L.list[r.id] = r; L.names[r.id] = L.names[r.id] || r.name; });
@@ -721,6 +723,10 @@
     return L;
   }
 
+  /* ชื่อทะเบียน / ประเภทบัญชี: ยึดตัวอักษรจาก Medical Product Registration ถ้าไม่มีจึงแปลงจากรหัสใน Meditem */
+  function regTypeOf(L, id){ var r = L.reg[id], m = L.med[id]; return (r && r.rgtName) || (m && RGT_LABEL[m.rgt]) || ''; }
+  function accNameOf(L, id){ var r = L.reg[id], m = L.med[id]; return (r && r.accName) || (m && ACC_LABEL[m.acc]) || ''; }
+  function acctOf(L, id){ var r = L.reg[id], m = L.med[id]; return r && r.accName ? acctKey(r.accName) : (m && ACC_KEY[m.acc]) || 'other'; }
   function packOf(L, id){
     var d = L.dc[id], m = L.med[id];
     return m && m.packqty > 0 ? m.packqty : d && d.packsize > 0 ? d.packsize : 0;
@@ -748,15 +754,15 @@
       return {
         lots:lots,
         multiLot:Object.keys(perLoc).some(function(k){ return perLoc[k] > 1; }),
-        gpucode:m.gpucode || '',
+        gpucode:m.gpucode || (L.reg[id] || {}).gpucode || '',
         hospcode:id,
         generic:d.generic || m.gnrname || '',
         tradename:d.tradename || m.name || L.names[id] || '',
         content:d.content || m.content || '',
         packsize:pack,
-        regType:RGT_LABEL[m.rgt] || REG_UNKNOWN,
-        isedRaw:ACC_LABEL[m.acc] || 'ไม่ระบุ',
-        acct:ACC_KEY[m.acc] || 'other',
+        regType:regTypeOf(L, id) || REG_UNKNOWN,
+        isedRaw:accNameOf(L, id) || 'ไม่ระบุ',
+        acct:acctOf(L, id),
         distribute:d.distribute || '',
         manufact:d.manufact || '',
         gpscode:m.gpscode || '',
@@ -785,8 +791,8 @@
   }
 
   /* ---------------- ส่งออก Excel หัวตารางแบบเดิม ---------------- */
-  var EXPORT_HEAD = ['hospcode','generic','tradename','content','packsize','list want','inventory','total floor','floor1','floor G','lot / expdate',
-    'distribute','manufact','ised','ndc24','medaccnation_name','medrgttype_name','drugcode','tpucode','gpucode'];
+  var EXPORT_HEAD = ['hospcode','generic','tradename','content','packsize','list want','inventory','total floor','floor1','floor G'].concat(FLOOR_LOCS.filter(function(l){ return l.exportCol; }).map(function(l){ return l.exportCol; })).concat(['lot / expdate',
+    'distribute','manufact','ised','ndc24','medaccnation_name','medrgttype_name','drugcode','tpucode','gpucode']);
 
   function exportRows(L){
     var ids = {};
@@ -799,7 +805,7 @@
       var fG = st && ('G' in st.rooms) ? room('G') : '';
       var hasFloor = st && FLOOR_LOCS.some(function(l){ return l.id in st.rooms; });
       var totalFloor = hasFloor ? FLOOR_LOCS.reduce(function(s, l){ return s + room(l.id); }, 0) : '';
-      var acc = ACC_LABEL[m.acc] || '';
+      var acc = accNameOf(L, id), reg = L.reg[id] || {};
       return [
         /^-?\d+$/.test(id) ? Number(id) : id,
         d.generic || m.gnrname || '',
@@ -808,11 +814,11 @@
         packOf(L, id) || '',
         lr ? lr.sumqty : '',
         st && st.central.lots ? Math.max(0, st.central.raw) : '',
-        totalFloor, f1, fG, lotExpText(L.lots[id]),
+        totalFloor, f1, fG].concat(FLOOR_LOCS.filter(function(l){ return l.exportCol; }).map(function(l){ return st && (l.id in st.rooms) ? room(l.id) : ''; })).concat([lotExpText(L.lots[id]),
         d.distribute || '', d.manufact || '',
-        acc, d.ndc24 || '', acc, RGT_LABEL[m.rgt] || '',
-        m.drugcode || '', m.tpucode || '', m.gpucode || ''
-      ];
+        acc, d.ndc24 || '', acc, regTypeOf(L, id),
+        m.drugcode || '', m.tpucode || '', m.gpucode || reg.gpucode || ''
+      ]);
     });
   }
 
@@ -1024,13 +1030,9 @@
       { count: base.filter(function(it){ return qtyIn(it, allIds) > 0; }).length }));
     LOCATIONS.forEach(function(loc){
       roomBox.appendChild(chip(loc.label, state.room === loc.id, function(){ state.room = loc.id; renderAll(); },
-        { color:loc.color, count: base.filter(function(it){ return qtyIn(it, [loc.id]) > 0; }).length }));
+        { color:loc.color, count: base.filter(function(it){ return qtyIn(it, [loc.id]) > 0; }).length,
+          empty: state.mode === 'real' && loc.kind === 'floor' && !state.datasets['room:' + loc.id] }));
     });
-    var planned = document.createElement('button');
-    planned.type = 'button'; planned.className = 'chip planned'; planned.disabled = true;
-    planned.title = 'เตรียมรองรับห้องจ่ายยาเพิ่มปี 70–71 — ยังไม่มีข้อมูล';
-    planned.textContent = PLANNED_ROOM_LABEL;
-    roomBox.appendChild(planned);
 
     var regBox = document.getElementById('reg-chips'); regBox.innerHTML = '';
     var regBase = state.items.filter(function(it){ return inStock(it) && matchAcct(it); });
@@ -1404,7 +1406,7 @@
     LOCATIONS.forEach(function(l){ LOC_SHORT[l.id] = l.short; });
     function lotRow(it){
       var n = {};
-      return '<tr class="lots"><td colspan="11"><table><thead><tr><th>ที่เก็บ</th><th>lot</th><th>Exp</th><th class="mono">จำนวน</th><th class="mono">ราคา/กล่อง</th></tr></thead><tbody>' +
+      return '<tr class="lots"><td colspan="' + TABLE_COLS + '"><table><thead><tr><th>ที่เก็บ</th><th>lot</th><th>Exp</th><th class="mono">จำนวน</th><th class="mono">ราคา/กล่อง</th></tr></thead><tbody>' +
         it.lots.map(function(x){
           n[x.loc] = (n[x.loc] || 0) + 1;
           var rowsAtLoc = it.lots.filter(function(y){ return y.loc === x.loc; }).length;
@@ -1420,7 +1422,7 @@
       return '<tr><td>' + esc(it.hospcode) + '</td><td title="' + esc(it.generic) + '">' + esc(it.tradename || it.generic) + '</td>' +
         '<td>' + esc(it.regType) + '</td>' +
         '<td><span class="pill' + (cat.group === 'ED' ? ' ed' : '') + '">' + esc(isedText(it)) + '</span></td>' +
-        cell(it, 'central') + cell(it, 'G') + cell(it, '1') + totalCell(it) +
+        LOCATIONS.map(function(l){ return cell(it, l.id); }).join('') + totalCell(it) +
         '<td' + (nearestExp(it.lots) ? '' : ' class="zero"') + '>' + esc(nearestExp(it.lots) || '–') + '</td>' +
         '<td class="mono">' + fmt(valueIn(it, ids)) + '</td><td>' + esc(it.distribute) + '</td></tr>';
     }
@@ -1428,7 +1430,7 @@
     var body = document.getElementById('item-table');
     var countText = 'แสดง ' + fmt(rows.length) + ' รายการ' + (q ? ' (จาก ' + fmt(visible.length) + ')' : '');
     if(!rows.length){
-      body.innerHTML = '<tr><td colspan="11" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
+      body.innerHTML = '<tr><td colspan="' + TABLE_COLS + '" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
     } else if(state.groupByCompany){
       var groups = {}, names = [];
       rows.forEach(function(it){
@@ -1443,7 +1445,7 @@
       body.innerHTML = names.map(function(k){
         var list = groups[k];
         var v = list.reduce(function(s, it){ return s + valueIn(it, ids); }, 0);
-        return '<tr class="grp"><td colspan="11">' + esc(k) + '<span class="grp-meta">' + fmt(list.length) + ' รายการ · ฿' + fmt(v) + '</span></td></tr>' +
+        return '<tr class="grp"><td colspan="' + TABLE_COLS + '">' + esc(k) + '<span class="grp-meta">' + fmt(list.length) + ' รายการ · ฿' + fmt(v) + '</span></td></tr>' +
           list.map(rowHtml).join('');
       }).join('');
       countText += ' ใน ' + fmt(names.length) + ' บริษัท';
@@ -1503,6 +1505,11 @@
     }, 150);
   });
 
+  (function(){
+    var mk = document.getElementById('loc-heads');
+    mk.insertAdjacentHTML('beforebegin', LOCATIONS.map(function(l){ return '<th class="mono">' + esc(l.short) + '<br><small>กล่อง</small></th>'; }).join(''));
+    mk.parentNode.removeChild(mk);
+  })();
   rebuild();
   renderAll();
   dbAll().then(function(recs){

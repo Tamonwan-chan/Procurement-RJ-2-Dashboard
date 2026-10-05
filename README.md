@@ -9,7 +9,7 @@
 - ลากไฟล์ที่ export จาก HIS มาวางได้หลายไฟล์พร้อมกัน โปรแกรมจำประเภทไฟล์จากหัวคอลัมน์ (ไม่ต้องตั้งชื่อไฟล์ให้ตรง)
 - จำข้อมูลนำเข้าครั้งล่าสุดของแต่ละไฟล์ไว้ในเบราว์เซอร์ (IndexedDB) — ไฟล์ที่ไม่ได้นำเข้าใหม่จะใช้ข้อมูลเดิม ข้อมูลอยู่เฉพาะเครื่อง/เบราว์เซอร์ที่นำเข้า
 - Top 10 และตารางแสดงเป็นกล่อง: คงคลัง (กล่อง) + (ชั้น 1 + ชั้น G) ÷ packsize
-- ส่งออก Excel: hospcode, generic, tradename, content, packsize, list want, inventory, total floor, floor1, floor G, lot / expdate (รวมทุก lot), distribute, manufact, ised, ndc24, medaccnation_name, medrgttype_name, drugcode, tpucode, gpucode (ตัด BCP NO ออกแล้ว)
+- ส่งออก Excel: hospcode, generic, tradename, content, packsize, list want, inventory, total floor, floor1, floor G, floor 1 IPD, lot / expdate (รวมทุก lot), distribute, manufact, ised, ndc24, medaccnation_name, medrgttype_name, drugcode, tpucode, gpucode (ตัด BCP NO ออกแล้ว)
 
 ## ไฟล์แต่ละไฟล์ใช้ทำอะไร (รูปแบบใหม่)
 
@@ -18,12 +18,14 @@
 | ไฟล์ | ใช้ข้อมูลอะไร | จำนวนแถว |
 |---|---|---|
 | Meditem.xls | ทะเบียนหลักของเวชภัณฑ์ทั้งหมด — ชื่อการค้า, จำนวนบรรจุ/กล่อง (packqty), ราคาทุน/หน่วย (costrate), รหัส 24 หลัก, gpscode, รหัส TPU / GPU และรหัสทะเบียน (medrgttype) กับประเภทบัญชี (accnation) ที่ซ่อนไว้ | 9,015 |
+| Medical Product Registration.xls | ทะเบียนทั้งหมด (hospdrugid = meditem) — ชื่อทะเบียน (medrgttype_name) และประเภทบัญชี (medaccnation_name) เป็นตัวอักษร ใช้แทนการแปลงจากรหัสใน Meditem | 9,015 |
 | DrugCatNow.xls | ชื่อทั่วไป (generic), ชื่อเวชภัณฑ์ (tradename), content, ผู้แทนจำหน่าย, ผู้ผลิต, จำนวนต่อกล่อง | 4,341 |
 | gpsc.xls | แปลงรหัส gpscode เป็นชื่อกลุ่ม (เช่น 99000051101500 = ยาปฏิชีวนะ) | 23,834 |
 | inventory.xls | ยอดคงคลังของคลังยา — จำนวน (หน่วยเป็นกล่อง), ขนาดบรรจุ/กล่อง, ราคาทุน/กล่อง, มูลค่ารวมคงคลัง | 411 |
 | inventory_exp.xls | คงคลังของคลังยาแยกตาม lot — meditem, expdate, lotno, sumqty (กล่อง), unitcost, packqty — ใช้แทน inventory.xls ได้ (มูลค่า = sumqty × unitcost) | 449 |
 | ห้องจ่ายยา ชั้น G.xls | ยอดคงเหลือห้องจ่ายยาชั้น G (หน่วยเป็น unit) | 974 |
 | ห้องจ่ายยา ชั้น 1.xls | ยอดคงเหลือห้องจ่ายยาชั้น 1 (หน่วยเป็น unit) | 1,216 |
+| ห้องจ่ายยา ชั้น 1 อาคารผู้ป่วยใน | ห้องใหม่ปี 70–71 — รูปแบบเดียวกับชั้น 1 / ชั้น G (เปิดรอไว้ แยกจากคำว่า "ผู้ป่วยใน" ใน dspname) | – |
 | list.xls | รายการแจ้งความต้องการจัดซื้อ — อัตราการใช้ต่ำสุด (lowrate), อัตราการใช้สูงสุด (highrate), จำนวนคงเหลือในคลัง (sumqty), ขนาดบรรจุ/กล่อง, แจ้งสถานะ | 285 |
 
 แถวสุดท้ายของแต่ละไฟล์ (ยกเว้น gpsc.xls) คือคำอธิบายคอลัมน์ที่พี่โอมเขียนเพิ่ม ไม่ใช่ข้อมูล
@@ -38,10 +40,11 @@
 
 ยืนยันแล้ว: ลากไฟล์ทุกครั้ง (gpsc ไม่ค่อยเปลี่ยน), medrgttype 1–8 = ทะเบียน (ทะเบียนรังสีและทะเบียนอวัยวะเทียมเป็นตัวเลือกประจำ), accnation = ประเภทบัญชี 12 กลุ่ม เรียงตามที่พี่โอมกำหนด — สถิติ ED : NED นับเฉพาะ ED ก ข ค ง กับ NED (EDจ(1), EDจ(2), สมุนไพร, Covid 19, สูตรตำรับ, เวชภัณฑ์มิใช่ยา, ไม่ระบุ แสดงแยก), E* = ยาบัญชีที่มีเงื่อนไขโรคเฉพาะ, แสดงเป็นกล่อง, packsize ยึด packqty ของ Meditem, inventory รวมทุก lot (คลิกตัวเลขรวมสีน้ำเงินเพื่อดู lot / Exp) และเพิ่มคอลัมน์ expdate, ยอดติดลบนับเป็น 0 ทั้งหน้าจอและไฟล์ส่งออก, list want = sumqty และ sumqty = 0 แสดงสถานะ "สั่งซื้อ", คลังยาใช้ inventory_exp (lot / expdate) ได้ ไฟล์ส่งออกรวมทุก lot / Exp, ห้องจ่ายยาใหม่ปี 70–71 export รูปแบบเดียวกับชั้น 1 / ชั้น G, ไม่ใช้ sourcename / BCP NO / packprice (ราคาขาย), กราฟมูลค่าตามกลุ่ม GPSC เทียบการนำเข้าครั้งก่อน, กราฟมูลค่าตาม GPU มีเส้น target ฿500,000, lowrate / highrate เทียบกับ userate, drugcode / tpucode / gpucode ต่อท้ายไฟล์ส่งออก, manufact / distribute ใช้จาก DrugCatNow
 
+ยืนยันเพิ่ม: ใช้ inventory_exp แทน inventory, unitcost = ราคาทุน/กล่อง, ห้องจ่ายยาใหม่ = ห้องจ่ายยา ชั้น 1 อาคารผู้ป่วยใน, นำเข้า Medical Product Registration (ทะเบียนทั้งหมด)
+
 ยังรอคำตอบ (ดูรายละเอียดท้ายหน้าเว็บ):
-1. ใช้ inventory_exp แทน inventory เลยใช่ไหม
-2. unitcost ใน inventory_exp เป็นราคาทุน (ตรงกับ inventory 427/430 แถว) ใช่ไหม — พี่โอมเขียนว่า "ราคาขาย/กล่อง"
-3. ไฟล์ห้องจ่ายยาที่มี lot / expdate (รอพี่โอมหา) และชื่อห้องจ่ายยาใหม่ปี 70–71
+1. ไฟล์ห้องจ่ายยาที่มี lot / expdate (รอพี่โอมหา — โปรแกรมเปิดรอไว้แล้ว)
+2. คอลัมน์ "floor 1 IPD" ในไฟล์ส่งออก ต่อจาก floor G และ total floor รวมทุกห้อง ได้ไหม
 
 ## หมายเหตุ
 
