@@ -4,6 +4,8 @@
 
 ลิงก์ใช้งาน: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/mockup/dashboard-mockup.html
 
+คู่มือเขียน HTML สำหรับพี่โอม: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/guide/
+
 ## สถานะปัจจุบัน
 
 - ลากไฟล์ที่ export จาก HIS มาวางได้หลายไฟล์พร้อมกัน โปรแกรมจำประเภทไฟล์จากหัวคอลัมน์ (ไม่ต้องตั้งชื่อไฟล์ให้ตรง)
