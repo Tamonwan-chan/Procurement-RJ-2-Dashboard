@@ -67,6 +67,8 @@ strong { font-weight: 600; }
 
 /* Header */
 header { padding-block: 48px 32px; display: grid; gap: 18px; border-bottom: 1px solid var(--line); }
+.credit { justify-self: start; transform: rotate(-2deg); border: 2px dashed var(--accent); color: var(--accent); border-radius: 8px; padding: 6px 14px; font-family: var(--font-display); font-weight: 500; font-size: 0.95rem; line-height: 1.5; max-width: 100%; }
+.credit strong { font-weight: 700; }
 .kicker { font-family: var(--font-display); font-weight: 600; color: var(--accent); letter-spacing: 0.04em; font-size: 0.95rem; }
 .lead { font-size: 1.12rem; color: var(--muted); max-width: 62ch; }
 .toc { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 20px; counter-reset: toc; }
@@ -183,9 +185,10 @@ html { scroll-behavior: smooth; }
 
 <div class="wrap">
 <header>
+  <p class="credit">สร้างให้พี่โอม โดย <strong>แป้งล่ำน้องรัก</strong> กับเพื่อนซี้ Claude Code</p>
   <div class="kicker">คู่มือสำหรับพี่โอม</div>
   <h1>เขียน HTML ฉบับพี่โอม</h1>
-  <p class="lead">โปรแกรม Dashboard จัดซื้อที่พี่ใช้อยู่ คือไฟล์ HTML ไฟล์เดียว คู่มือนี้อธิบายตั้งแต่ศูนย์ว่าไฟล์แบบนี้ทำงานยังไง เขียน PRD (สเปกของโปรแกรม) แล้วให้ AI ใน Antigravity สร้างโปรแกรมของตัวเองยังไง ใช้โควตาแผนฟรีให้คุ้ม และตอบคำถามว่าทำไมลิงก์โปรแกรมถึงมีชื่อคนทำอยู่ข้างใน</p>
+  <p class="lead">โปรแกรม Dashboard จัดซื้อที่พี่ใช้อยู่ คือไฟล์ HTML ไฟล์เดียว คู่มือนี้อธิบายตั้งแต่ศูนย์ว่าไฟล์แบบนี้ทำงานยังไง เขียน PRD (สเปกของโปรแกรม) แล้วให้ AI ใน Antigravity สร้างโปรแกรมของตัวเองยังไง ใช้โควตาแผนฟรีให้คุ้ม และตอบคำถามว่าทำไมลิงก์โปรแกรมถึงมีชื่อน้องแป้งอยู่ข้างใน</p>
   <ol class="toc">
     <li><a href="#html">HTML คืออะไร</a></li>
     <li><a href="#local">ทำไมไม่ต้องมีเซิร์ฟเวอร์</a></li>
@@ -193,8 +196,7 @@ html { scroll-behavior: smooth; }
     <li><a href="#first">สร้างโปรแกรมด้วย Antigravity</a></li>
     <li><a href="#read">อ่านโค้ดให้พอรู้เรื่อง</a></li>
     <li><a href="#ai">ประหยัดโควตา AI</a></li>
-    <li><a href="#address">ทำไมลิงก์มีชื่อคนทำ</a></li>
-    <li><a href="#own">ทำลิงก์ให้โปรแกรมของพี่</a></li>
+    <li><a href="#address">ทำไมลิงก์มีชื่อน้องแป้ง</a></li>
     <li><a href="#words">คำศัพท์</a></li>
   </ol>
 </header>
@@ -542,7 +544,7 @@ html { scroll-behavior: smooth; }
 <!-- 6 -->
 <section class="chap" id="address">
   <div class="num"></div>
-  <h2>ทำไมลิงก์โปรแกรมมีชื่อคนทำ</h2>
+  <h2>ทำไมลิงก์โปรแกรมมีชื่อน้องแป้ง</h2>
   <p>ไฟล์ HTML เปิดได้ 2 แบบ และที่อยู่ (ลิงก์ด้านบนของเบราว์เซอร์) จะหน้าตาต่างกัน</p>
   <div class="pair">
     <div>
@@ -559,7 +561,7 @@ html { scroll-behavior: smooth; }
       <p><code style="overflow-wrap:anywhere">https://tamonwan-chan.github.io/…</code></p>
       <ul>
         <li>ไฟล์ถูกเก็บไว้บนเว็บชื่อ GitHub</li>
-        <li>ชื่อในนี้คือชื่อบัญชี GitHub ของคนทำ</li>
+        <li>ชื่อในนี้คือชื่อบัญชี GitHub ของน้องแป้ง</li>
         <li>เปิดได้จากทุกเครื่องที่มีลิงก์</li>
       </ul>
     </div>
@@ -568,19 +570,19 @@ html { scroll-behavior: smooth; }
   <h3>แยกลิงก์โปรแกรมจัดซื้อออกเป็นส่วน ๆ</h3>
   <div class="url" aria-label="ส่วนประกอบของลิงก์โปรแกรมจัดซื้อ">
     <span class="u1"><b>https://</b><small>ขึ้นต้นลิงก์</small></span>
-    <span class="u2"><b>tamonwan-chan</b><small>ชื่อบัญชี GitHub ของคนทำ</small></span>
+    <span class="u2"><b>tamonwan-chan</b><small>ชื่อบัญชี GitHub ของน้องแป้ง</small></span>
     <span class="u3"><b>.github.io/</b><small>บริการ GitHub Pages</small></span>
     <span class="u4"><b>Procurement-RJ-2-Dashboard/</b><small>ชื่อโปรเจกต์</small></span>
     <span class="u5"><b>mockup/dashboard-mockup.html</b><small>โฟลเดอร์และชื่อไฟล์</small></span>
   </div>
-  <p>ชื่อบัญชีอยู่หน้าลิงก์เหมือนบ้านเลขที่ ลิงก์ของโปรแกรมจะขึ้นต้นด้วยชื่อบัญชีของคนที่เอาโปรแกรมขึ้น GitHub เสมอ เมื่อพี่ทำโปรแกรมของตัวเองแล้วเอาขึ้นด้วยบัญชีของพี่ ลิงก์ก็จะขึ้นต้นด้วยชื่อบัญชีของพี่แทน วิธีทำอยู่ใน<a href="#own">บทที่ 8</a></p>
+  <p>ชื่อบัญชีอยู่หน้าลิงก์เหมือนบ้านเลขที่ ลิงก์ของโปรแกรมจะขึ้นต้นด้วยชื่อบัญชีของคนที่เอาโปรแกรมขึ้น GitHub เสมอ ถ้าวันหนึ่งพี่มีบัญชี GitHub ของตัวเองแล้วเอาโปรแกรมขึ้นไป ลิงก์ก็จะขึ้นต้นด้วยชื่อบัญชีของพี่แทน</p>
 
-  <h3>GitHub คืออะไร และทำไมคนทำถึงใช้</h3>
+  <h3>GitHub คืออะไร และทำไมน้องแป้งถึงใช้</h3>
   <p>GitHub คือเว็บสำหรับเก็บโค้ด คล้าย Google Drive แต่<strong>จำทุกเวอร์ชันที่เคยแก้</strong> ถ้าแก้พังก็ย้อนกลับไปเวอร์ชันก่อนได้ ประวัติการแก้ของโปรแกรมจัดซื้อมี 20 ครั้งแล้ว ทุกครั้งย้อนดูได้</p>
-  <p>เหตุผลหลักที่ใช้คือ <strong>คนทำแก้โปรแกรมจากหลายเครื่อง</strong> แก้เสร็จที่เครื่องไหนก็ส่งขึ้น GitHub (เรียกว่า push) แล้วอีกเครื่องดึงลงมา (เรียกว่า pull) ทุกเครื่องได้ไฟล์ล่าสุดตรงกัน ไม่ต้องส่งไฟล์ผ่านไลน์หรือ USB และไม่สับสนว่าไฟล์ไหนใหม่กว่า</p>
+  <p>เหตุผลหลักที่ใช้คือ <strong>น้องแป้งแก้โปรแกรมจากหลายเครื่อง</strong> แก้เสร็จที่เครื่องไหนก็ส่งขึ้น GitHub (เรียกว่า push) แล้วอีกเครื่องดึงลงมา (เรียกว่า pull) ทุกเครื่องได้ไฟล์ล่าสุดตรงกัน ไม่ต้องส่งไฟล์ผ่านไลน์หรือ USB และไม่สับสนว่าไฟล์ไหนใหม่กว่า</p>
   <p>GitHub ยังมีบริการชื่อ <strong>GitHub Pages</strong> ที่ทำให้ไฟล์ HTML บน GitHub เปิดเป็นเว็บได้ฟรีผ่านลิงก์ พี่โอมเลยเปิดโปรแกรมได้เลยโดยไม่ต้องมีไฟล์ในเครื่อง และได้เวอร์ชันล่าสุดเสมอ</p>
 
-  <div class="fig" role="img" aria-label="คนทำแก้โค้ดจากเครื่องที่โรงพยาบาลและเครื่องที่บ้าน ส่งขึ้นและดึงลงจาก GitHub แล้ว GitHub Pages ทำเป็นลิงก์ให้พี่โอมเปิดในเบราว์เซอร์">
+  <div class="fig" role="img" aria-label="น้องแป้งแก้โค้ดจากเครื่องที่โรงพยาบาลและเครื่องที่บ้าน ส่งขึ้นและดึงลงจาก GitHub แล้ว GitHub Pages ทำเป็นลิงก์ให้พี่โอมเปิดในเบราว์เซอร์">
     <svg viewBox="0 0 740 304" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
@@ -588,7 +590,7 @@ html { scroll-behavior: smooth; }
       </defs>
       <rect class="bx" x="10" y="20" width="170" height="64" rx="8"/>
       <text x="95" y="48" text-anchor="middle">เครื่องที่ รพ.</text>
-      <text class="sm" x="95" y="69" text-anchor="middle">คนทำแก้โค้ด</text>
+      <text class="sm" x="95" y="69" text-anchor="middle">น้องแป้งแก้โค้ด</text>
       <line class="ln" x1="184" y1="58" x2="281" y2="58" marker-start="url(#m2)" marker-end="url(#m2)"/>
       <text class="sm" x="232" y="47" text-anchor="middle">push / pull</text>
 
@@ -600,7 +602,7 @@ html { scroll-behavior: smooth; }
       <text class="sm" x="508" y="47" text-anchor="middle">push / pull</text>
       <rect class="bx" x="560" y="20" width="170" height="64" rx="8"/>
       <text x="645" y="48" text-anchor="middle">โน้ตบุ๊ก / ที่บ้าน</text>
-      <text class="sm" x="645" y="69" text-anchor="middle">คนทำแก้โค้ด</text>
+      <text class="sm" x="645" y="69" text-anchor="middle">น้องแป้งแก้โค้ด</text>
 
       <line class="ln-a" x1="370" y1="86" x2="370" y2="140" marker-end="url(#m2a)"/>
       <text class="sm" x="382" y="118">GitHub Pages ทำเป็นลิงก์</text>
@@ -632,72 +634,6 @@ html { scroll-behavior: smooth; }
         <li>ไฟล์ที่พี่ลากมาวางในหน้าโปรแกรม อยู่ในเบราว์เซอร์ของพี่เท่านั้น</li>
       </ul>
     </div>
-  </div>
-</section>
-
-<!-- 7 -->
-<section class="chap" id="own">
-  <div class="num"></div>
-  <h2>ทำลิงก์ให้โปรแกรมของพี่</h2>
-  <p>โปรแกรมที่พี่สร้างใน Antigravity จะอยู่ในโฟลเดอร์บนเครื่องพี่ ถ้าอยากให้เปิดได้จากเครื่องอื่น หรือส่งลิงก์ให้เพื่อนร่วมงานใช้แบบ Dashboard จัดซื้อ ต้องเอาไฟล์ขึ้น GitHub ด้วยบัญชีของพี่เอง</p>
-  <div class="pair">
-    <div>
-      <h3>ยังไม่ต้องมีลิงก์ ถ้า</h3>
-      <ul>
-        <li>ใช้คนเดียว บนเครื่องเดียว ดับเบิลคลิกไฟล์เปิดก็พอ</li>
-        <li>ที่อยู่จะเป็น <code style="overflow-wrap:anywhere">file:///C:/Users/ชื่อผู้ใช้ Windows/…</code> ซึ่งเปิดได้เฉพาะเครื่องนั้น</li>
-        <li>ส่งไฟล์ให้คนอื่นทางไลน์ได้ แต่ทุกครั้งที่แก้ต้องส่งใหม่</li>
-      </ul>
-    </div>
-    <div>
-      <h3>ควรมีลิงก์ ถ้า</h3>
-      <ul>
-        <li>ใช้หลายเครื่อง เช่น เครื่องที่ห้องยากับโน้ตบุ๊ก</li>
-        <li>อยากให้เพื่อนร่วมงานใช้ด้วย</li>
-        <li>อยากให้ทุกคนได้เวอร์ชันล่าสุดเสมอ โดยไม่ต้องส่งไฟล์ใหม่</li>
-      </ul>
-    </div>
-  </div>
-
-  <h3>ลิงก์ของพี่จะหน้าตาแบบนี้</h3>
-  <div class="url" aria-label="ส่วนประกอบของลิงก์โปรแกรมของพี่โอม">
-    <span class="u1"><b>https://</b><small>ขึ้นต้นลิงก์</small></span>
-    <span class="u2"><b>ชื่อบัญชีพี่</b><small>ตั้งตอนสมัคร GitHub</small></span>
-    <span class="u3"><b>.github.io/</b><small>บริการ GitHub Pages</small></span>
-    <span class="u4"><b>ชื่อโปรเจกต์/</b><small>ตั้งตอนสร้างโปรเจกต์</small></span>
-  </div>
-  <div class="note">
-    <div class="label">เลือกชื่อบัญชีให้ดี</div>
-    <p>ชื่อบัญชีจะติดอยู่ในลิงก์ของทุกโปรแกรมที่พี่ทำ ถ้าไม่อยากให้เป็นชื่อจริง ตั้งเป็นชื่อกลาง ๆ ได้ เช่น <code>om-pharmacy</code> ชื่อโปรเจกต์ควรเป็นภาษาอังกฤษสั้น ๆ ไม่มีเว้นวรรค เช่น <code>expiry-check</code></p>
-  </div>
-
-  <h3>ครั้งแรก: สร้างลิงก์ (ทำครั้งเดียว)</h3>
-  <ol class="steps">
-    <li><div>สมัครบัญชีที่ <a href="https://github.com/signup" target="_blank" rel="noopener">github.com</a></div></li>
-    <li><div>กดปุ่ม <strong>+</strong> มุมขวาบน → <strong>New repository</strong> ตั้งชื่อโปรเจกต์ เลือก <strong>Public</strong> แล้วกด <strong>Create repository</strong></div></li>
-    <li><div>ไฟล์โปรแกรมชื่อ <code>index.html</code> อยู่แล้วตาม PRD ข้อ 8 (ชื่อนี้ทำให้ลิงก์สั้น ไม่ต้องมีชื่อไฟล์ต่อท้าย) ใน Antigravity คลิกขวาที่ไฟล์ → <strong>Reveal in File Explorer</strong></div></li>
-    <li><div>กลับไปที่หน้า GitHub กดลิงก์ <strong>uploading an existing file</strong> ลากไฟล์ <code>index.html</code> และ <code>PRD.md</code> จาก File Explorer มาวาง แล้วกด <strong>Commit changes</strong> (เอา PRD ขึ้นไปด้วย เวลาแก้จากเครื่องอื่น AI จะเข้าใจโปรแกรมทันที)</div></li>
-    <li><div>ไปที่ <strong>Settings → Pages</strong> ช่อง Branch เลือก <strong>main</strong> แล้วกด <strong>Save</strong></div></li>
-    <li><div>รอ 1–2 นาที รีเฟรชหน้า Pages จะเห็นลิงก์ของพี่ขึ้นมาด้านบน คัดลอกเก็บไว้ หรือส่งให้เพื่อนร่วมงานได้เลย</div></li>
-  </ol>
-
-  <h3>ทุกครั้งที่แก้โปรแกรม: อัปเดตลิงก์</h3>
-  <ol class="steps">
-    <li><div>แก้ใน Antigravity เซฟ แล้วดับเบิลคลิกเปิดในเครื่องก่อน ให้แน่ใจว่าใช้ได้</div></li>
-    <li><div>เข้าโปรเจกต์ของพี่บน github.com กด <strong>Add file → Upload files</strong> ลาก <code>index.html</code> และ <code>PRD.md</code> ตัวใหม่มาวาง แล้วกด <strong>Commit changes</strong> ไฟล์บน GitHub จะถูกแทนที่ด้วยตัวใหม่ ส่วนตัวเก่า GitHub เก็บไว้ให้ย้อนดูได้</div></li>
-    <li><div>รอ 1–2 นาที เปิดลิงก์แล้วกด <kbd>Ctrl</kbd> + <kbd>F5</kbd> จะเห็นเวอร์ชันใหม่ คนอื่นที่เปิดลิงก์เดียวกันก็ได้เวอร์ชันใหม่ด้วย</div></li>
-  </ol>
-
-  <h3>ถ้าพี่แก้โปรแกรมจากหลายเครื่อง</h3>
-  <p>ให้ถือว่าไฟล์บน GitHub คือตัวจริง ก่อนแก้ที่เครื่องไหน ให้ดาวน์โหลด <code>index.html</code> และ <code>PRD.md</code> ตัวล่าสุดจาก GitHub ก่อนเสมอ (เปิดไฟล์ในโปรเจกต์ แล้วกดปุ่มดาวน์โหลดมุมขวาบนของไฟล์) แก้เสร็จก็อัปโหลดกลับขึ้นไป แบบนี้จะไม่สับสนว่าเครื่องไหนมีตัวใหม่กว่า</p>
-  <p>คนทำ Dashboard จัดซื้อใช้วิธีเดียวกันนี้ แต่ใช้เครื่องมือชื่อ git ใน IDE ทำให้ขั้นตอนอัปโหลดกับดาวน์โหลดเหลือแค่กดปุ่มเดียว เมื่อพี่คล่องแล้วค่อยขอให้ AI ใน Antigravity ช่วยตั้งค่าแบบนั้นก็ได้ ตอนเริ่มต้น อัปโหลดผ่านหน้าเว็บง่ายกว่า</p>
-
-  <div class="note warn">
-    <div class="label">ห้ามลืม</div>
-    <ul class="plain">
-      <li>โปรเจกต์แบบ Public ใครก็เปิดดูได้ อัปโหลดเฉพาะไฟล์โปรแกรม ห้ามอัปโหลดไฟล์ Excel ข้อมูลจริง</li>
-      <li>ออกแบบโปรแกรมให้ผู้ใช้ลากไฟล์ข้อมูลมาวางเองแบบ Dashboard จัดซื้อ (PRD ข้อ 8 ใส่ข้อนี้ไว้ให้แล้ว) ข้อมูลจะอยู่ในเครื่องคนใช้ ไม่ขึ้นไปอยู่บน GitHub</li>
-    </ul>
   </div>
 </section>
 
