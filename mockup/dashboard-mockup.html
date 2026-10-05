@@ -11,6 +11,7 @@
     --good:#227A47; --warning:#A85F12; --critical:#9E3226;
     --good-soft:#DDF0E3; --warning-soft:#F6E4CB; --critical-soft:#F5DEDB;
     --cat-1:#0F8A6C; --cat-2:#3568B0; --cat-3:#C24A2E; --cat-4:#8A4A9E; --cat-5:#4F7A2E;
+    --ed:#B8580C; --ned:#2F62AB; --on-group:#FFFFFF;
     --shadow:0 1px 2px rgba(32,36,31,.06), 0 4px 16px rgba(32,36,31,.06);
     --radius:10px;
   }
@@ -23,6 +24,7 @@
       --good:#4FBE82; --warning:#E0973F; --critical:#E0665A;
       --good-soft:#1E3327; --warning-soft:#3A2C16; --critical-soft:#3A2320;
       --cat-1:#22A883; --cat-2:#5F87C9; --cat-3:#D06A50; --cat-4:#A66DC0; --cat-5:#6FA155;
+      --ed:#E8913F; --ned:#6A92D6; --on-group:#1A1917;
       --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 22px rgba(0,0,0,.4);
     }
   }
@@ -34,6 +36,7 @@
     --good:#4FBE82; --warning:#E0973F; --critical:#E0665A;
     --good-soft:#1E3327; --warning-soft:#3A2C16; --critical-soft:#3A2320;
     --cat-1:#22A883; --cat-2:#5F87C9; --cat-3:#D06A50; --cat-4:#A66DC0; --cat-5:#6FA155;
+    --ed:#E8913F; --ned:#6A92D6; --on-group:#1A1917;
     --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 22px rgba(0,0,0,.4);
   }
 
@@ -148,7 +151,7 @@
   .legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; }
 
   .prop-bar{ display:flex; height:34px; border-radius:8px; overflow:hidden; border:1px solid var(--border); margin-bottom:6px; }
-  .prop-seg{ display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:500; color:#fff; white-space:nowrap; overflow:hidden; }
+  .prop-seg{ display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:500; color:var(--on-group); white-space:nowrap; overflow:hidden; }
   .prop-scale{ display:flex; justify-content:space-between; font-size:11px; color:var(--ink-faint); margin-bottom:18px; }
 
   .callout{ display:flex; gap:10px; align-items:flex-start; padding:10px 14px; border-radius:8px; font-size:13px; margin-top:16px; background:var(--warning-soft); }
@@ -306,8 +309,8 @@
   <div class="table-note" id="prop-footnote" style="margin:-10px 0 22px"></div>
   <div class="subhead">แยกตามประเภทบัญชี — คลิกแถวเพื่อกรองทั้งหน้า</div>
   <div class="legend">
-    <span><i style="background:var(--cat-5)"></i>บัญชี ED (ก ข ค ง)</span>
-    <span><i style="background:var(--cat-4)"></i>NED</span>
+    <span><i style="background:var(--ed)"></i>บัญชี ED (ก ข ค ง)</span>
+    <span><i style="background:var(--ned)"></i>NED</span>
     <span><i style="background:var(--ink-faint)"></i>อื่น ๆ</span>
   </div>
   <div class="barlist" id="chart-acct"></div>
@@ -323,8 +326,8 @@
   <div class="barlist" id="chart-value-loc" style="margin-bottom:26px"></div>
   <div class="subhead">แยกตามประเภทบัญชี — คลิกแถวเพื่อกรองทั้งหน้า</div>
   <div class="legend">
-    <span><i style="background:var(--cat-5)"></i>บัญชี ED (ก ข ค ง)</span>
-    <span><i style="background:var(--cat-4)"></i>NED</span>
+    <span><i style="background:var(--ed)"></i>บัญชี ED (ก ข ค ง)</span>
+    <span><i style="background:var(--ned)"></i>NED</span>
     <span><i style="background:var(--ink-faint)"></i>อื่น ๆ</span>
   </div>
   <div class="barlist" id="chart-value-acct" style="margin-bottom:26px"></div>
@@ -499,7 +502,7 @@
   ACCT_CATS.forEach(function(c){ if(c.key !== 'other') ACCT_BY_LABEL[squash(c.label)] = c.key; });
   var ACCT_BY_KEY = {};
   ACCT_CATS.forEach(function(c){ ACCT_BY_KEY[c.key] = c; });
-  var GROUP_COLOR = { ED:'var(--cat-5)', NED:'var(--cat-4)', other:'var(--ink-faint)' };
+  var GROUP_COLOR = { ED:'var(--ed)', NED:'var(--ned)', other:'var(--ink-faint)' };
 
   function squash(s){ return String(s == null ? '' : s).replace(/\s+/g,' ').trim(); }
   function acctKey(raw){ return ACCT_BY_LABEL[squash(raw)] || 'other'; }
