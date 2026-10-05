@@ -1,0 +1,41 @@
+ลิขสิทธิ์ © 2569 (2026) ภญ.ธมลวรรณ จันทร์แก้ว สงวนลิขสิทธิ์
+Designed & Developed by ภญ.ธมลวรรณ จันทร์แก้ว
+
+ระบบนี้ รวมถึงซอร์สโค้ด การออกแบบหน้าจอ วิธีคำนวณ และเอกสารประกอบทั้งหมดในโปรเจกต์นี้
+ถือเป็นทรัพย์สินทางปัญญาของผู้พัฒนา
+
+ห้ามคัดลอก ดัดแปลง เผยแพร่ จำหน่าย หรือนำไปใช้ ไม่ว่าทั้งหมดหรือบางส่วน
+โดยไม่ได้รับอนุญาตเป็นลายลักษณ์อักษรจากผู้พัฒนา
+
+การที่ซอร์สโค้ดเปิดให้ดูได้บน GitHub หรือในเบราว์เซอร์ ไม่ถือเป็นการอนุญาตให้นำไปใช้
+
+ผู้ที่ได้รับอนุญาตให้ใช้หรือดัดแปลง ต้องปฏิบัติตามเงื่อนไขต่อไปนี้
+1. คงข้อความเครดิตและลิขสิทธิ์ไว้ทั้งในซอร์สโค้ดและบนหน้าจอโปรแกรม
+   แม้จะเปลี่ยนชื่อโปรแกรม เปลี่ยนโลโก้ หรือออกแบบหน้าจอใหม่
+2. งานที่ดัดแปลงต่อจากระบบนี้ ต้องระบุว่า "พัฒนาต้นแบบโดย ภญ.ธมลวรรณ จันทร์แก้ว"
+3. ใช้ภายในขอบเขตที่ได้รับอนุญาตเท่านั้น และห้ามส่งต่อให้บุคคลอื่นโดยไม่ได้รับอนุญาต
+
+ไลบรารีและฟอนต์ของบุคคลอื่นที่โปรแกรมเรียกใช้ (เช่น SheetJS และ Google Fonts)
+อยู่ภายใต้สัญญาอนุญาตของเจ้าของแต่ละราย ไม่อยู่ภายใต้ไฟล์นี้
+
+------------------------------------------------------------
+
+Copyright © 2026 Tamonwan Chankaew (ภญ.ธมลวรรณ จันทร์แก้ว). All rights reserved.
+
+This system, including its source code, interface design, calculation methods and
+documentation, is the intellectual property of the developer.
+
+No part of it may be copied, modified, distributed, sold or used without prior
+written permission from the developer. Public visibility of the source code on
+GitHub or in a web browser does not grant any permission to use it.
+
+Anyone granted permission to use or modify this system must:
+1. Keep the credit and copyright notices intact, in the source code and on screen,
+   including after renaming, rebranding or redesigning.
+2. State in any derived work: "Original prototype by Tamonwan Chankaew
+   (ภญ.ธมลวรรณ จันทร์แก้ว)".
+3. Use it only within the scope of the permission granted, and not pass it on to
+   others without permission.
+
+Third-party libraries and fonts loaded by this system (such as SheetJS and Google
+Fonts) remain under their own licenses and are not covered by this file.
