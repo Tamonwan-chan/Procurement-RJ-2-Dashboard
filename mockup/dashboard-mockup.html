@@ -430,7 +430,7 @@
     <li>ห้องจ่ายยาใหม่: ห้องจ่ายยา ชั้น 1 อาคารผู้ป่วยใน (ชั้น 1 IPD) — เปิดรอไว้แล้ว ลากไฟล์รูปแบบเดียวกับชั้น 1 / ชั้น G มาวางได้เลย (แยกจากคำว่า "ผู้ป่วยใน" ใน dspname) · ไฟล์ส่งออกเพิ่มคอลัมน์ floor 1 IPD</li>
     <li>แยก 2 ตาราง: "อัตราการใช้ยา" ใช้ดูเพื่อสั่งจัดซื้อ (รายการจากไฟล์ list พร้อมยอดทุกห้อง มูลค่า expdate distribute manufact) · "รายการยา" ใช้ดูทะเบียนยาและ stock คงคลัง (เพิ่ม GPU, TMT, ราคาทุน/กล่อง, manufact, gpsc)</li>
     <li>ข้อมูลไฟล์ที่ไม่ได้นำเข้าใหม่ คงไว้ ณ วันที่นำเข้าล่าสุด</li>
-    <li>นำเข้าไฟล์ planfin (แผนจัดซื้อรายปี) — ตารางอัตราการใช้ยามีคอลัมน์สีแดง "แผนปี 70 ห้ามซื้อเกิน" ต่อจากจำนวนรวม (ใช้ buytotalamount)</li>
+    <li>นำเข้าไฟล์ planfin (แผนจัดซื้อรายปี) — ตารางอัตราการใช้ยามีคอลัมน์สีแดง "แผนปี 70 ห้ามซื้อเกิน" ต่อจากจำนวนรวม (ใช้ buytotalamount จากไฟล์ — ตัวเลข 1,680 ในตาราง Excel พี่โอมคำนวณเอง)</li>
     <li>คลังยาใช้ inventory_exp (unitcost = ราคาทุน/กล่อง) · นำเข้า Medical Product Registration เป็นแหล่งชื่อทะเบียน / ประเภทบัญชี (ถ้าไม่มีจะแปลงจากรหัสใน Meditem)</li>
     <li>อัตราการใช้: เทียบ lowrate / highrate กับ userate</li>
     <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน และกราฟมูลค่ารวมตาม GPU มีเส้น target ฿500,000</li>
@@ -442,7 +442,6 @@
     <li><span class="qn">1</span><span class="qtext">ไฟล์ห้องจ่ายยา (ชั้น G / ชั้น 1) ที่มี lot / expdate — รอพี่หาอยู่ โปรแกรมเปิดรอไว้แล้ว</span></li>
     <li><span class="qn">2</span><span class="qtext">ไฟล์ส่งออกเพิ่มคอลัมน์ "floor 1 IPD" ต่อจาก floor G สำหรับห้องจ่ายยาใหม่ และ total floor รวมทุกห้อง — แบบนี้ได้ไหมครับ</span></li>
     <li><span class="qn">3</span><span class="qtext">มี 16 รายการที่ไฟล์ list ให้ sumqty = 0 (สถานะ "สั่งซื้อ") แต่ไฟล์คลังยาที่นำเข้าล่าสุด (inventory_exp) มีของแล้ว เช่น ARTRODAR 50 MG = 200 กล่อง — น่าจะเพราะไฟล์ list export ก่อนของเข้า ตอนนี้แสดง "สั่งซื้อ" และ "คลังล่าสุด 200" คู่กัน ต้องการให้ยึดตัวเลขไหนครับ (ก) sumqty จากไฟล์ list ตามเดิม (ข) ยอดคลังยาล่าสุด ถ้ามีของแล้วไม่ต้องขึ้น "สั่งซื้อ"</span></li>
-    <li><span class="qn">4</span><span class="qtext">แผนปี 70: ตาราง Excel ของพี่ ACETAR 1000 ML = 1,680 แต่ไฟล์ planfin 70 ที่ export จาก HIS = 1,480 (buytotalamount, ตรงกับ aproxbuynextyear) — ไม่มีคอลัมน์ไหนในไฟล์ที่เป็น 1,680 ตัวเลขในตาราง Excel พี่มาจากไหนครับ (มีการปรับเพิ่มเอง หรือเป็นแผนอีกฉบับ) ตอนนี้โปรแกรมใช้ 1,480 จากไฟล์</span></li>
   </ol>
 </section>
 
@@ -1326,7 +1325,7 @@
     renderRateDetail(selected);
 
     var py = state.lookups && state.lookups.planYear;
-    document.getElementById('plan-head').innerHTML = 'แผนปี ' + (py ? py % 100 : 70) + '<br><small>ห้ามซื้อเกิน (กล่อง)</small>';
+    document.getElementById('plan-head').innerHTML = 'planfin<br><small>ปี ' + (py ? py % 100 : 70) + ' · ห้ามซื้อเกิน (กล่อง)</small>';
     var body = document.getElementById('rate-table');
     if(!rows.length){ body.innerHTML = '<tr><td colspan="' + (14 + FLOOR_LOCS.length) + '" class="table-note" style="padding:14px">ไม่พบรายการตามที่เลือก</td></tr>'; return; }
     body.innerHTML = rows.map(function(r){ return rateRow(r.it, r.status); }).join('');
@@ -1562,7 +1561,7 @@
       '<th class="mono">lowrate</th><th class="mono">highrate</th><th class="mono">userate</th><th>สถานะ</th>' +
       '<th class="mono">คลังยา<br><small>กล่อง · sumqty</small></th>' +
       FLOOR_LOCS.map(function(l){ return '<th class="mono">' + esc(l.short) + '<br><small>กล่อง</small></th>'; }).join('') +
-      '<th class="mono">จำนวนรวม<br><small>กล่อง</small></th><th class="mono plan" id="plan-head">แผนปี 70<br><small>ห้ามซื้อเกิน (กล่อง)</small></th><th class="mono">มูลค่า (บาท)</th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th>distribute</th><th>manufact</th>';
+      '<th class="mono">จำนวนรวม<br><small>กล่อง</small></th><th class="mono plan" id="plan-head">planfin<br><small>ปี 70 · ห้ามซื้อเกิน (กล่อง)</small></th><th class="mono">มูลค่า (บาท)</th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th>distribute</th><th>manufact</th>';
   })();
   rebuild();
   renderAll();
