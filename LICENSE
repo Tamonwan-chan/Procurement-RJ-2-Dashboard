@@ -9,6 +9,16 @@ Designed & Developed by ภญ.ธมลวรรณ จันทร์แก้
 
 การที่ซอร์สโค้ดเปิดให้ดูได้บน GitHub หรือในเบราว์เซอร์ ไม่ถือเป็นการอนุญาตให้นำไปใช้
 
+การอนุญาตใช้งาน
+ระบบนี้พัฒนาขึ้นเฉพาะสำหรับ กลุ่มงานเภสัชกรรม โรงพยาบาลราชวิถี 2
+ผู้พัฒนา: ภญ.ธมลวรรณ จันทร์แก้ว
+ผู้ได้รับอนุญาตใช้งาน: พี่โอม
+
+ผู้ได้รับอนุญาตใช้งานสามารถใช้ระบบนี้ภายในกลุ่มงานเภสัชกรรม โรงพยาบาลราชวิถี 2
+และนำไปปรึกษาหรือพัฒนาต่อร่วมกับหน่วยงานเทคโนโลยีสารสนเทศของโรงพยาบาล
+(เช่น การเชื่อมต่อกับระบบ HIS) ได้ ภายใต้เงื่อนไขด้านล่าง
+บุคคลหรือหน่วยงานอื่น ต้องได้รับอนุญาตเป็นลายลักษณ์อักษรจากผู้พัฒนาก่อน
+
 ผู้ที่ได้รับอนุญาตให้ใช้หรือดัดแปลง ต้องปฏิบัติตามเงื่อนไขต่อไปนี้
 1. คงข้อความเครดิตและลิขสิทธิ์ไว้ทั้งในซอร์สโค้ดและบนหน้าจอโปรแกรม
    แม้จะเปลี่ยนชื่อโปรแกรม เปลี่ยนโลโก้ หรือออกแบบหน้าจอใหม่
@@ -28,6 +38,18 @@ documentation, is the intellectual property of the developer.
 No part of it may be copied, modified, distributed, sold or used without prior
 written permission from the developer. Public visibility of the source code on
 GitHub or in a web browser does not grant any permission to use it.
+
+Permitted use
+This system was developed exclusively for the Pharmacy Department
+(กลุ่มงานเภสัชกรรม), Rajavithi 2 Hospital (โรงพยาบาลราชวิถี 2).
+Developer: Tamonwan Chankaew (ภญ.ธมลวรรณ จันทร์แก้ว)
+Authorized user: พี่โอม
+
+The authorized user may use this system within the Pharmacy Department of
+Rajavithi 2 Hospital, and may consult on or further develop it together with the
+hospital's IT unit (for example, to connect it to the HIS), under the conditions
+below. Any other person or organization needs prior written permission from the
+developer.
 
 Anyone granted permission to use or modify this system must:
 1. Keep the credit and copyright notices intact, in the source code and on screen,
