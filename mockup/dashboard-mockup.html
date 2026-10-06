@@ -248,6 +248,8 @@
   .credit-info{ border:0; background:none; color:var(--accent); font:inherit; font-size:15px; line-height:1; padding:2px 4px; cursor:pointer; border-radius:4px; }
   .credit-info:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   #credit-notice{ flex-basis:100%; max-width:62ch; margin:4px auto 0; color:var(--ink-muted); line-height:1.6; }
+  .rock-on{ position:fixed; right:14px; bottom:10px; font-size:52px; line-height:1; opacity:.16; pointer-events:none; user-select:none; z-index:0; }
+  @media (max-width:700px){ .rock-on{ font-size:36px; } }
   #tooltip{
     position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:12px; padding:6px 10px; border-radius:6px;
     z-index:50; opacity:0; transform:translate(-50%,-100%); transition:opacity .1s; white-space:nowrap;
@@ -483,6 +485,7 @@
   </div>
   <!-- /CREDIT -->
 </footer>
+<div class="rock-on" aria-hidden="true">🤘</div>
 
 <script>
 (function(){
