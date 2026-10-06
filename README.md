@@ -1,4 +1,4 @@
-# Dashboard จัดซื้อ พี่โอม
+# Procurement System for Medicines and Medical Supplies
 
 พัฒนาขึ้นเฉพาะสำหรับ กลุ่มงานเภสัชกรรม โรงพยาบาลราชวิถี 2 · ผู้ได้รับอนุญาตใช้งาน: ภก.สุทธิพงษ์ เดชก้อง
 
