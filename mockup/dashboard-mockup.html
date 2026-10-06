@@ -196,6 +196,9 @@
   .pill.status-high{ background:var(--critical-soft); color:var(--critical); }
   .pill.status-low{ background:var(--warning-soft); color:var(--warning); }
   th.plan, td.plan{ color:var(--critical); font-weight:600; }
+  :root{ --disp:#C2651A; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --disp:#EE9A4D; } }
+  :root[data-theme="dark"]{ --disp:#EE9A4D; }
   .rate-inv{ color:var(--ink-faint); font-size:11px; }
   .pill.order{ background:var(--accent-soft); color:var(--accent); }
   .pill.status-normal{ background:var(--good-soft); color:var(--good); }
@@ -402,6 +405,30 @@
   </div>
 </section>
 
+<section class="panel" id="disp-panel">
+  <header>
+    <h2>การจ่ายยาจากคลัง</h2>
+    <span class="hint" id="disp-hint">จากไฟล์ dispen_inven · กรองตามทะเบียนและประเภทบัญชี</span>
+  </header>
+  <p class="desc">มูลค่า = จำนวนจ่าย × ราคาทุน/หน่วยจัดหา (unitcost) · ไม่นับรายการที่ไม่มีหน่วยรับยา (ตามเงื่อนไขของพี่โอม)</p>
+  <div class="table-tools"><select class="search field-select" id="disp-fy" aria-label="ปีงบประมาณ"></select><span class="table-note" id="disp-note" style="margin:0"></span></div>
+  <div class="subhead">มูลค่าการจ่ายต่อเดือน (ต้นปีงบ – ปัจจุบัน)</div>
+  <div class="barlist" id="disp-months" style="margin-bottom:26px"></div>
+  <div class="subhead">ยาที่มีการใช้มากที่สุด</div>
+  <div class="table-tools">
+    <select class="search field-select" id="disp-sort" aria-label="เรียงตาม"><option value="value">เรียงตามมูลค่า</option><option value="qty">เรียงตามจำนวน</option></select>
+    <select class="search field-select" id="disp-month" aria-label="เดือน"></select>
+    <select class="search field-select" id="disp-room" aria-label="หน่วยรับยา"></select>
+    <select class="search field-select" id="disp-top" aria-label="จำนวนอันดับ"><option value="10">10 อันดับ</option><option value="30" selected>30 อันดับ</option><option value="50">50 อันดับ</option><option value="0">ทั้งหมด</option></select>
+    <input class="search" id="disp-search" type="search" placeholder="ค้นหา hospcode / ชื่อยา" aria-label="ค้นหารายการที่จ่าย">
+  </div>
+  <div class="table-scroll" style="max-height:460px">
+    <table><thead><tr><th class="mono">ลำดับ</th><th>hospcode</th><th>ชื่อยา</th><th>กลุ่ม GPSC</th><th class="mono">ปริมาณการใช้</th><th class="mono">มูลค่าการใช้ (บาท)</th><th class="mono">สัดส่วน</th></tr></thead>
+    <tbody id="disp-table"></tbody></table>
+  </div>
+  <div class="table-note" id="disp-count"></div>
+</section>
+
 <section class="panel">
   <header>
     <h2>รายการยา</h2>
@@ -470,6 +497,7 @@
     <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน และกราฟมูลค่ารวมตาม GPU มีเส้น target ฿500,000</li>
     <li>ส่งออก Excel: ตัด BCP NO ออก เพิ่ม expdate ต่อจาก floor G และเพิ่ม drugcode / tpucode / gpucode ท้ายตาราง</li>
     <li>manufact / distribute ใช้จาก DrugCatNow</li>
+    <li>นำเข้าไฟล์ dispen_inven (การจ่ายยาจากคลัง) — มูลค่าการจ่ายต่อเดือนตั้งแต่ต้นปีงบ และยาที่มีการใช้มากที่สุด (เรียงตามมูลค่า / จำนวน กรองตามเดือน / หน่วยรับยา) · ไม่นับรายการที่ไม่มีหน่วยรับยา · นำเข้าทีละเดือนหรือทั้งปีงบก็ได้ (เดือนที่ซ้ำจะแทนที่ของเดิม)</li>
     <li>ตารางรายการยาแสดงเฉพาะชื่อการค้า (ยังค้นหาด้วย generic ได้) และเพิ่มตัวกรอง "รวมกล่อง": มีของ / เป็น 0 / ทั้งหมด</li>
   </ul>
   <p class="desc" style="margin:0">ตอนนี้ไม่มีคำถามค้าง — พี่โอมตอบครบทุกข้อแล้ว</p>
@@ -545,7 +573,7 @@
     { slot:'inventory', label:'inventory_exp', desc:'คงคลัง (กล่อง) แยก lot / Exp' }
   ].concat(LOCATIONS.filter(function(l){ return l.kind === 'floor'; }).map(function(l){
     return { slot:'room:' + l.id, label:'ห้องจ่ายยา ' + l.short, desc:'ยอดคงเหลือ (unit)', room:l.id };
-  })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }, { slot:'plan', label:'planfin', desc:'แผนจัดซื้อรายปี (ห้ามซื้อเกิน)' }]);
+  })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }, { slot:'plan', label:'planfin', desc:'แผนจัดซื้อรายปี (ห้ามซื้อเกิน)' }, { slot:'dispense', label:'dispen_inven', desc:'การจ่ายยาจากคลัง (รายวัน)' }]);
   /* hospcode, ชื่อยา, ทะเบียน, ised + ห้องละ 1 คอลัมน์ + รวม, expdate, มูลค่า, distribute */
   var TABLE_COLS = 13 + LOCATIONS.length;
 
@@ -656,6 +684,7 @@
     if(has(t, ['รหัสเวชภัณฑ์','จำนวน','รวมมูลค่า'])) return 'inventory';
     if(has(t, ['meditem','sumqty','unitcost'])) return 'inventory';
     if(has(t, ['meditem','yearplan','buytotalamount'])) return 'plan';
+    if(has(t, ['motpdate','meditem','payqty','unitcost'])) return 'dispense';
     if(has(t, ['meditem','lowrate','highrate'])) return 'list';
     if(has(t, ['meditem','stkqty'])){
       var dsp = '';
@@ -675,6 +704,16 @@
   /* แปลงวันหมดอายุเป็นตัวเลขเรียงได้ (yyyymmdd) — รองรับ dd/mm/yyyy (พ.ศ. หรือ ค.ศ.), yyyy-mm-dd และชื่อเดือนภาษาไทย */
   var TH_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
   var TH_MONTHS_ABBR = ['ม.ค','ก.พ','มี.ค','เม.ย','พ.ค','มิ.ย','ก.ค','ส.ค','ก.ย','ต.ค','พ.ย','ธ.ค'];
+  /* วันที่จ่าย (Excel serial หรือข้อความ) → ปี-เดือน ค.ศ. */
+  function dateParts(v){
+    var y, m;
+    if(typeof v === 'number' && v > 20000){ var d = XLSX.SSF.parse_date_code(v); y = d.y; m = d.m; }
+    else { var k = expKey(v); if(k == null) return null; y = Math.floor(k / 10000); m = Math.floor(k / 100) % 100; }
+    return { y:y, m:m, ym:y * 100 + m };
+  }
+  /* ปีงบประมาณ (พ.ศ.) เริ่ม ต.ค. */
+  function fiscalOf(ym){ var y = Math.floor(ym / 100), m = ym % 100; return (m >= 10 ? y + 1 : y) + 543; }
+  function monthLabel(ym){ var y = Math.floor(ym / 100), m = ym % 100; return TH_MONTHS_ABBR[m - 1] + '.' + String((y + 543) % 100); }
   function expKey(s){
     s = txt(s); if(!s) return null;
     var m, d, mo, y;
@@ -743,6 +782,11 @@
       else if(slot === 'inventory') out.push({ id:id, name:txt(g(r,invName)), qty:num(g(r,invQty)),
         value:num(g(r,'รวมมูลค่า')) || num(g(r,invQty)) * num(g(r,invPrice)), price:num(g(r,invPrice)),
         lot:clean(g(r, lotCol)), exp:dateText(g(r, expCol)) });
+      else if(slot === 'dispense'){
+        var dt = dateParts(g(r,'motpdate')); if(!dt) return;
+        out.push({ id:id, ym:dt.ym, name:txt(g(r,'mednm')), unit:clean(g(r,'rqtlct')), unitName:txt(g(r,'rqtnm')), kind:txt(g(r,'name')),
+          qty:num(g(r,'payqty')), pack:num(g(r,'packqty')), small:txt(g(r,'name2')), cost:num(g(r,'unitcost')), gpsc:txt(g(r,'gpscnm')) });
+      }
       else if(slot === 'plan') out.push({ id:id, year:num(g(r,'yearplan')), qty:num(g(r,'buytotalamount')), value:num(g(r,'buytotalvalue')) });
       else if(slot === 'list') out.push({ id:id, name:txt(g(r,'medname')), lowrate:num(g(r,'lowrate')), highrate:num(g(r,'highrate')),
         userate:num(g(r,'userate')), sumqty:num(g(r,'sumqty')) });
@@ -788,6 +832,7 @@
     rowsOf('meditem').forEach(function(r){ L.med[r.id] = r; });
     L.reg = {};
     rowsOf('registry').forEach(function(r){ L.reg[r.id] = r; });
+    L.disp = rowsOf('dispense');
     L.plan = {}; L.planYear = 0;
     rowsOf('plan').forEach(function(r){
       var x = L.plan[r.id] || (L.plan[r.id] = { qty:0, value:0, year:r.year });
@@ -1005,6 +1050,13 @@
         state.prev = snapshot();
         recs.push(state.prev);
       }
+      recs.forEach(function(r){
+        if(r.slot === 'dispense' && state.datasets.dispense){
+          var months = {}; r.rows.forEach(function(x){ months[x.ym] = 1; });
+          r.rows = state.datasets.dispense.rows.filter(function(x){ return !months[x.ym]; }).concat(r.rows);
+          r.rowCount = r.rows.length;
+        }
+      });
       recs.forEach(function(r){ if(r.slot !== PREV_SLOT) state.datasets[r.slot] = r; });
       state.fresh = Object.keys(found);
       var save = recs.length ? dbPut(recs).catch(function(){ storageOk = false; }) : Promise.resolve();
@@ -1577,6 +1629,103 @@
     document.getElementById('item-count').textContent = countText;
   }
 
+  /* ---------------- การจ่ายยาจากคลัง (dispen_inven) ---------------- */
+  var dispState = { fy:0, month:'all', room:'all', sort:'value', top:30, search:'' };
+  var dispAttr = {};
+  function dispItemOk(id){
+    var L = state.lookups; if(!L) return true;
+    var a = dispAttr[id] || (dispAttr[id] = { regType:regTypeOf(L, id) || REG_UNKNOWN, acct:acctOf(L, id) });
+    return matchReg(a) && matchAcct(a);
+  }
+  function roomShort(r){
+    var hit = FLOOR_LOCS.filter(function(l){ return l.match.test(r.unitName); })[0];
+    return hit ? hit.short : r.unitName;
+  }
+  function fillSelect(id, opts, cur){
+    var el = document.getElementById(id);
+    el.innerHTML = opts.map(function(o){ return '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(cur) ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('');
+  }
+  function renderDispense(){
+    dispAttr = {};
+    var panel = document.getElementById('disp-panel');
+    var all = state.lookups && state.lookups.disp ? state.lookups.disp : [];
+    if(!all.length){
+      document.getElementById('disp-months').innerHTML = '<div class="table-note">นำเข้าไฟล์ dispen_inven (การจ่ายยาจากคลัง) เพื่อดูมูลค่าการจ่ายรายเดือนและยาที่ใช้มากที่สุด</div>';
+      document.getElementById('disp-table').innerHTML = '';
+      ['disp-fy','disp-month','disp-room'].forEach(function(i){ document.getElementById(i).innerHTML = ''; });
+      document.getElementById('disp-note').textContent = ''; document.getElementById('disp-count').textContent = '';
+      return;
+    }
+    var fys = {}; all.forEach(function(r){ fys[fiscalOf(r.ym)] = 1; });
+    var fyList = Object.keys(fys).map(Number).sort();
+    if(fyList.indexOf(dispState.fy) < 0) dispState.fy = fyList[fyList.length - 1];
+    fillSelect('disp-fy', fyList.map(function(y){ return [y, 'ปีงบประมาณ ' + y]; }), dispState.fy);
+    var inFy = all.filter(function(r){ return fiscalOf(r.ym) === dispState.fy; });
+    var noUnit = inFy.filter(function(r){ return !r.unit && !r.unitName; });
+    var rows = inFy.filter(function(r){ return (r.unit || r.unitName) && dispItemOk(r.id); });
+    var exVal = noUnit.reduce(function(s, r){ return s + r.qty * r.cost; }, 0);
+    document.getElementById('disp-note').textContent = noUnit.length ? 'ไม่นับ ' + fmt(noUnit.length) + ' รายการที่ไม่มีหน่วยรับยา (฿' + fmt(exVal) + ')' : '';
+
+    /* monthly value: ต.ค. → ก.ย. of the fiscal year */
+    var startY = dispState.fy - 543 - 1, months = [];
+    for(var i = 0; i < 12; i++){ var m = 10 + i, y = startY; if(m > 12){ m -= 12; y++; } months.push(y * 100 + m); }
+    var byMonth = {}; rows.forEach(function(r){ byMonth[r.ym] = (byMonth[r.ym] || 0) + r.qty * r.cost; });
+    var have = months.filter(function(ym){ return byMonth[ym]; });
+    var lastYm = have.length ? have[have.length - 1] : months[0];
+    var shownMonths = months.filter(function(ym){ return ym <= lastYm; });
+    var maxM = Math.max.apply(null, shownMonths.map(function(ym){ return byMonth[ym] || 0; }).concat([1]));
+    var mBox = document.getElementById('disp-months'); mBox.innerHTML = '';
+    shownMonths.forEach(function(ym){
+      var v = byMonth[ym] || 0;
+      mBox.appendChild(barRow(monthLabel(ym), v, maxM, 'var(--disp)', v ? '฿' + fmt(v) : '<small>ไม่มีข้อมูล</small>', monthLabel(ym) + ' · ฿' + fmt(v)));
+    });
+    var ytd = shownMonths.reduce(function(s, ym){ return s + (byMonth[ym] || 0); }, 0);
+    var tot = document.createElement('div'); tot.className = 'table-note';
+    tot.textContent = 'รวมต้นปีงบ – ' + monthLabel(lastYm) + ': ฿' + fmt(ytd) + ' · เดือนที่ไม่มีข้อมูล = ยังไม่ได้นำเข้าไฟล์ของเดือนนั้น';
+    mBox.appendChild(tot);
+
+    /* most used */
+    fillSelect('disp-month', [['all', 'ทุกเดือนในปีงบ']].concat(have.map(function(ym){ return [ym, monthLabel(ym)]; })), dispState.month);
+    var rooms = {}; rows.forEach(function(r){ rooms[r.unitName] = roomShort(r); });
+    fillSelect('disp-room', [['all', 'ทุกหน่วยรับยา']].concat(Object.keys(rooms).map(function(k){ return [k, rooms[k]]; })), dispState.room);
+    if(dispState.month !== 'all' && !byMonth[dispState.month]) dispState.month = 'all';
+    var pick = rows.filter(function(r){ return (dispState.month === 'all' || String(r.ym) === String(dispState.month)) && (dispState.room === 'all' || r.unitName === dispState.room); });
+    var agg = {};
+    pick.forEach(function(r){
+      var a = agg[r.id] || (agg[r.id] = { id:r.id, name:r.name, gpsc:r.gpsc, qty:0, value:0, pack:r.pack, small:r.small });
+      a.qty += r.qty; a.value += r.qty * r.cost;
+    });
+    var list = Object.keys(agg).map(function(k){ return agg[k]; });
+    var total = list.reduce(function(s, a){ return s + a.value; }, 0);
+    list.sort(function(a, b){ return dispState.sort === 'qty' ? (b.qty * (b.pack || 1)) - (a.qty * (a.pack || 1)) || b.value - a.value : b.value - a.value; });
+    list.forEach(function(a, i){ a.rank = i + 1; });
+    var q = dispState.search.trim().toLowerCase();
+    var shown = list.filter(function(a){ return !q || (a.id + ' ' + a.name).toLowerCase().indexOf(q) >= 0; });
+    if(!q && dispState.top) shown = shown.slice(0, dispState.top);
+    document.getElementById('disp-table').innerHTML = shown.length ? shown.map(function(a){
+      return '<tr><td class="mono">' + a.rank + '</td><td>' + esc(a.id) + '</td><td>' + esc(a.name) + '</td><td>' + esc(a.gpsc) + '</td>' +
+        '<td class="mono">' + fmt1(a.qty) + ' x ' + fmt1(a.pack || 1) + ' ' + esc(a.small) + '</td>' +
+        '<td class="mono">' + fmt2(a.value) + '</td><td class="mono">' + (total ? fmt1(a.value / total * 100) + '%' : '–') + '</td></tr>';
+    }).join('') : '<tr><td colspan="7" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง</td></tr>';
+    document.getElementById('disp-count').textContent = 'แสดง ' + fmt(shown.length) + ' จาก ' + fmt(list.length) + ' รายการ · รวมมูลค่า ฿' + fmt2(total);
+  }
+  ['disp-fy','disp-sort','disp-month','disp-room','disp-top'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', function(e){
+      var v = e.target.value;
+      if(id === 'disp-fy'){ dispState.fy = Number(v); dispState.month = 'all'; }
+      else if(id === 'disp-sort') dispState.sort = v;
+      else if(id === 'disp-month') dispState.month = v;
+      else if(id === 'disp-room') dispState.room = v;
+      else dispState.top = Number(v);
+      renderDispense();
+    });
+  });
+  var dispTimer;
+  document.getElementById('disp-search').addEventListener('input', function(e){
+    clearTimeout(dispTimer); var v = e.target.value;
+    dispTimer = setTimeout(function(){ dispState.search = v; renderDispense(); }, 150);
+  });
+
   function renderAll(){
     var visible = state.items.filter(function(it){ return inStock(it) && matchReg(it) && matchAcct(it); });
     renderFilters();
@@ -1587,6 +1736,7 @@
     renderGps(visible);
     renderGpu(visible);
     renderRates();
+    renderDispense();
     renderTable(visible);
   }
 
