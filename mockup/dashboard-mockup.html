@@ -1661,8 +1661,8 @@
     if(fyList.indexOf(dispState.fy) < 0) dispState.fy = fyList[fyList.length - 1];
     fillSelect('disp-fy', fyList.map(function(y){ return [y, 'ปีงบประมาณ ' + y]; }), dispState.fy);
     var inFy = all.filter(function(r){ return fiscalOf(r.ym) === dispState.fy; });
-    var noUnit = inFy.filter(function(r){ return !r.unit && !r.unitName; });
-    var rows = inFy.filter(function(r){ return (r.unit || r.unitName) && dispItemOk(r.id); });
+    var noUnit = inFy.filter(function(r){ return !r.unit || !r.unitName; });  /* column D rqtlct and E rqtnm: both needed */
+    var rows = inFy.filter(function(r){ return r.unit && r.unitName && dispItemOk(r.id); });
     var exVal = noUnit.reduce(function(s, r){ return s + r.qty * r.cost; }, 0);
     document.getElementById('disp-note').textContent = noUnit.length ? 'ไม่นับ ' + fmt(noUnit.length) + ' รายการที่ไม่มีหน่วยรับยา (฿' + fmt(exVal) + ')' : '';
 
