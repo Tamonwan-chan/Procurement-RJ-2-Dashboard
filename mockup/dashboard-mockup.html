@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <!--
   Designed & Developed by ภญ.ธมลวรรณ จันทร์แก้ว
   © 2569 (2026) ภญ.ธมลวรรณ จันทร์แก้ว สงวนลิขสิทธิ์
@@ -18,39 +19,39 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --bg:#F7F5F0; --surface:#FFFFFF; --surface-2:#F0EDE4;
-    --ink:#20241F; --ink-muted:#5C6158; --ink-faint:#8A8F84;
-    --border:#DEDACD; --border-strong:#C7C2B2;
-    --accent:#96681E; --accent-ink:#FFFFFF; --accent-soft:#F1E3C8;
+    --bg:#C9EEFB; --surface:#FFFFFF; --surface-2:#EAF5FA;
+    --ink:#13262F; --ink-muted:#45606B; --ink-faint:#506A76;
+    --border:#C3DDE8; --border-strong:#93B9C9;
+    --accent:#0B5F86; --accent-ink:#FFFFFF; --accent-soft:#D6ECF6;
     --good:#227A47; --warning:#A85F12; --critical:#9E3226;
     --good-soft:#DDF0E3; --warning-soft:#F6E4CB; --critical-soft:#F5DEDB;
     --cat-1:#0F8A6C; --cat-2:#3568B0; --cat-3:#C24A2E; --cat-4:#8A4A9E; --cat-5:#4F7A2E;
     --ed:#B8580C; --ned:#2F62AB; --on-group:#FFFFFF;
-    --shadow:0 1px 2px rgba(32,36,31,.06), 0 4px 16px rgba(32,36,31,.06);
+    --shadow:0 1px 2px rgba(11,58,82,.08), 0 4px 16px rgba(11,58,82,.08);
     --radius:10px;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#1A1917; --surface:#221E1A; --surface-2:#2A2620;
-      --ink:#EDEAE2; --ink-muted:#B3AC9E; --ink-faint:#807A6C;
-      --border:#3B362D; --border-strong:#4B4536;
-      --accent:#D9A64D; --accent-ink:#241C0C; --accent-soft:#3B2E17;
+      --bg:#0E1D25; --surface:#14262F; --surface-2:#1B303B;
+      --ink:#E2EEF3; --ink-muted:#A3BAC4; --ink-faint:#7D96A1;
+      --border:#284450; --border-strong:#3A5B69;
+      --accent:#5CB8E0; --accent-ink:#08202B; --accent-soft:#16394A;
       --good:#4FBE82; --warning:#E0973F; --critical:#E0665A;
       --good-soft:#1E3327; --warning-soft:#3A2C16; --critical-soft:#3A2320;
       --cat-1:#22A883; --cat-2:#5F87C9; --cat-3:#D06A50; --cat-4:#A66DC0; --cat-5:#6FA155;
-      --ed:#E8913F; --ned:#6A92D6; --on-group:#1A1917;
+      --ed:#E8913F; --ned:#6A92D6; --on-group:#0E1D25;
       --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 22px rgba(0,0,0,.4);
     }
   }
   :root[data-theme="dark"]{
-    --bg:#1A1917; --surface:#221E1A; --surface-2:#2A2620;
-    --ink:#EDEAE2; --ink-muted:#B3AC9E; --ink-faint:#807A6C;
-    --border:#3B362D; --border-strong:#4B4536;
-    --accent:#D9A64D; --accent-ink:#241C0C; --accent-soft:#3B2E17;
+    --bg:#0E1D25; --surface:#14262F; --surface-2:#1B303B;
+    --ink:#E2EEF3; --ink-muted:#A3BAC4; --ink-faint:#7D96A1;
+    --border:#284450; --border-strong:#3A5B69;
+    --accent:#5CB8E0; --accent-ink:#08202B; --accent-soft:#16394A;
     --good:#4FBE82; --warning:#E0973F; --critical:#E0665A;
     --good-soft:#1E3327; --warning-soft:#3A2C16; --critical-soft:#3A2320;
     --cat-1:#22A883; --cat-2:#5F87C9; --cat-3:#D06A50; --cat-4:#A66DC0; --cat-5:#6FA155;
-    --ed:#E8913F; --ned:#6A92D6; --on-group:#1A1917;
+    --ed:#E8913F; --ned:#6A92D6; --on-group:#0E1D25;
     --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 22px rgba(0,0,0,.4);
   }
 
@@ -68,7 +69,7 @@
   .masthead h1{ font-size:clamp(24px,3.4vw,32px); }
   .masthead .sub{ color:var(--ink-muted); font-size:14.5px; margin-top:6px; }
   .brand{ display:flex; align-items:center; gap:14px; min-width:0; }
-  #brand-logo{ height:52px; width:auto; max-width:160px; object-fit:contain; flex:none; }
+  #brand-logo{ height:56px; width:56px; max-width:160px; object-fit:cover; border-radius:50%; flex:none; }
   .mock-badge{
     display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-muted);
     background:var(--surface-2); border:1px solid var(--border); border-radius:99px; padding:6px 12px 6px 10px;
@@ -487,7 +488,7 @@
 (function(){
   /* BRAND: เปลี่ยนชื่อโปรแกรมและโลโก้ที่นี่ที่เดียว
      logo = ชื่อไฟล์รูปที่วางไว้ในโฟลเดอร์เดียวกับไฟล์นี้ เช่น 'logo.png' (เว้นว่าง = ไม่แสดงโลโก้) */
-  var BRAND = { name:'ระบบจัดซื้อยาและเวชภัณฑ์', logo:'' };
+  var BRAND = { name:'ระบบจัดซื้อยาและเวชภัณฑ์', logo:'logo-rj2.jpg' };
 
   /* CREDIT: ห้ามลบหรือแก้ไข */
   var CREDIT = {
