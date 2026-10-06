@@ -384,6 +384,23 @@
   <div class="table-note" id="gpu-note"></div>
 </section>
 
+<section class="panel" id="plantop-panel">
+  <header>
+    <h2 id="plantop-title">10 อันดับมูลค่าแผนจัดซื้อสูงสุด</h2>
+    <span class="hint">จากไฟล์ planfin · กรองตามทะเบียนและประเภทบัญชี</span>
+  </header>
+  <p class="desc">เรียงตามมูลค่าแผนจัดซื้อทั้งปี (buytotalvalue) รายการละแถว · จำนวน = buytotalamount · GPU / TPU ใช้ตาม Meditem ก่อน ถ้าไม่มีจึงใช้จาก planfin</p>
+  <div class="table-tools">
+    <select class="search field-select" id="plantop-top" aria-label="จำนวนอันดับ"><option value="10" selected>10 อันดับ</option><option value="20">20 อันดับ</option><option value="50">50 อันดับ</option><option value="0">ทั้งหมด</option></select>
+    <input class="search" id="plantop-search" type="search" placeholder="ค้นหา hospcode / ชื่อยา / GPU / TPU" aria-label="ค้นหาในแผนจัดซื้อ">
+  </div>
+  <div class="table-scroll" style="max-height:460px">
+    <table style="min-width:1000px"><thead><tr><th class="mono">ลำดับที่</th><th>ชื่อสามัญ</th><th>GPU</th><th>NAME</th><th>TPU</th><th class="mono">จำนวน</th><th>หน่วยนับ</th><th class="mono">มูลค่าจัดซื้อ (บาท)</th></tr></thead>
+    <tbody id="plantop-table"></tbody></table>
+  </div>
+  <div class="table-note" id="plantop-count"></div>
+</section>
+
 <section class="panel">
   <header>
     <h2>อัตราการใช้ยา</h2>
@@ -494,6 +511,7 @@
     <li>นำเข้าไฟล์ planfin (แผนจัดซื้อรายปี) — ตารางอัตราการใช้ยามีคอลัมน์สีแดง "แผนปี 70 ห้ามซื้อเกิน" ต่อจากจำนวนรวม (ใช้ buytotalamount จากไฟล์ — ตัวเลข 1,680 ในตาราง Excel พี่โอมคำนวณเอง)</li>
     <li>คลังยาใช้ inventory_exp (unitcost = ราคาทุน/กล่อง) · นำเข้า Medical Product Registration เป็นแหล่งชื่อทะเบียน / ประเภทบัญชี (ถ้าไม่มีจะแปลงจากรหัสใน Meditem)</li>
     <li>อัตราการใช้: เทียบ lowrate / highrate กับ userate</li>
+    <li>ตาราง "10 อันดับมูลค่าแผนจัดซื้อสูงสุด" ต่อจากกราฟ GPU ใช้ไฟล์ planfin ใหม่ (เลือกจำนวนอันดับได้)</li>
     <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน และกราฟมูลค่ารวมตาม GPU มีเส้น target ฿500,000</li>
     <li>ส่งออก Excel: ตัด BCP NO ออก เพิ่ม expdate ต่อจาก floor G และเพิ่ม drugcode / tpucode / gpucode ท้ายตาราง</li>
     <li>manufact / distribute ใช้จาก DrugCatNow</li>
@@ -787,7 +805,8 @@
         out.push({ id:id, ym:dt.ym, name:txt(g(r,'mednm')), unit:clean(g(r,'rqtlct')), unitName:txt(g(r,'rqtnm')), kind:txt(g(r,'name')),
           qty:num(g(r,'payqty')), pack:num(g(r,'packqty')), small:txt(g(r,'name2')), cost:num(g(r,'unitcost')), gpsc:txt(g(r,'gpscnm')) });
       }
-      else if(slot === 'plan') out.push({ id:id, year:num(g(r,'yearplan')), qty:num(g(r,'buytotalamount')), value:num(g(r,'buytotalvalue')) });
+      else if(slot === 'plan') out.push({ id:id, year:num(g(r,'yearplan')), qty:num(g(r,'buytotalamount')), value:num(g(r,'buytotalvalue')),
+        name:txt(g(r,'medname')), gpucode:clean(g(r,'gpucode')), tpucode:clean(g(r,'tpucode')), pack:num(g(r,'packqty')), unit:txt(g(r,'unitname')) });
       else if(slot === 'list') out.push({ id:id, name:txt(g(r,'medname')), lowrate:num(g(r,'lowrate')), highrate:num(g(r,'highrate')),
         userate:num(g(r,'userate')), sumqty:num(g(r,'sumqty')) });
       else out.push({ id:id, name:txt(g(r,'medname')), qty:num(g(r,'stkqty')), lot:clean(g(r, lotCol)), exp:dateText(g(r, expCol)) });
@@ -835,7 +854,7 @@
     L.disp = rowsOf('dispense');
     L.plan = {}; L.planYear = 0;
     rowsOf('plan').forEach(function(r){
-      var x = L.plan[r.id] || (L.plan[r.id] = { qty:0, value:0, year:r.year });
+      var x = L.plan[r.id] || (L.plan[r.id] = { qty:0, value:0, year:r.year, name:r.name, gpucode:r.gpucode, tpucode:r.tpucode, pack:r.pack, unit:r.unit });
       x.qty += r.qty; x.value += r.value;
       if(r.year > L.planYear) L.planYear = r.year;
     });
@@ -1726,6 +1745,46 @@
     dispTimer = setTimeout(function(){ dispState.search = v; renderDispense(); }, 150);
   });
 
+  /* ---------------- 10 อันดับมูลค่าแผนจัดซื้อ (planfin) ---------------- */
+  var planTopState = { top:10, search:'' };
+  function renderPlanTop(){
+    dispAttr = {};
+    var L = state.lookups, plan = L && L.plan, body = document.getElementById('plantop-table');
+    var title = document.getElementById('plantop-title'), count = document.getElementById('plantop-count');
+    var label = planTopState.top ? planTopState.top + ' อันดับ' : 'อันดับ';
+    title.textContent = label + 'มูลค่าแผนจัดซื้อสูงสุด' + (L && L.planYear ? ' ' + L.planYear : '');
+    if(!plan || !Object.keys(plan).length){
+      body.innerHTML = '<tr><td colspan="8" class="table-note" style="padding:14px">ยังไม่มีข้อมูล — ลากไฟล์ planfin มาวาง</td></tr>';
+      count.textContent = ''; return;
+    }
+    var items = {}; state.items.forEach(function(it){ items[it.id] = it; });
+    var list = Object.keys(plan).filter(function(id){ return plan[id].value > 0 && dispItemOk(id); }).map(function(id){
+      var x = plan[id], it = items[id] || {}, m = L.med[id] || {}, dc = L.dc[id] || {};
+      return { id:id, value:x.value, qty:x.qty, generic:dc.generic || it.generic || '', name:x.name || it.tradename || L.names[id] || '',
+        gpu:m.gpucode || (L.reg[id] || {}).gpucode || x.gpucode || '', tpu:m.tpucode || x.tpucode || '', pack:x.pack || 0, unit:x.unit || '' };
+    }).sort(function(a, b){ return b.value - a.value; });
+    var total = list.reduce(function(s, a){ return s + a.value; }, 0);
+    list.forEach(function(a, i){ a.rank = i + 1; });
+    var q = planTopState.search.trim().toLowerCase();
+    var shown = list.filter(function(a){ return !q || [a.id, a.generic, a.name, a.gpu, a.tpu].join(' ').toLowerCase().indexOf(q) >= 0; });
+    if(!q && planTopState.top) shown = shown.slice(0, planTopState.top);
+    body.innerHTML = shown.length ? shown.map(function(a){
+      var unit = a.pack > 1 ? 'กล่อง <span class="table-note" style="margin:0">(' + fmt1(a.pack) + ' ' + esc(a.unit) + ')</span>' : esc(a.unit || '–');
+      return '<tr><td class="mono">' + a.rank + '</td><td>' + esc(a.generic || '–') + '</td><td class="mono">' + esc(a.gpu || '–') + '</td>' +
+        '<td title="hospcode ' + esc(a.id) + '">' + esc(a.name) + '</td><td class="mono">' + esc(a.tpu || '–') + '</td>' +
+        '<td class="mono">' + fmt1(a.qty) + '</td><td>' + unit + '</td><td class="mono">' + fmt2(a.value) + '</td></tr>';
+    }).join('') : '<tr><td colspan="8" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง</td></tr>';
+    var sub = shown.reduce(function(s, a){ return s + a.value; }, 0);
+    count.textContent = 'แสดง ' + fmt(shown.length) + ' จาก ' + fmt(list.length) + ' รายการ · มูลค่ารวมที่แสดง ฿' + fmt2(sub) +
+      (total ? ' (' + fmt1(sub / total * 100) + '% ของแผนทั้งหมด ฿' + fmt2(total) + ')' : '');
+  }
+  document.getElementById('plantop-top').addEventListener('change', function(e){ planTopState.top = Number(e.target.value); renderPlanTop(); });
+  var planTopTimer;
+  document.getElementById('plantop-search').addEventListener('input', function(e){
+    clearTimeout(planTopTimer); var v = e.target.value;
+    planTopTimer = setTimeout(function(){ planTopState.search = v; renderPlanTop(); }, 150);
+  });
+
   function renderAll(){
     var visible = state.items.filter(function(it){ return inStock(it) && matchReg(it) && matchAcct(it); });
     renderFilters();
@@ -1735,6 +1794,7 @@
     renderValue(visible);
     renderGps(visible);
     renderGpu(visible);
+    renderPlanTop();
     renderRates();
     renderDispense();
     renderTable(visible);
