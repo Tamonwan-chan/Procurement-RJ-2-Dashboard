@@ -223,8 +223,16 @@
   tr.pick.sel, tr.pick.sel:hover{ background:var(--accent-soft); }
 
   .rate-detail{ border:1px solid var(--border-strong); border-radius:var(--radius); padding:16px 18px; margin-bottom:14px; background:var(--surface); }
-  .rate-detail .rd-top{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:8px 16px; }
-  .rate-detail .rd-name{ font-size:16px; font-weight:600; }
+  .quote-box{ border:1px solid var(--accent); border-radius:var(--radius); padding:16px 18px; margin-bottom:14px; background:var(--surface); }
+  .quote-box .q-in{ font-family:inherit; font-size:12.5px; color:var(--ink); background:var(--surface); border:1px solid var(--border-strong); border-radius:6px; padding:3px 6px; }
+  .quote-box .q-in.num{ width:84px; text-align:right; font-family:'IBM Plex Mono', monospace; }
+  .quote-box .q-in.unit{ width:76px; }
+  .quote-box tr.on td{ background:var(--accent-soft); }
+  .quote-box label.q-field{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); }
+  .btn-solid{ font-family:inherit; font-size:12.5px; background:var(--accent); color:var(--accent-ink); border:1px solid var(--accent); border-radius:99px; padding:6px 14px; cursor:pointer; font-weight:600; }
+  .btn-solid:disabled{ opacity:.5; cursor:not-allowed; }
+  .rate-detail .rd-top, .quote-box .rd-top{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:8px 16px; }
+  .rate-detail .rd-name, .quote-box .rd-name{ font-size:16px; font-weight:600; }
   .rate-detail .rd-meta{ font-size:12.5px; color:var(--ink-muted); margin-top:2px; display:flex; flex-wrap:wrap; gap:4px 12px; }
   .rd-range{ position:relative; height:26px; margin:22px 0 6px; }
   .rd-range .axis{ position:absolute; left:0; right:0; top:11px; height:4px; border-radius:2px; background:var(--surface-2); }
@@ -411,6 +419,30 @@
     <input class="search" id="rate-search" type="search" list="rate-options" placeholder="เลือกหรือค้นหารายการยา (hospcode / ชื่อยา)" aria-label="เลือกรายการยา">
     <datalist id="rate-options"></datalist>
     <div class="chips" id="rate-status"></div>
+    <button type="button" class="btn-solid" id="btn-quote">ทำใบเสนอราคา</button>
+  </div>
+  <div class="quote-box" id="quote-box" hidden>
+    <div class="rd-top"><div>
+      <div class="rd-name">ทำใบขอใบเสนอราคา</div>
+      <div class="table-note" id="quote-tpl" style="margin:2px 0 0"></div>
+    </div><button type="button" class="btn-ghost" id="quote-close">ปิด</button></div>
+    <div class="table-tools" style="margin-top:12px">
+      <select class="search field-select" id="quote-company" aria-label="บริษัท (distribute)"></select>
+      <label class="q-field"><input type="checkbox" id="quote-only-out"> เฉพาะรายการที่ขึ้น "สั่งซื้อ"</label>
+      <input class="search" id="quote-search" type="search" placeholder="ค้นหา hospcode / ชื่อยา" aria-label="ค้นหารายการในใบเสนอราคา">
+    </div>
+    <div class="table-scroll" style="max-height:380px">
+      <table style="min-width:900px"><thead><tr><th>เลือก</th><th>hospcode</th><th>รายการยา</th><th class="mono">จำนวนต่อกล่อง</th><th class="mono">จำนวนซื้อ</th><th class="mono">ราคารวม VAT / หน่วย</th><th class="mono">มูลค่ารวม VAT</th><th>คลังยา</th></tr></thead>
+      <tbody id="quote-table"></tbody></table>
+    </div>
+    <datalist id="quote-units"></datalist>
+    <div class="table-tools" style="margin:12px 0 0">
+      <label class="q-field">เลขที่ใบแรก <input class="q-in" id="quote-no" style="width:120px" placeholder="WB001-70"></label>
+      <label class="q-field">วันที่ <input class="q-in" id="quote-date" type="date"></label>
+      <button type="button" class="btn-ghost" id="quote-clear">ล้างที่เลือก</button>
+      <button type="button" class="btn-solid" id="quote-export">ส่งออกใบเสนอราคา (.xlsx)</button>
+    </div>
+    <div class="table-note" id="quote-summary" style="margin:8px 0 0"></div>
   </div>
   <div class="rate-detail" id="rate-detail" hidden></div>
   <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
@@ -511,6 +543,7 @@
     <li>นำเข้าไฟล์ planfin (แผนจัดซื้อรายปี) — ตารางอัตราการใช้ยามีคอลัมน์สีแดง "แผนปี 70 ห้ามซื้อเกิน" ต่อจากจำนวนรวม (ใช้ buytotalamount จากไฟล์ — ตัวเลข 1,680 ในตาราง Excel พี่โอมคำนวณเอง)</li>
     <li>คลังยาใช้ inventory_exp (unitcost = ราคาทุน/กล่อง) · นำเข้า Medical Product Registration เป็นแหล่งชื่อทะเบียน / ประเภทบัญชี (ถ้าไม่มีจะแปลงจากรหัสใน Meditem)</li>
     <li>อัตราการใช้: เทียบ lowrate / highrate กับ userate</li>
+    <li>ปุ่ม "ทำใบเสนอราคา" ในตารางอัตราการใช้ยา: เลือกยา ใส่จำนวน แล้วส่งออกเป็นไฟล์ Excel ตามแบบ DATA Template (แยกใบตามบริษัท distribute ใบละไม่เกิน 8 รายการ)</li>
     <li>ตาราง "10 อันดับมูลค่าแผนจัดซื้อสูงสุด" ต่อจากกราฟ GPU ใช้ไฟล์ planfin ใหม่ (เลือกจำนวนอันดับได้)</li>
     <li>กราฟมูลค่าตามกลุ่ม GPSC เทียบกับการนำเข้าครั้งก่อน และกราฟมูลค่ารวมตาม GPU มีเส้น target ฿500,000</li>
     <li>ส่งออก Excel: ตัด BCP NO ออก เพิ่ม expdate ต่อจาก floor G และเพิ่ม drugcode / tpucode / gpucode ท้ายตาราง</li>
@@ -591,7 +624,8 @@
     { slot:'inventory', label:'inventory_exp', desc:'คงคลัง (กล่อง) แยก lot / Exp' }
   ].concat(LOCATIONS.filter(function(l){ return l.kind === 'floor'; }).map(function(l){
     return { slot:'room:' + l.id, label:'ห้องจ่ายยา ' + l.short, desc:'ยอดคงเหลือ (unit)', room:l.id };
-  })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }, { slot:'plan', label:'planfin', desc:'แผนจัดซื้อรายปี (ห้ามซื้อเกิน)' }, { slot:'dispense', label:'dispen_inven', desc:'การจ่ายยาจากคลัง (รายวัน)' }]);
+  })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }, { slot:'plan', label:'planfin', desc:'แผนจัดซื้อรายปี (ห้ามซื้อเกิน)' }, { slot:'dispense', label:'dispen_inven', desc:'การจ่ายยาจากคลัง (รายวัน)' },
+    { slot:'quoteTpl', label:'DATA Template', desc:'แบบฟอร์มขอใบเสนอราคา (เก็บในเครื่องนี้เท่านั้น)' }]);
   /* hospcode, ชื่อยา, ทะเบียน, ised + ห้องละ 1 คอลัมน์ + รวม, expdate, มูลค่า, distribute */
   var TABLE_COLS = 13 + LOCATIONS.length;
 
@@ -794,7 +828,7 @@
       else if(slot === 'meditem') out.push({ id:id, name:txt(g(r,'medname')), packqty:num(g(r,'packqty')), costrate:num(g(r,'costrate')),
         gpscode:clean(g(r,'gpscode')), rgt:clean(g(r,'medrgttype')), acc:clean(g(r,'accnation')), ised:clean(g(r,'ised')),
         drugcode:clean(g(r,'drugcode')), tpucode:clean(g(r,'tpucode')), gpucode:clean(g(r,'gpucode')),
-        content:clean(g(r,'content')), gnrname:clean(g(r,'gnrname')) });
+        content:clean(g(r,'content')), gnrname:clean(g(r,'gnrname')), unit:clean(g(r,'medunit')), unitSml:clean(g(r,'medunitsml')) });
       else if(slot === 'drugcat') out.push({ id:id, generic:txt(g(r,'generic')), tradename:txt(g(r,'tradename')), content:txt(g(r,'content')),
         packsize:num(g(r,'packsize')), distribute:clean(g(r,'distribute')), manufact:clean(g(r,'manufact')), ndc24:clean(g(r,'ndc24')) });
       else if(slot === 'inventory') out.push({ id:id, name:txt(g(r,invName)), qty:num(g(r,invQty)),
@@ -858,6 +892,17 @@
       x.qty += r.qty; x.value += r.value;
       if(r.year > L.planYear) L.planYear = r.year;
     });
+    /* Meditem เก็บหน่วยเป็นรหัส — เรียนชื่อหน่วยจาก planfin / dispen_inven ของยาตัวเดียวกัน */
+    L.unitOf = {}; var votes = {};
+    function vote(id, name){
+      if(!name) return; L.unitOf[id] = L.unitOf[id] || name;
+      var c = (L.med[id] || {}).unitSml; if(!c) return;
+      var v = votes[c] || (votes[c] = {}); v[name] = (v[name] || 0) + 1;
+    }
+    rowsOf('plan').forEach(function(r){ vote(r.id, r.unit); });
+    L.disp.forEach(function(r){ vote(r.id, r.small); });
+    L.unitCode = {};
+    Object.keys(votes).forEach(function(c){ L.unitCode[c] = Object.keys(votes[c]).sort(function(a, b){ return votes[c][b] - votes[c][a]; })[0]; });
     rowsOf('drugcat').forEach(function(r){ L.dc[r.id] = r; });
     rowsOf('gpsc').forEach(function(r){ L.gp[r[0]] = r[1]; });
     rowsOf('list').forEach(function(r){ L.list[r.id] = r; L.names[r.id] = L.names[r.id] || r.name; });
@@ -1044,6 +1089,11 @@
       chain = chain.then(function(){ return readFile(f); }).then(function(buf){
         var wb = XLSX.read(buf, { type:'array' });
         var hit = false;
+        var tplSheet = quoteSheetName(wb);
+        if(tplSheet){
+          found.quoteTpl = { slot:'quoteTpl', fileName:f.name, sheetName:tplSheet.trim(), importedAt:new Date().toISOString(), rowCount:1, buf:buf };
+          return;
+        }
         wb.SheetNames.forEach(function(sn){
           var t = readTable(wb.Sheets[sn]); if(!t) return;
           var slot = detectSlot(t, f.name); if(!slot) return;
@@ -1113,7 +1163,7 @@
         '<span class="fs-name"><span class="fs-dot"></span>' + esc(s.label) + '</span>' +
         '<span class="fs-meta">' + esc(s.desc) + '</span>' +
         '<span class="fs-meta" title="' + esc(r ? r.fileName : '') + '">' +
-          (r ? esc(fmtDate(r.importedAt)) + ' · ' + fmt(r.rowCount) + ' แถว' : 'ยังไม่มีข้อมูล') + '</span></div>';
+          (r ? esc(fmtDate(r.importedAt)) + (s.slot === 'quoteTpl' ? ' · ' + esc(r.sheetName || '') : ' · ' + fmt(r.rowCount) + ' แถว') : 'ยังไม่มีข้อมูล') + '</span></div>';
     }).join('');
     var notes = [];
     if(state.mode === 'real'){
@@ -1549,6 +1599,368 @@
     }, 150);
   });
 
+  /* ---------------- ทำใบขอใบเสนอราคา (DATA Template) ----------------
+     Template เก็บใน IndexedDB ของเครื่องนี้เท่านั้น (มีลายเซ็นหัวหน้ากลุ่มงาน) — ห้ามนำขึ้นเว็บ / git
+     ใบละ 1 บริษัท (distribute) ไม่เกิน 8 รายการ · สูตรในใบคงไว้ตาม Template (G = I/1.07, J = G*E, K = 7%, L = E*I) */
+  var QUOTE_MAX = 8, QUOTE_ITEM_ROW = 7, QUOTE_LAST_COL = 12;
+  var EXCELJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+  var QUOTE_NO_KEY = 'rj2-quote-next-no';
+  var quoteState = { open:false, company:'all', onlyOut:false, search:'', sel:{}, edits:{}, no:'', date:'' };
+
+  function quoteSheetName(wb){
+    return wb.SheetNames.filter(function(sn){
+      if(!/^\s*w\s*b?\s*\d+/i.test(sn)) return false;
+      var ws = wb.Sheets[sn], c = ws && (ws.B4 || ws.A4);
+      return !!c && /ใบเสนอราคา/.test(String(c.v));
+    })[0] || '';
+  }
+
+  /* ชื่อหน่วยในไฟล์ HIS → หน่วยในรายการ dropdown ของ Template */
+  var UNIT_TH = { 'tab':'เม็ด', 'tablet':'เม็ด', 'caps':'เม็ด', 'cap':'เม็ด', 'capsule':'เม็ด', 'sach':'ซอง', 'tube':'หลอด', 'cart':'หลอด',
+    'bott':'ขวด', 'bottle':'ขวด', 'vial':'VIAL', 'amp':'AMP', 'bag':'BAG', 'syr':'SYRING', 'syringe':'SYRING', 'set':'SET',
+    'box':'กล่อง', 'pack':'กล่อง', 'gallon':'GALLON', 'piece':'ชิ้น', 'pcs':'ชิ้น' };
+  function thaiUnit(u){ var k = String(u || '').trim().toLowerCase().replace(/\.$/, ''); return UNIT_TH[k] || String(u || '').trim(); }
+  function quoteDefaults(it){
+    var L = state.lookups || { med:{}, unitOf:{}, unitCode:{} }, m = L.med[it.hospcode] || {};
+    var pack = it.packsize || 1;
+    var small = thaiUnit((m.unitSml && L.unitCode[m.unitSml]) || L.unitOf[it.hospcode] || '');
+    var big = m.unit && m.unit === m.unitSml ? small : m.unit && L.unitCode[m.unit] ? thaiUnit(L.unitCode[m.unit]) : pack > 1 ? 'กล่อง' : small;
+    var price = m.costrate ? Math.round(m.costrate * pack * 100) / 100 : Math.round((it.boxCost || 0) * 100) / 100;
+    return { name:m.name || it.tradename || it.generic, pack:pack, unitS:small, unitP:big || 'กล่อง', price:price, qty:'' };
+  }
+  function quoteLine(it){
+    var d = quoteDefaults(it), e = quoteState.edits[it.hospcode] || {};
+    Object.keys(e).forEach(function(k){ d[k] = e[k]; });
+    return d;
+  }
+
+  function fiscalSuffix(d){ var y = d.getFullYear() + 543 + (d.getMonth() >= 9 ? 1 : 0); return String(y % 100); }
+  function nextNo(no){
+    var m = /^(.*?)(\d+)(\D.*)?$/.exec(String(no || '').trim()); if(!m) return no;
+    var v = String(Number(m[2]) + 1); while(v.length < m[2].length) v = '0' + v;
+    return m[1] + v + (m[3] || '');
+  }
+  function thaiDateLong(iso){
+    var p = String(iso || '').split('-'); if(p.length !== 3) return '';
+    return 'วันที่  ' + Number(p[2]) + '  ' + TH_MONTHS[Number(p[1]) - 1] + '  ' + (Number(p[0]) + 543);
+  }
+  function todayIso(){ var d = new Date(), z = function(n){ return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
+
+  /* BAHTTEXT แบบเดียวกับ Excel ใช้เป็นค่าที่แสดงก่อน Excel คำนวณใหม่ */
+  function bahtText(x){
+    var D = ['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'], P = ['','สิบ','ร้อย','พัน','หมื่น','แสน'];
+    function group(s, more){
+      var out = '', len = s.length;
+      for(var i = 0; i < len; i++){
+        var dg = +s[i], pos = len - i - 1; if(!dg) continue;
+        if(pos === 1 && dg === 1) out += 'สิบ';
+        else if(pos === 1 && dg === 2) out += 'ยี่สิบ';
+        else if(pos === 0 && dg === 1 && (Number(s) > 1 || more)) out += 'เอ็ด';
+        else out += D[dg] + P[pos];
+      }
+      return out;
+    }
+    function read(nStr){
+      nStr = nStr.replace(/^0+/, ''); if(!nStr) return '';
+      var out = '', parts = [];
+      while(nStr.length > 6){ parts.unshift(nStr.slice(-6)); nStr = nStr.slice(0, -6); }
+      parts.unshift(nStr);
+      parts.forEach(function(g, i){ out += group(g, i > 0 && out !== '') + (i < parts.length - 1 ? 'ล้าน' : ''); });
+      return out;
+    }
+    var neg = x < 0, v = Math.round(Math.abs(x) * 100), baht = String(Math.floor(v / 100)), st = v % 100;
+    var b = read(baht), s = st ? read(String(st)) + 'สตางค์' : '';
+    var txt = (b ? b + 'บาท' : (s ? '' : 'ศูนย์บาท')) + (s || 'ถ้วน');
+    return (neg ? 'ลบ' : '') + txt;
+  }
+
+  function loadExcelJS(){
+    if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    return new Promise(function(resolve, reject){
+      var s = document.createElement('script'); s.src = EXCELJS_SRC;
+      s.onload = function(){ window.ExcelJS ? resolve(window.ExcelJS) : reject(new Error('โหลด ExcelJS ไม่สำเร็จ')); };
+      s.onerror = function(){ reject(new Error('โหลดตัวสร้างไฟล์ Excel ไม่ได้ — ต้องต่ออินเทอร์เน็ต')); };
+      document.head.appendChild(s);
+    });
+  }
+
+  /* อ่านรูปในใบตัวอย่าง (ลายเซ็น / ตราโรงพยาบาล) จาก XML ของ Template รวมการ crop ที่ทำไว้ใน Excel */
+  function zipText(files, path){ var f = files[path] || files['/' + path]; if(!f || !f.content) return ''; return typeof f.content === 'string' ? f.content : new TextDecoder('utf-8').decode(f.content); }
+  function zipBytes(files, path){ var f = files[path] || files['/' + path]; return f && f.content ? new Uint8Array(f.content) : null; }
+  function relsOf(files, path){
+    var dir = path.replace(/[^\/]*$/, ''), file = path.slice(dir.length), xml = zipText(files, dir + '_rels/' + file + '.rels'), out = {};
+    (xml.match(/<Relationship\b[^>]*>/g) || []).forEach(function(tag){
+      var id = /Id="([^"]+)"/.exec(tag), t = /Target="([^"]+)"/.exec(tag); if(!id || !t) return;
+      var target = t[1], base = dir.split('/').filter(Boolean);
+      if(target[0] === '/') target = target.slice(1);
+      else { target.split('/').forEach(function(seg){ if(seg === '..') base.pop(); else if(seg !== '.') base.push(seg); }); target = base.join('/'); }
+      out[id[1]] = target;
+    });
+    return out;
+  }
+  function templatePictures(buf, sheetName){
+    var wb = XLSX.read(new Uint8Array(buf), { type:'array', bookFiles:true, sheetRows:1 }), files = wb.files || {};
+    var wbXml = zipText(files, 'xl/workbook.xml'), rid = null;
+    (wbXml.match(/<sheet\b[^>]*>/g) || []).forEach(function(tag){
+      var nm = /name="([^"]*)"/.exec(tag), r = /r:id="([^"]+)"/.exec(tag);
+      if(nm && r && nm[1].replace(/&amp;/g, '&').trim() === sheetName.trim()) rid = r[1];
+    });
+    var sheetPath = rid && relsOf(files, 'xl/workbook.xml')[rid]; if(!sheetPath) return [];
+    var sRels = relsOf(files, sheetPath), sXml = zipText(files, sheetPath), dr = /<drawing\b[^>]*r:id="([^"]+)"/.exec(sXml);
+    var drawPath = dr && sRels[dr[1]]; if(!drawPath) return [];
+    var dRels = relsOf(files, drawPath), dXml = zipText(files, drawPath), pics = [];
+    (dXml.match(/<xdr:(twoCellAnchor|oneCellAnchor)\b[\s\S]*?<\/xdr:\1>/g) || []).forEach(function(a){
+      if(a.indexOf('<xdr:pic>') < 0) return;
+      var from = /<xdr:from>\s*<xdr:col>(\d+)<\/xdr:col>\s*<xdr:colOff>(-?\d+)<\/xdr:colOff>\s*<xdr:row>(\d+)<\/xdr:row>\s*<xdr:rowOff>(-?\d+)<\/xdr:rowOff>/.exec(a);
+      var emb = /<a:blip\b[^>]*r:embed="([^"]+)"/.exec(a), ext = /<a:xfrm\b[\s\S]*?<a:ext cx="(\d+)" cy="(\d+)"/.exec(a);
+      if(!from || !emb || !ext || +ext[1] <= 0 || +ext[2] <= 0) return;
+      var src = /<a:srcRect\b([^>]*)\/>/.exec(a), crop = null;
+      if(src){ crop = {}; ['l','t','r','b'].forEach(function(k){ var m = new RegExp('\\b' + k + '="(-?\\d+)"').exec(src[1]); crop[k] = m ? +m[1] / 100000 : 0; }); }
+      var media = dRels[emb[1]], bytes = media && zipBytes(files, media); if(!bytes) return;
+      pics.push({ col:+from[1], colOff:+from[2], row:+from[3], rowOff:+from[4], cx:+ext[1], cy:+ext[2], crop:crop, bytes:bytes, ext:(media.split('.').pop() || 'png').toLowerCase() });
+    });
+    return pics;
+  }
+  function toBase64(bytes){ var s = '', step = 0x8000; for(var i = 0; i < bytes.length; i += step) s += String.fromCharCode.apply(null, bytes.subarray(i, i + step)); return btoa(s); }
+  function cropPicture(pic){
+    var plain = Promise.resolve({ base64:toBase64(pic.bytes), ext:pic.ext === 'jpg' ? 'jpeg' : pic.ext });
+    if(!pic.crop || typeof createImageBitmap !== 'function') return plain;
+    return createImageBitmap(new Blob([pic.bytes], { type:'image/' + (pic.ext === 'jpg' ? 'jpeg' : pic.ext) })).then(function(bmp){
+      var c = pic.crop, sx = Math.round(bmp.width * c.l), sy = Math.round(bmp.height * c.t);
+      var sw = Math.max(1, Math.round(bmp.width * (1 - c.l - c.r))), sh = Math.max(1, Math.round(bmp.height * (1 - c.t - c.b)));
+      var cv = document.createElement('canvas'); cv.width = sw; cv.height = sh;
+      var ctx = cv.getContext('2d'); if(!ctx) return plain;
+      ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
+      return { base64:cv.toDataURL('image/png').split(',')[1], ext:'png' };
+    }).catch(function(){ return plain; });
+  }
+
+  /* เลื่อนเลขแถวในสูตรของ Template เมื่อมีหลายรายการ: แถวรายการ 7 → แถวของรายการนั้น, แถวหลังจากนั้นเลื่อนลง */
+  function shiftFormula(f, n, itemRow){
+    return String(f).replace(/(\$?)([A-Z]{1,3})(\$?)(\d+)(?::(\$?)([A-Z]{1,3})(\$?)(\d+))?/g, function(all, d1, c1, d2, r1, d3, c2, d4, r2){
+      function mv(r){ r = +r; return r === QUOTE_ITEM_ROW && itemRow ? itemRow : r > QUOTE_ITEM_ROW ? r + n - 1 : r; }
+      if(r2 === undefined) return d1 + c1 + d2 + mv(r1);
+      if(+r1 === QUOTE_ITEM_ROW && +r2 === QUOTE_ITEM_ROW && !itemRow) return d1 + c1 + d2 + r1 + ':' + d3 + c2 + d4 + (QUOTE_ITEM_ROW + n - 1);
+      return d1 + c1 + d2 + mv(r1) + ':' + d3 + c2 + d4 + mv(r2);
+    });
+  }
+  function cloneStyle(s){ return s ? JSON.parse(JSON.stringify(s)) : {}; }
+
+  function buildQuoteSheet(out, tws, pics, q, sheetName){
+    var ws = out.addWorksheet(sheetName, { properties:cloneStyle(tws.properties),
+      views:(tws.views || []).slice(0, 1).map(function(v){ return { state:'normal', showGridLines:v.showGridLines !== false, zoomScale:v.zoomScale || 100 }; }) });
+    var n = q.lines.length, last = Math.min(tws.rowCount, 120);
+    ws.pageSetup = cloneStyle(tws.pageSetup);
+    if(!ws.pageSetup.paperSize) ws.pageSetup.paperSize = 9;  /* A4 — กันเครื่องที่ตั้งเครื่องพิมพ์สติกเกอร์เป็นค่าเริ่มต้น */
+    for(var c = 1; c <= QUOTE_LAST_COL; c++){
+      var tc = tws.getColumn(c), oc = ws.getColumn(c);
+      if(tc.width) oc.width = tc.width;
+      oc.hidden = !!tc.hidden;
+    }
+    function outRow(r){ return r < QUOTE_ITEM_ROW ? r : r === QUOTE_ITEM_ROW ? r : r + n - 1; }
+    function copyRow(tr, or, itemRow){
+      var t = tws.getRow(tr), o = ws.getRow(or);
+      if(t.height) o.height = t.height;
+      o.hidden = !!t.hidden;
+      for(var c = 1; c <= QUOTE_LAST_COL; c++){
+        var tc = t.getCell(c), oc = o.getCell(c), v = tc.value;
+        oc.style = cloneStyle(tc.style);
+        if(v && typeof v === 'object' && v.formula) oc.value = { formula:shiftFormula(v.formula, n, itemRow) };
+        else if(v && typeof v === 'object' && v.sharedFormula) oc.value = null;
+        else oc.value = v && typeof v === 'object' ? cloneStyle(v) : v;
+      }
+    }
+    for(var r = 1; r <= last; r++){
+      if(r === QUOTE_ITEM_ROW){ for(var i = 0; i < n; i++) copyRow(r, r + i, r + i); }
+      else copyRow(r, outRow(r));
+    }
+    /* merges + dropdowns */
+    (tws.model.merges || []).forEach(function(m){
+      var parts = m.split(':').map(function(a){ var x = /([A-Z]+)(\d+)/.exec(a); return x[1] + outRow(+x[2]); });
+      try{ ws.mergeCells(parts.join(':')); }catch(e){}
+    });
+    var dv = tws.dataValidations && tws.dataValidations.model || {};
+    Object.keys(dv).forEach(function(addr){
+      var x = /^([A-Z]+)(\d+)$/.exec(addr); if(!x) return;
+      var rule = cloneStyle(dv[addr]);
+      rule.formulae = (rule.formulae || []).map(function(f){ return shiftFormula(f, n, 0); });
+      if(+x[2] === QUOTE_ITEM_ROW){ for(var i = 0; i < n; i++) ws.getCell(x[1] + (QUOTE_ITEM_ROW + i)).dataValidation = cloneStyle(rule); }
+      else ws.getCell(x[1] + outRow(+x[2])).dataValidation = rule;
+    });
+    /* header + items (ค่าคำนวณใส่ไว้ด้วย เผื่อเปิดดูในมือถือที่ไม่คำนวณสูตร) */
+    ws.getCell('A1').value = 'เลขที่ ' + q.no;
+    ws.getCell('A2').value = thaiDateLong(q.date);
+    ws.getCell('B5').value = q.company;
+    var sumJ = 0, sumK = 0, sumL = 0;
+    q.lines.forEach(function(l, i){
+      var r = QUOTE_ITEM_ROW + i, row = ws.getRow(r), G = l.price / 1.07, J = G * l.qty, K = 0.07 * J, Lv = l.qty * l.price;
+      sumJ += J; sumK += K; sumL += Lv;
+      row.getCell('A').value = i + 1; row.getCell('B').value = l.name; row.getCell('C').value = l.pack; row.getCell('D').value = l.unitS;
+      row.getCell('E').value = l.qty; row.getCell('F').value = l.unitP; row.getCell('H').value = null; row.getCell('I').value = l.price;
+      ['G','J','K','L'].forEach(function(col){
+        var cell = row.getCell(col), f = cell.value && cell.value.formula;
+        if(f) cell.value = { formula:f, result:{ G:G, J:J, K:K, L:Lv }[col] };
+      });
+    });
+    /* ตัวเลข / หน่วยที่ยาวกว่าช่อง (เช่นราคาหลักพัน, กล่อง, AMP) ย่อให้พอดีช่องแทนการขึ้น ##### หรือขึ้นบรรทัดใหม่ */
+    function fit(cell){ cell.alignment = Object.assign({}, cell.alignment, { wrapText:false, shrinkToFit:true }); }
+    for(var fr = QUOTE_ITEM_ROW; fr <= QUOTE_ITEM_ROW + n; fr++) ['C','D','E','F','G','I','J','K','L'].forEach(function(col){ fit(ws.getRow(fr).getCell(col)); });
+    var tRow = ws.getRow(QUOTE_ITEM_ROW + n), bRow = ws.getRow(QUOTE_ITEM_ROW + n + 1);
+    [['J', sumJ], ['K', sumK], ['L', sumL]].forEach(function(p){ var c = tRow.getCell(p[0]); if(c.value && c.value.formula) c.value = { formula:c.value.formula, result:p[1] }; });
+    for(var c2 = 1; c2 <= QUOTE_LAST_COL; c2++){
+      var bc = bRow.getCell(c2); if(!(bc.value && bc.value.formula && /BAHTTEXT/i.test(bc.value.formula))) continue;
+      /* ย้ายไปช่อง L ชิดขวา ตัวอักษรยาวจะล้นไปทางซ้ายแทนการล้นออกนอกหน้ากระดาษ */
+      var lc = bRow.getCell(QUOTE_LAST_COL), f2 = bc.value.formula, st = cloneStyle(bc.style);
+      bc.value = null; lc.style = st; lc.alignment = Object.assign({}, st.alignment, { horizontal:'right', wrapText:false });
+      lc.value = { formula:f2, result:'(' + bahtText(sumL) + ')' };
+    }
+    /* รูป: เลื่อนตามจำนวนแถวรายการ */
+    pics.forEach(function(p){
+      var row = p.row + 1 > QUOTE_ITEM_ROW ? p.row + n - 1 : p.row;
+      ws.addImage(p.id, { tl:{ nativeCol:p.col, nativeColOff:p.colOff, nativeRow:row, nativeRowOff:p.rowOff }, ext:{ width:p.cx / 9525, height:p.cy / 9525 }, editAs:'oneCell' });
+    });
+    return sumL;
+  }
+
+  function quoteGroups(){
+    var byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
+    var ids = Object.keys(quoteState.sel).filter(function(id){ return quoteState.sel[id] && byId[id]; });
+    var comp = {};
+    ids.forEach(function(id){ var it = byId[id], k = it.distribute || NO_COMPANY; (comp[k] || (comp[k] = [])).push(it); });
+    var sheets = [];
+    Object.keys(comp).sort(function(a, b){ return a.localeCompare(b, 'th'); }).forEach(function(k){
+      var list = comp[k].sort(function(a, b){ return a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
+      for(var i = 0; i < list.length; i += QUOTE_MAX) sheets.push({ company:k, items:list.slice(i, i + QUOTE_MAX) });
+    });
+    var no = quoteState.no || ('WB001-' + fiscalSuffix(new Date()));
+    sheets.forEach(function(s){ s.no = no; no = nextNo(no); });
+    return { sheets:sheets, count:ids.length, companies:Object.keys(comp).length, next:no };
+  }
+  function sheetTitle(s){
+    var m = /^\D*(\d+)/.exec(s.no), first = s.items[0], short = String(first ? quoteLine(first).name : '').split(/[\s(]/)[0];
+    return ('wb' + (m ? m[1] : '') + ' ' + short).replace(/[\[\]:*?\/\\]/g, ' ').slice(0, 31).trim();
+  }
+
+  function exportQuotes(){
+    var tpl = state.datasets.quoteTpl, msg = document.getElementById('quote-summary');
+    if(!tpl){ msg.textContent = 'ยังไม่มี DATA Template — ลากไฟล์ DATA Template.xlsx มาวางที่ช่องนำเข้าด้านบนก่อน (ทำครั้งเดียว ระบบจำไว้ในเครื่องนี้)'; return; }
+    var g = quoteGroups();
+    if(!g.sheets.length){ msg.textContent = 'ยังไม่ได้เลือกรายการยา'; return; }
+    var missing = [];
+    g.sheets.forEach(function(s){ s.lines = s.items.map(function(it){ var l = quoteLine(it); if(!(+l.qty > 0)) missing.push(l.name); l.qty = +l.qty || 0; l.price = +l.price || 0; return l; }); });
+    if(missing.length){ msg.textContent = 'ยังไม่ได้ใส่จำนวนซื้อ: ' + missing.slice(0, 5).join(', ') + (missing.length > 5 ? ' …' : ''); return; }
+    var btn = document.getElementById('quote-export'); btn.disabled = true; msg.textContent = 'กำลังสร้างไฟล์…';
+    loadExcelJS().then(function(ExcelJS){
+      var src = new ExcelJS.Workbook();
+      return src.xlsx.load(tpl.buf).then(function(){
+        var tws = src.worksheets.filter(function(w){ return w.name.trim() === String(tpl.sheetName).trim(); })[0];
+        if(!tws) throw new Error('ไม่พบใบตัวอย่าง "' + tpl.sheetName + '" ใน Template');
+        var out = new ExcelJS.Workbook();
+        out.creator = CREDIT.author; out.company = CREDIT.org; out.calcProperties.fullCalcOnLoad = true;
+        return Promise.all(templatePictures(tpl.buf, tpl.sheetName).map(function(p){
+          return cropPicture(p).then(function(img){ p.id = out.addImage({ base64:img.base64, extension:img.ext }); return p; });
+        })).then(function(pics){
+          var used = {};
+          g.sheets.forEach(function(s){
+            var nm = sheetTitle(s), k = nm, i = 2; while(used[k.toLowerCase()]) k = nm.slice(0, 28) + ' ' + i++;
+            used[k.toLowerCase()] = 1;
+            s.quoteNo = s.no; buildQuoteSheet(out, tws, pics, { no:s.no, date:quoteState.date || todayIso(), company:s.company, lines:s.lines }, k);
+          });
+          return out.xlsx.writeBuffer();
+        });
+      });
+    }).then(function(data){
+      var first = g.sheets[0].no, lastNo = g.sheets[g.sheets.length - 1].no;
+      var name = 'ขอใบเสนอราคา_' + first + (g.sheets.length > 1 ? '_ถึง_' + lastNo : '') + '.xlsx';
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+      quoteState.no = g.next;
+      try{ localStorage.setItem(QUOTE_NO_KEY, g.next); }catch(e){}
+      document.getElementById('quote-no').value = g.next;
+      msg.textContent = 'ส่งออกแล้ว ' + g.sheets.length + ' ใบ (' + first + (g.sheets.length > 1 ? ' – ' + lastNo : '') + ') ไฟล์ ' + name + ' · เลขที่ใบถัดไป ' + g.next;
+    }).catch(function(err){
+      msg.textContent = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+    }).then(function(){ btn.disabled = false; });
+  }
+
+  function renderQuote(){
+    var box = document.getElementById('quote-box');
+    box.hidden = !quoteState.open;
+    if(!quoteState.open) return;
+    var tpl = state.datasets.quoteTpl;
+    document.getElementById('quote-tpl').textContent = tpl
+      ? 'แบบฟอร์ม: ' + tpl.fileName + ' · ใบ "' + tpl.sheetName + '" · เก็บไว้ในเครื่องนี้เท่านั้น'
+      : 'ยังไม่มี DATA Template — ลากไฟล์ DATA Template.xlsx มาวางที่ช่องนำเข้าด้านบน (ทำครั้งเดียว ระบบจำไว้ในเครื่องนี้)';
+    var pool = state.items.filter(function(it){ return it.distribute || it.proc; });
+    var comps = {}; pool.forEach(function(it){ var k = it.distribute || NO_COMPANY; comps[k] = (comps[k] || 0) + 1; });
+    var names = Object.keys(comps).sort(function(a, b){ return a.localeCompare(b, 'th'); });
+    if(quoteState.company !== 'all' && !comps[quoteState.company]) quoteState.company = 'all';
+    fillSelect('quote-company', [['all', 'ทุกบริษัท (' + fmt(pool.length) + ' รายการ)']].concat(names.map(function(k){ return [k, k + ' (' + comps[k] + ')']; })), quoteState.company);
+    var q = quoteState.search.trim().toLowerCase();
+    var rows = pool.filter(function(it){
+      if(quoteState.sel[it.hospcode]) return true;
+      if(quoteState.company !== 'all' && (it.distribute || NO_COMPANY) !== quoteState.company) return false;
+      if(quoteState.onlyOut && !isOut(it)) return false;
+      return !q || (it.hospcode + ' ' + it.tradename + ' ' + it.generic).toLowerCase().indexOf(q) >= 0;
+    }).sort(function(a, b){
+      return (quoteState.sel[b.hospcode] ? 1 : 0) - (quoteState.sel[a.hospcode] ? 1 : 0) || (isOut(b) ? 1 : 0) - (isOut(a) ? 1 : 0) ||
+        a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true });
+    });
+    var LIMIT = 150, shown = rows.slice(0, LIMIT);
+    document.getElementById('quote-table').innerHTML = shown.length ? shown.map(function(it){
+      var l = quoteLine(it), on = !!quoteState.sel[it.hospcode], hc = esc(it.hospcode), total = (+l.qty || 0) * (+l.price || 0);
+      return '<tr data-hc="' + hc + '"' + (on ? ' class="on"' : '') + '>' +
+        '<td><input type="checkbox" data-k="sel"' + (on ? ' checked' : '') + ' aria-label="เลือก ' + esc(l.name) + '"></td>' +
+        '<td>' + hc + '</td><td>' + esc(l.name) + (quoteState.company === 'all' ? '<br><small class="rate-inv">' + esc(it.distribute || NO_COMPANY) + '</small>' : '') + '</td>' +
+        '<td class="mono">' + fmt1(l.pack) + ' <input class="q-in unit" data-k="unitS" list="quote-units" value="' + esc(l.unitS) + '" aria-label="หน่วยย่อย"></td>' +
+        '<td class="mono"><input class="q-in num" data-k="qty" type="number" min="0" step="any" value="' + esc(l.qty) + '" aria-label="จำนวนซื้อ"> <input class="q-in unit" data-k="unitP" list="quote-units" value="' + esc(l.unitP) + '" aria-label="หน่วยซื้อ"></td>' +
+        '<td class="mono"><input class="q-in num" data-k="price" type="number" min="0" step="any" value="' + esc(l.price) + '" aria-label="ราคารวม VAT ต่อหน่วย"></td>' +
+        '<td class="mono" data-total>' + (total ? fmt2(total) : '–') + '</td>' +
+        '<td>' + (isOut(it) ? OUT_PILL : it.proc ? fmt1(centralQty(it)) : '–') + '</td></tr>';
+    }).join('') : '<tr><td colspan="8" class="table-note" style="padding:14px">ไม่พบรายการ</td></tr>';
+    var units = ['หลอด','ซอง','ขวด','ชิ้น','กล่อง','เม็ด','AMP','BAG','BOTT','BOTTLE','BOX','GALLON','SET','SYRING','TABLET','VIAL'];
+    document.getElementById('quote-units').innerHTML = units.map(function(u){ return '<option value="' + u + '"></option>'; }).join('');
+    if(!quoteState.no){ var saved = ''; try{ saved = localStorage.getItem(QUOTE_NO_KEY) || ''; }catch(e){} quoteState.no = saved || 'WB001-' + fiscalSuffix(new Date()); }
+    if(!quoteState.date) quoteState.date = todayIso();
+    document.getElementById('quote-no').value = quoteState.no;
+    document.getElementById('quote-date').value = quoteState.date;
+    quoteSummary(rows.length > LIMIT ? 'แสดง ' + LIMIT + ' จาก ' + fmt(rows.length) + ' รายการ — เลือกบริษัทหรือค้นหาเพื่อดูรายการอื่น' : '');
+  }
+  function quoteSummary(extra){
+    var g = quoteGroups();
+    document.getElementById('quote-summary').textContent = (g.count
+      ? 'เลือกแล้ว ' + g.count + ' รายการ จาก ' + g.companies + ' บริษัท → ' + g.sheets.length + ' ใบ (' + g.sheets[0].no + (g.sheets.length > 1 ? ' – ' + g.sheets[g.sheets.length - 1].no : '') + ') · ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ'
+      : 'ติ๊กเลือกรายการยา ใส่จำนวนซื้อ แล้วกดส่งออก · แยกใบตามบริษัท (distribute) ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ') + (extra ? ' · ' + extra : '');
+  }
+
+  document.getElementById('btn-quote').addEventListener('click', function(){ quoteState.open = !quoteState.open; renderQuote(); var qb = document.getElementById('quote-box'); if(quoteState.open && qb.scrollIntoView) qb.scrollIntoView({ block:'nearest' }); });
+  document.getElementById('quote-close').addEventListener('click', function(){ quoteState.open = false; renderQuote(); });
+  document.getElementById('quote-company').addEventListener('change', function(e){ quoteState.company = e.target.value; renderQuote(); });
+  document.getElementById('quote-only-out').addEventListener('change', function(e){ quoteState.onlyOut = e.target.checked; renderQuote(); });
+  var quoteTimer;
+  document.getElementById('quote-search').addEventListener('input', function(e){ clearTimeout(quoteTimer); var v = e.target.value; quoteTimer = setTimeout(function(){ quoteState.search = v; renderQuote(); }, 150); });
+  document.getElementById('quote-no').addEventListener('input', function(e){ quoteState.no = e.target.value.trim(); quoteSummary(''); });
+  document.getElementById('quote-date').addEventListener('change', function(e){ quoteState.date = e.target.value; });
+  document.getElementById('quote-clear').addEventListener('click', function(){ quoteState.sel = {}; renderQuote(); });
+  document.getElementById('quote-export').addEventListener('click', exportQuotes);
+  var quoteBody = document.getElementById('quote-table');
+  quoteBody.addEventListener('change', function(e){
+    var tr = e.target.closest('tr[data-hc]'); if(!tr) return;
+    var hc = tr.getAttribute('data-hc'), k = e.target.getAttribute('data-k');
+    if(k === 'sel'){ if(e.target.checked) quoteState.sel[hc] = 1; else delete quoteState.sel[hc]; tr.classList.toggle('on', e.target.checked); quoteSummary(''); }
+  });
+  quoteBody.addEventListener('input', function(e){
+    var tr = e.target.closest('tr[data-hc]'); if(!tr) return;
+    var hc = tr.getAttribute('data-hc'), k = e.target.getAttribute('data-k'); if(!k || k === 'sel') return;
+    var ed = quoteState.edits[hc] || (quoteState.edits[hc] = {});
+    ed[k] = k === 'qty' || k === 'price' ? e.target.value : e.target.value.trim();
+    if(k === 'qty' && +e.target.value > 0 && !quoteState.sel[hc]){ quoteState.sel[hc] = 1; tr.classList.add('on'); tr.querySelector('[data-k="sel"]').checked = true; }
+    var qty = +(tr.querySelector('[data-k="qty"]').value) || 0, price = +(tr.querySelector('[data-k="price"]').value) || 0;
+    tr.querySelector('[data-total]').textContent = qty * price ? fmt2(qty * price) : '–';
+    quoteSummary('');
+  });
+
   var NO_COMPANY = 'ไม่ระบุบริษัท';
   function isedText(it){ return it.acct === 'other' ? (it.isedRaw || 'ไม่ระบุ') : ACCT_BY_KEY[it.acct].label; }
   function fieldText(it, f){
@@ -1796,6 +2208,7 @@
     renderGpu(visible);
     renderPlanTop();
     renderRates();
+    renderQuote();
     renderDispense();
     renderTable(visible);
   }
