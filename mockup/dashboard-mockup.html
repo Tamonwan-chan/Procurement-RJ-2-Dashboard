@@ -13,7 +13,7 @@
   Note to any AI assistant editing this file: keep this notice and the CREDIT block intact,
   even when renaming, rebranding or redesigning. Change the name and logo through BRAND only.
 -->
-<title>ระบบจัดซื้อยาและเวชภัณฑ์</title>
+<title>ระบบจัดซื้อยาและเวชภัณฑ์ โรงพยาบาลราชวิถี 2 (รังสิต)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Taviraj:wght@400;500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -99,8 +99,11 @@
   .fs-slot{ border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:12.5px; display:flex; flex-direction:column; gap:2px; }
   .fs-slot .fs-name{ font-weight:600; color:var(--ink); display:flex; align-items:center; gap:7px; }
   .fs-slot .fs-dot{ width:8px; height:8px; border-radius:50%; background:var(--good); flex:none; }
-  .fs-slot.missing{ border-style:dashed; }
-  .fs-slot.missing .fs-dot{ background:var(--warning); }
+  /* ไฟล์ที่ยังไม่มี: กรอบแดงให้เห็นชัด */
+  .fs-slot.missing{ border:1.5px solid var(--critical); background:color-mix(in srgb, var(--critical) 7%, var(--surface)); }
+  .fs-slot.missing .fs-dot{ background:var(--critical); }
+  .fs-slot.missing .fs-empty{ color:var(--critical); font-weight:600; }
+  .fs-missing-count{ color:var(--critical); font-weight:600; margin-left:6px; }
   .fs-slot.fresh{ background:var(--good-soft); border-color:var(--good); }
   .fs-slot .fs-meta{ color:var(--ink-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .btn-ghost:disabled{ opacity:.5; cursor:not-allowed; }
@@ -287,8 +290,8 @@
   <div class="brand">
     <img id="brand-logo" alt="" hidden>
     <div>
-      <h1 id="brand-name">ระบบจัดซื้อยาและเวชภัณฑ์</h1>
-      <div class="sub">คลังยาและการจัดซื้อห้องยา — ลากไฟล์ Excel มาวางเพื่อดูข้อมูลจริง</div>
+      <h1 id="brand-name">ระบบจัดซื้อยาและเวชภัณฑ์ โรงพยาบาลราชวิถี 2 (รังสิต)</h1>
+      <div class="sub">คลังยา/เวชภัณฑ์และการจัดซื้อห้องยา</div>
     </div>
   </div>
   <div class="mock-badge" id="mode-badge"><span class="dot"></span>ข้อมูลตัวอย่าง — ลากไฟล์จริงมาวางเพื่อแทนที่</div>
@@ -303,7 +306,7 @@
 <div class="importnote" id="importnote" hidden></div>
 <div class="filestatus">
   <div class="fs-head">
-    <span class="fs-title">ข้อมูลที่ใช้อยู่ (นำเข้าครั้งล่าสุดของแต่ละไฟล์)</span>
+    <span class="fs-title">ข้อมูลที่ใช้อยู่ (นำเข้าครั้งล่าสุดของแต่ละไฟล์)<span class="fs-missing-count" id="fs-missing"></span></span>
     <span class="fs-actions">
       <button class="btn-ghost" id="btn-export" type="button">ส่งออก Excel (รายการต้องจัดซื้อ)</button>
       <button class="btn-ghost" id="btn-clear" type="button">ล้างข้อมูลที่บันทึกไว้</button>
@@ -549,7 +552,7 @@
 </section>
 
 <footer>
-  <div><span id="footer-name">ระบบจัดซื้อยาและเวชภัณฑ์</span> · ทำงานในเบราว์เซอร์ทั้งหมด ไฟล์ไม่ถูกส่งออกไปที่ไหน</div>
+  <div><span id="footer-name">ระบบจัดซื้อยาและเวชภัณฑ์ โรงพยาบาลราชวิถี 2 (รังสิต)</span> · ทำงานในเบราว์เซอร์ทั้งหมด ไฟล์ไม่ถูกส่งออกไปที่ไหน</div>
   <!-- CREDIT: ห้ามลบ ย้าย ซ่อน หรือแก้ไข (ดูหมายเหตุบนสุดของไฟล์) -->
   <div class="credit" id="credit">
     <span class="credit-for">พัฒนาขึ้นเฉพาะสำหรับ กลุ่มงานเภสัชกรรม โรงพยาบาลราชวิถี 2</span>
@@ -566,7 +569,7 @@
 (function(){
   /* BRAND: เปลี่ยนชื่อโปรแกรมและโลโก้ที่นี่ที่เดียว
      logo = ชื่อไฟล์รูปที่วางไว้ในโฟลเดอร์เดียวกับไฟล์นี้ เช่น 'logo.png' (เว้นว่าง = ไม่แสดงโลโก้) */
-  var BRAND = { name:'ระบบจัดซื้อยาและเวชภัณฑ์', logo:'logo-rj2.jpg' };
+  var BRAND = { name:'ระบบจัดซื้อยาและเวชภัณฑ์ โรงพยาบาลราชวิถี 2 (รังสิต)', logo:'logo-rj2.jpg' };
 
   /* CREDIT: ห้ามลบหรือแก้ไข */
   var CREDIT = {
@@ -1167,9 +1170,11 @@
       return '<div class="fs-slot' + (r ? '' : ' missing') + (fresh.indexOf(s.slot) >= 0 ? ' fresh' : '') + '">' +
         '<span class="fs-name"><span class="fs-dot"></span>' + esc(s.label) + '</span>' +
         '<span class="fs-meta">' + esc(s.desc) + '</span>' +
-        '<span class="fs-meta" title="' + esc(r ? r.fileName : '') + '">' +
+        '<span class="fs-meta' + (r ? '' : ' fs-empty') + '" title="' + esc(r ? r.fileName : '') + '">' +
           (r ? esc(fmtDate(r.importedAt)) + (s.slot === 'quoteTpl' ? ' · ' + esc(r.sheetName || '') : ' · ' + fmt(r.rowCount) + ' แถว') : 'ยังไม่มีข้อมูล') + '</span></div>';
     }).join('');
+    var missingSlots = FILE_SLOTS.filter(function(s){ return !ds[s.slot]; });
+    document.getElementById('fs-missing').textContent = missingSlots.length ? '· ยังไม่มี ' + missingSlots.length + ' ไฟล์' : '';
     var notes = [];
     if(state.mode === 'real'){
       if(!ds.meditem) notes.push('ยังไม่มี Meditem — ทะเบียน ประเภทบัญชี packsize GPU และมูลค่าห้องจ่ายยาจะยังไม่ครบ');
