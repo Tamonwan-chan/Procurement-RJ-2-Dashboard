@@ -26,7 +26,7 @@
     --good:#227A47; --warning:#A85F12; --critical:#9E3226;
     --good-soft:#DDF0E3; --warning-soft:#F6E4CB; --critical-soft:#F5DEDB;
     --cat-1:#0F8A6C; --cat-2:#3568B0; --cat-3:#C24A2E; --cat-4:#8A4A9E; --cat-5:#4F7A2E;
-    --ed:#B8580C; --ned:#2F62AB; --on-group:#FFFFFF;
+    --ed:#FFC000; --ned:#2F62AB; --on-group:#FFFFFF; --on-ed:#2B2100;
     --shadow:0 1px 2px rgba(11,58,82,.08), 0 4px 16px rgba(11,58,82,.08);
     --radius:10px;
   }
@@ -39,7 +39,7 @@
       --good:#4FBE82; --warning:#E0973F; --critical:#E0665A;
       --good-soft:#1E3327; --warning-soft:#3A2C16; --critical-soft:#3A2320;
       --cat-1:#22A883; --cat-2:#5F87C9; --cat-3:#D06A50; --cat-4:#A66DC0; --cat-5:#6FA155;
-      --ed:#E8913F; --ned:#6A92D6; --on-group:#0E1D25;
+      --ed:#FFC000; --ned:#6A92D6; --on-group:#0E1D25; --on-ed:#2B2100;
       --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 22px rgba(0,0,0,.4);
     }
   }
@@ -51,7 +51,7 @@
     --good:#4FBE82; --warning:#E0973F; --critical:#E0665A;
     --good-soft:#1E3327; --warning-soft:#3A2C16; --critical-soft:#3A2320;
     --cat-1:#22A883; --cat-2:#5F87C9; --cat-3:#D06A50; --cat-4:#A66DC0; --cat-5:#6FA155;
-    --ed:#E8913F; --ned:#6A92D6; --on-group:#0E1D25;
+    --ed:#FFC000; --ned:#6A92D6; --on-group:#0E1D25; --on-ed:#2B2100;
     --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 22px rgba(0,0,0,.4);
   }
 
@@ -471,8 +471,9 @@
     <h2>การจ่ายยาจากคลัง</h2>
     <span class="hint" id="disp-hint">จากไฟล์ dispen_inven · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
-  <p class="desc">มูลค่า = จำนวนจ่าย × ราคาทุน/หน่วยจัดหา (unitcost) · ไม่นับรายการที่ไม่มีหน่วยรับยา (ตามเงื่อนไขของพี่โอม)</p>
-  <div class="table-tools"><select class="search field-select" id="disp-fy" aria-label="ปีงบประมาณ"></select><span class="table-note" id="disp-note" style="margin:0"></span></div>
+  <p class="desc">มูลค่า = จำนวนจ่าย × ราคาทุน/หน่วยจัดหา (unitcost) · นับตามประเภทการจ่าย (คอลัมน์ name) — ค่าเริ่มต้น 4 ประเภทตามที่พี่โอมกำหนด: ขอเบิก, เบิกกรณีพิเศษ, เบิกฉุกเฉิน, แลกเปลี่ยน · กดเพื่อเลือก / ไม่เลือกประเภทได้ (ใช้กับกราฟเดือนสำรองคงคลังด้วย)</p>
+  <div class="table-tools"><select class="search field-select" id="disp-fy" aria-label="ปีงบประมาณ"></select><div class="chips" id="disp-types"></div></div>
+  <div class="table-note" id="disp-note" style="margin:-4px 0 12px"></div>
   <div class="subhead">มูลค่าการจ่ายต่อเดือน (ต้นปีงบ – ปัจจุบัน)</div>
   <div class="barlist" id="disp-months" style="margin-bottom:26px"></div>
   <div class="subhead">ยาที่มีการใช้มากที่สุด</div>
@@ -495,7 +496,7 @@
     <h2>เดือนสำรองคงคลัง</h2>
     <span class="hint">KPI THIP ≤ 1.33 · ไม่ขึ้นกับตัวกรอง</span>
   </header>
-  <p class="desc">เดือนสำรองคงคลัง = มูลค่ายาคงคลัง (ณ สิ้นเดือน) ÷ มูลค่าการจ่ายยาออกจากคลัง · มูลค่าคงคลัง (เฉพาะยา) บันทึกให้เองจากไฟล์คลังยา ตามวันที่ในไฟล์ (ใช้ยอดที่ใกล้สิ้นเดือนที่สุด) · มูลค่าจ่ายคิดจากไฟล์ dispen_inven · แก้ตัวเลขในตารางได้ทุกช่อง (ลบตัวเลขออกเพื่อกลับไปใช้ค่าจากไฟล์)</p>
+  <p class="desc">เดือนสำรองคงคลัง = มูลค่ายาคงคลัง (ณ สิ้นเดือน) ÷ มูลค่าการจ่ายยาออกจากคลัง · มูลค่าคงคลัง (เฉพาะยา) บันทึกให้เองจากไฟล์คลังยา ตามวันที่ในไฟล์ (ใช้ยอดที่ใกล้สิ้นเดือนที่สุด) · มูลค่าจ่ายคิดจากไฟล์ dispen_inven ตามประเภทการจ่ายที่เลือกในส่วนการจ่ายยาจากคลัง · แก้ตัวเลขในตารางได้ทุกช่อง (ลบตัวเลขออกเพื่อกลับไปใช้ค่าจากไฟล์)</p>
   <div class="table-tools"><select class="search field-select" id="kpi-fy" aria-label="ปีงบประมาณ"></select><span class="table-note" id="kpi-note" style="margin:0"></span></div>
   <div class="kpi-legend">
     <span><i style="background:var(--good)"></i>≤ 1.33</span>
@@ -1351,6 +1352,7 @@
         if(!g[1]) return;
         var seg = document.createElement('div'); seg.className = 'prop-seg';
         seg.style.width = (g[1] / both * 100) + '%'; seg.style.background = GROUP_COLOR[g[0]];
+        if(g[0] === 'ED') seg.style.color = 'var(--on-ed)';
         seg.textContent = g[2] >= 12 ? g[0] + ' ' + fmt(g[1]) + ' (' + g[2] + ')' : '';
         bindTooltip(seg, g[0] + ' · ' + fmt(g[1]) + ' รายการ · ' + g[2] + ' ต่อ 100');
         bar.appendChild(seg);
@@ -2112,16 +2114,24 @@
   }
 
   /* ---------------- การจ่ายยาจากคลัง (dispen_inven) ---------------- */
-  var dispState = { fy:0, month:'all', room:'all', sort:'value', top:30, search:'' };
+  var dispState = { fy:0, month:'all', room:'all', sort:'value', top:30, search:'', types:{} };
   var dispAttr = {};
   function dispItemOk(id){
     var L = state.lookups; if(!L) return true;
     var a = dispAttr[id] || (dispAttr[id] = { regType:regTypeOf(L, id) || REG_UNKNOWN, acct:acctOf(L, id) });
     return matchReg(a) && matchAcct(a);
   }
+  var NO_UNIT = 'ไม่ระบุหน่วยรับยา';
   function roomShort(r){
+    if(!r.unitName) return NO_UNIT;
     var hit = FLOOR_LOCS.filter(function(l){ return l.match.test(r.unitName); })[0];
     return hit ? hit.short : r.unitName;
+  }
+  /* ประเภทการจ่ายที่นับ (คอลัมน์ H name) — พี่โอมกำหนด 4 ประเภท */
+  var DISP_TYPES_DEFAULT = ['จ่ายจากการขอเบิก', 'จ่ายจากการเบิกกรณีพิเศษ', 'จ่ายจากการเบิกฉุกเฉิน', 'จ่ายจากการแลกเปลี่ยน'];
+  function dispTypeOn(kind){
+    var k = kind || 'ไม่ระบุประเภท';
+    return k in dispState.types ? !!dispState.types[k] : DISP_TYPES_DEFAULT.indexOf(k) >= 0;
   }
   function fillSelect(id, opts, cur){
     var el = document.getElementById(id);
@@ -2143,10 +2153,19 @@
     if(fyList.indexOf(dispState.fy) < 0) dispState.fy = fyList[fyList.length - 1];
     fillSelect('disp-fy', fyList.map(function(y){ return [y, 'ปีงบประมาณ ' + y]; }), dispState.fy);
     var inFy = all.filter(function(r){ return fiscalOf(r.ym) === dispState.fy; });
-    var noUnit = inFy.filter(function(r){ return !r.unit || !r.unitName; });  /* column D rqtlct and E rqtnm: both needed */
-    var rows = inFy.filter(function(r){ return r.unit && r.unitName && dispItemOk(r.id); });
-    var exVal = noUnit.reduce(function(s, r){ return s + r.qty * r.cost; }, 0);
-    document.getElementById('disp-note').textContent = noUnit.length ? 'ไม่นับ ' + fmt(noUnit.length) + ' รายการที่ไม่มีหน่วยรับยา (฿' + fmt(exVal) + ')' : '';
+    /* ประเภทการจ่าย: ปุ่มเลือกได้ ค่าเริ่มต้นตามที่พี่โอมกำหนด */
+    var typeStat = {};
+    inFy.forEach(function(r){ var k = r.kind || 'ไม่ระบุประเภท', t = typeStat[k] || (typeStat[k] = { n:0, v:0 }); t.n++; t.v += r.qty * r.cost; });
+    var typeBox = document.getElementById('disp-types'); typeBox.innerHTML = '';
+    Object.keys(typeStat).sort(function(a, b){ return (dispTypeOn(b) ? 1 : 0) - (dispTypeOn(a) ? 1 : 0) || typeStat[b].v - typeStat[a].v; }).forEach(function(k){
+      var c = chip(k.replace(/^จ่ายจากการ/, '').replace(/^จ่าย/, ''), dispTypeOn(k), function(){ dispState.types[k] = !dispTypeOn(k); renderDispense(); renderKpi(); }, { sm:true, count:typeStat[k].n });
+      c.title = k + ' · ' + fmt(typeStat[k].n) + ' รายการ · ฿' + fmt(typeStat[k].v);
+      typeBox.appendChild(c);
+    });
+    var excluded = inFy.filter(function(r){ return !dispTypeOn(r.kind); });
+    var rows = inFy.filter(function(r){ return dispTypeOn(r.kind) && dispItemOk(r.id); });
+    var exVal = excluded.reduce(function(s, r){ return s + r.qty * r.cost; }, 0);
+    document.getElementById('disp-note').textContent = excluded.length ? 'ไม่นับ ' + fmt(excluded.length) + ' รายการจากประเภทที่ไม่ได้เลือก (฿' + fmt(exVal) + ')' : 'นับทุกประเภทการจ่าย';
 
     /* monthly value: ต.ค. → ก.ย. of the fiscal year */
     var startY = dispState.fy - 543 - 1, months = [];
@@ -2251,7 +2270,7 @@
   /* ---------------- เดือนสำรองคงคลัง (KPI THIP ≤ 1.33) ----------------
      มูลค่าคงคลัง ณ สิ้นเดือน: บันทึกจากไฟล์คลังยาที่นำเข้าครั้งแรกของเดือน (พี่โอมเลือก) แก้ไขได้
      มูลค่าจ่าย: จาก dispen_inven (เฉพาะรายการที่มีหน่วยรับยา) ถ้าไม่มีไฟล์ของเดือนนั้นใช้ค่าที่พิมพ์ / ค่าตั้งต้นจากสไลด์
-     ลำดับความสำคัญ: พิมพ์เอง > ไฟล์ > สไลด์ */
+     ลำดับความสำคัญ: พิมพ์เอง > ตารางสไลด์ (พี่โอมยืนยัน) > ไฟล์ */
   var KPI_SLOT = '_kpi', KPI_GOOD = 1.33, KPI_WARN = 2.00;
   var kpiStore = null, kpiState = { fy:0 };
   function kpiSeed(){
@@ -2280,15 +2299,15 @@
   }
   function kpiPayFromFile(){
     var L = state.lookups, out = {};
-    (L && L.disp || []).forEach(function(r){ if(r.unit && r.unitName) out[r.ym] = (out[r.ym] || 0) + r.qty * r.cost; });
+    (L && L.disp || []).forEach(function(r){ if(dispTypeOn(r.kind)) out[r.ym] = (out[r.ym] || 0) + r.qty * r.cost; });
     return out;
   }
   function kpiBand(v){ return v <= KPI_GOOD ? 'var(--good)' : v <= KPI_WARN ? 'var(--warning)' : 'var(--critical)'; }
   function kpiSrcText(e, kind){
     if(!e) return kind === 'pay' ? 'ยังไม่มีไฟล์ dispen_inven ของเดือนนี้' : 'ยังไม่มีข้อมูล';
     if(e.src === 'manual') return 'พิมพ์เอง';
-    if(e.src === 'slide') return 'จากตารางในสไลด์';
-    if(e.src === 'file') return 'จาก dispen_inven';
+    if(e.src === 'slide') return 'จากตารางในสไลด์' + (e.fileV ? ' · dispen_inven = ' + fmt(e.fileV) : '');
+    if(e.src === 'file') return 'จาก dispen_inven (ตามประเภทการจ่ายที่เลือก)';
     if(e.src === 'import') return 'จากไฟล์คลังยา ยอด ณ ' + (e.asof % 100) + ' ' + TH_MONTHS_ABBR[Math.floor(e.asof / 100) % 100 - 1] + '. ' + String(Math.floor(e.asof / 10000) + 543).slice(-2) +
       (e.drugOnly === false ? ' (รวมทุกรายการ — นำเข้า Meditem เพื่อแยกเฉพาะยา)' : ' · เฉพาะยา');
     return '';
@@ -2301,6 +2320,7 @@
     function payOf(ym){
       var e = kpiStore.pay[ym];
       if(e && e.src === 'manual') return e;
+      if(e && e.src === 'slide') return fileP[ym] ? { v:e.v, src:'slide', fileV:fileP[ym] } : e;
       if(fileP[ym]) return { v:fileP[ym], src:'file' };
       return e || null;
     }
