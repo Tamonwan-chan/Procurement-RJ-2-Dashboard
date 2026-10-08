@@ -449,12 +449,18 @@
     </div>
     <datalist id="quote-units"></datalist>
     <div class="table-tools" style="margin:12px 0 0">
-      <label class="q-field">เลขที่ใบแรก <input class="q-in" id="quote-no" style="width:120px" placeholder="WB001-70"></label>
+      <label class="q-field">เลขที่ใบแรก ยา <input class="q-in" id="quote-no" style="width:110px" placeholder="WB001-70"></label>
+      <label class="q-field">เวชภัณฑ์ที่มิใช่ยา <input class="q-in" id="quote-no-wv" style="width:110px" placeholder="WV001-70"></label>
       <label class="q-field">วันที่ <input class="q-in" id="quote-date" type="date"></label>
       <button type="button" class="btn-ghost" id="quote-clear">ล้างที่เลือก</button>
       <button type="button" class="btn-solid" id="quote-export">ส่งออกใบเสนอราคา (.xlsx)</button>
     </div>
     <div class="table-note" id="quote-summary" style="margin:8px 0 0"></div>
+    <div class="table-tools" style="margin:14px 0 0; padding-top:12px; border-top:1px solid var(--border)">
+      <label class="q-field">ใบที่ส่งออกแล้ว <select class="search field-select" id="quote-hist" aria-label="ใบที่ส่งออกแล้ว"></select></label>
+      <button type="button" class="btn-ghost" id="quote-reopen">เปิดมาแก้ไข (ใช้เลขเดิม)</button>
+      <button type="button" class="btn-ghost" id="quote-cancel-edit" hidden>ยกเลิกการแก้ไข</button>
+    </div>
   </div>
   <div class="rate-detail" id="rate-detail" hidden></div>
   <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
@@ -1196,9 +1202,9 @@
 
   document.getElementById('btn-export').addEventListener('click', exportExcel);
   document.getElementById('btn-clear').addEventListener('click', function(){
-    if(!window.confirm('ล้างข้อมูลที่นำเข้าไว้ทั้งหมดในเบราว์เซอร์นี้? (ไฟล์ Excel ในเครื่องไม่ถูกลบ · ตารางเดือนสำรองคงคลังยังเก็บไว้)')) return;
+    if(!window.confirm('ล้างข้อมูลที่นำเข้าไว้ทั้งหมดในเบราว์เซอร์นี้? (ไฟล์ Excel ในเครื่องไม่ถูกลบ · ตารางเดือนสำรองคงคลังและประวัติใบเสนอราคายังเก็บไว้)')) return;
     var done = function(){ state.datasets = {}; state.prev = null; state.fresh = []; showNote(''); hideError(); rebuild(); resetFilters(); renderAll(); };
-    dbClear().then(function(){ return dbPut([kpiStore]); }).then(done, done);
+    dbClear().then(function(){ return dbPut([kpiStore, quoteHist].filter(Boolean)); }).then(done, done);
   });
 
   var dz = document.getElementById('dropzone');
@@ -1646,7 +1652,23 @@
   var QUOTE_MAX = 8, QUOTE_ITEM_ROW = 7, QUOTE_LAST_COL = 12;
   var EXCELJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
   var QUOTE_NO_KEY = 'rj2-quote-next-no';
-  var quoteState = { open:false, company:'all', onlyOut:false, search:'', sel:{}, edits:{}, no:'', date:'' };
+  var quoteState = { open:false, company:'all', onlyOut:false, search:'', sel:{}, edits:{}, nos:{ WB:'', WV:'' }, date:'', editing:null, note:'' };
+  /* เลขที่แยก 2 ชุด: ยา = WB, เวชภัณฑ์ที่มิใช่ยา = WV (ใช้ Template เดียวกัน) · เลขถัดไปจำไว้ในเครื่องนี้และไม่ย้อนกลับ */
+  var QUOTE_SERIES = ['WB', 'WV'], QUOTE_HIST_SLOT = '_quotes', quoteHist = null;
+  function seriesOf(it){ return it.regType === 'ทะเบียนเวชภัณฑ์ที่มิใช่ยา' ? 'WV' : 'WB'; }
+  function noKey(s){ return 'rj2-quote-next-' + s; }
+  function savedNo(s){
+    var v = '';
+    if(quoteHist && quoteHist.next && quoteHist.next[s]) return quoteHist.next[s];
+    try{ v = localStorage.getItem(noKey(s)) || (s === 'WB' ? localStorage.getItem(QUOTE_NO_KEY) : '') || ''; }catch(e){}
+    return v || s + '001-' + fiscalSuffix(new Date());
+  }
+  function noParts(no){ var m = /^(.*?)(\d+)(\D.*)?$/.exec(String(no || '').trim()); return m ? { pre:m[1].toUpperCase(), n:Number(m[2]), suf:m[3] || '' } : null; }
+  function laterNo(a, b){ var x = noParts(a), y = noParts(b); if(!x) return b; if(!y) return a; return x.pre === y.pre && x.suf === y.suf && x.n >= y.n ? a : b; }
+  function isoShortTh(iso){ var q = String(iso || '').split('-'); return q.length === 3 ? Number(q[2]) + ' ' + TH_MONTHS_ABBR[Number(q[1]) - 1] + '. ' + String(Number(q[0]) + 543).slice(-2) : ''; }
+  function seriesRanges(sheets){
+    return QUOTE_SERIES.map(function(s){ var ss = sheets.filter(function(x){ return x.series === s; }); return ss.length ? ss[0].no + (ss.length > 1 ? ' – ' + ss[ss.length - 1].no : '') : ''; }).filter(Boolean);
+  }
 
   function quoteSheetName(wb){
     return wb.SheetNames.filter(function(sn){
@@ -1869,20 +1891,25 @@
   function quoteGroups(){
     var byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
     var ids = Object.keys(quoteState.sel).filter(function(id){ return quoteState.sel[id] && byId[id]; });
-    var comp = {};
-    ids.forEach(function(id){ var it = byId[id], k = it.distribute || NO_COMPANY; (comp[k] || (comp[k] = [])).push(it); });
-    var sheets = [];
-    Object.keys(comp).sort(function(a, b){ return a.localeCompare(b, 'th'); }).forEach(function(k){
-      var list = comp[k].sort(function(a, b){ return a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
-      for(var i = 0; i < list.length; i += QUOTE_MAX) sheets.push({ company:k, items:list.slice(i, i + QUOTE_MAX) });
+    var groups = {}, comps = {};
+    ids.forEach(function(id){
+      var it = byId[id], s = seriesOf(it), k = it.distribute || NO_COMPANY, key = s + '\u0001' + k;
+      comps[k] = 1; (groups[key] || (groups[key] = { series:s, company:k, items:[] })).items.push(it);
     });
-    var no = quoteState.no || ('WB001-' + fiscalSuffix(new Date()));
-    sheets.forEach(function(s){ s.no = no; no = nextNo(no); });
-    return { sheets:sheets, count:ids.length, companies:Object.keys(comp).length, next:no };
+    var sheets = [];
+    Object.keys(groups).sort(function(a, b){ return a.localeCompare(b, 'th'); }).forEach(function(key){
+      var g = groups[key], list = g.items.sort(function(a, b){ return a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
+      for(var i = 0; i < list.length; i += QUOTE_MAX) sheets.push({ series:g.series, company:g.company, items:list.slice(i, i + QUOTE_MAX) });
+    });
+    var next = {};
+    QUOTE_SERIES.forEach(function(s){ next[s] = quoteState.nos[s] || savedNo(s); });
+    sheets.forEach(function(sh){ sh.no = next[sh.series]; next[sh.series] = nextNo(next[sh.series]); });
+    return { sheets:sheets, count:ids.length, companies:Object.keys(comps).length, next:next };
   }
   function sheetTitle(s){
-    var m = /^\D*(\d+)/.exec(s.no), first = s.items[0], short = String(first ? quoteLine(first).name : '').split(/[\s(]/)[0];
-    return ('wb' + (m ? m[1] : '') + ' ' + short).replace(/[\[\]:*?\/\\]/g, ' ').slice(0, 31).trim();
+    var m = /^\s*([A-Za-z]*)\D*?(\d+)/.exec(s.no), first = s.items[0], short = String(first ? quoteLine(first).name : '').split(/[\s(]/)[0];
+    var pre = (m && m[1] ? m[1] : s.series).toLowerCase();
+    return (pre + (m ? m[2] : '') + ' ' + short).replace(/[\[\]:*?\/\\]/g, ' ').slice(0, 31).trim();
   }
 
   function exportQuotes(){
@@ -1893,6 +1920,10 @@
     var missing = [];
     g.sheets.forEach(function(s){ s.lines = s.items.map(function(it){ var l = quoteLine(it); if(!(+l.qty > 0)) missing.push(l.name); l.qty = +l.qty || 0; l.price = +l.price || 0; return l; }); });
     if(missing.length){ msg.textContent = 'ยังไม่ได้ใส่จำนวนซื้อ: ' + missing.slice(0, 5).join(', ') + (missing.length > 5 ? ' …' : ''); return; }
+    if(quoteState.editing && (g.sheets.length !== 1 || g.sheets[0].no !== quoteState.editing.no)){
+      msg.textContent = 'แก้ไขใบ ' + quoteState.editing.no + ' ได้ทีละ 1 ใบ — รายการต้องเป็นบริษัทเดียวกัน ประเภทเดียวกัน และไม่เกิน ' + QUOTE_MAX + ' รายการ (ตอนนี้จะได้ ' + g.sheets.length + ' ใบ)';
+      return;
+    }
     var btn = document.getElementById('quote-export'); btn.disabled = true; msg.textContent = 'กำลังสร้างไฟล์…';
     loadExcelJS().then(function(ExcelJS){
       var src = new ExcelJS.Workbook();
@@ -1914,18 +1945,58 @@
         });
       });
     }).then(function(data){
-      var first = g.sheets[0].no, lastNo = g.sheets[g.sheets.length - 1].no;
-      var name = 'ขอใบเสนอราคา_' + first + (g.sheets.length > 1 ? '_ถึง_' + lastNo : '') + '.xlsx';
+      var ranges = seriesRanges(g.sheets);
+      var name = 'ขอใบเสนอราคา_' + ranges.join('_').replace(/ – /g, '_ถึง_') + '.xlsx';
       var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
       a.download = name; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
-      quoteState.no = g.next;
-      try{ localStorage.setItem(QUOTE_NO_KEY, g.next); }catch(e){}
-      document.getElementById('quote-no').value = g.next;
-      msg.textContent = 'ส่งออกแล้ว ' + g.sheets.length + ' ใบ (' + first + (g.sheets.length > 1 ? ' – ' + lastNo : '') + ') ไฟล์ ' + name + ' · เลขที่ใบถัดไป ' + g.next;
+      recordQuotes(g.sheets, name);
+      var wasEditing = quoteState.editing;
+      quoteState.editing = null;
+      /* เลขถัดไปไม่ย้อนกลับ แม้ส่งออกใบเลขเก่าซ้ำ */
+      if(!wasEditing) QUOTE_SERIES.forEach(function(s){
+        if(!g.sheets.some(function(sh){ return sh.series === s; })) return;
+        var nx = laterNo(savedNo(s), g.next[s]);
+        quoteHist.next = quoteHist.next || {}; quoteHist.next[s] = nx;
+        try{ localStorage.setItem(noKey(s), nx); }catch(e){}
+      });
+      dbPut([quoteHist]).catch(function(){ storageOk = false; });
+      QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = savedNo(s); });
+      quoteState.note = (wasEditing ? 'แก้ไขใบ ' + wasEditing.no + ' แล้ว (เลขเดิม)' : 'ส่งออกแล้ว ' + g.sheets.length + ' ใบ (' + ranges.join(', ') + ')') +
+        ' ไฟล์ ' + name + ' · เลขที่ใบถัดไป ยา ' + quoteState.nos.WB + ' / เวชภัณฑ์ ' + quoteState.nos.WV;
+      renderQuote();
     }).catch(function(err){
       msg.textContent = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
     }).then(function(){ btn.disabled = false; });
+  }
+
+  function recordQuotes(sheets, file){
+    if(!quoteHist) quoteHist = { slot:QUOTE_HIST_SLOT, docs:[] };
+    sheets.forEach(function(sh){
+      var old = quoteHist.docs.filter(function(d){ return d.no === sh.no; })[0];
+      var doc = { no:sh.no, series:sh.series, company:sh.company, date:quoteState.date || todayIso(), at:new Date().toISOString(), file:file,
+        revisions:old ? (old.revisions || 1) + 1 : 1,
+        lines:sh.items.map(function(it, i){ var l = sh.lines[i]; return { id:it.hospcode, name:l.name, qty:l.qty, price:l.price, unitS:l.unitS, unitP:l.unitP, pack:l.pack }; }) };
+      quoteHist.docs = [doc].concat(quoteHist.docs.filter(function(d){ return d.no !== sh.no; }));
+    });
+    quoteHist.docs = quoteHist.docs.slice(0, 300);
+  }
+  function reopenQuote(no){
+    var doc = (quoteHist && quoteHist.docs || []).filter(function(d){ return d.no === no; })[0]; if(!doc) return;
+    var byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
+    var gone = [];
+    quoteState.sel = {};
+    doc.lines.forEach(function(l){
+      if(!byId[l.id]){ gone.push(l.name); return; }
+      quoteState.sel[l.id] = 1;
+      quoteState.edits[l.id] = { qty:String(l.qty), price:String(l.price), unitS:l.unitS, unitP:l.unitP };
+    });
+    quoteState.editing = { no:doc.no, series:doc.series };
+    quoteState.nos[doc.series] = doc.no;
+    quoteState.date = doc.date;
+    quoteState.company = 'all'; quoteState.search = ''; document.getElementById('quote-search').value = '';
+    quoteState.note = gone.length ? 'ไม่พบในข้อมูลที่นำเข้าตอนนี้: ' + gone.join(', ') : '';
+    renderQuote();
   }
 
   function renderQuote(){
@@ -1958,7 +2029,7 @@
       var l = quoteLine(it), on = !!quoteState.sel[it.hospcode], hc = esc(it.hospcode), total = (+l.qty || 0) * (+l.price || 0);
       return '<tr data-hc="' + hc + '"' + (on ? ' class="on"' : '') + '>' +
         '<td><input type="checkbox" data-k="sel"' + (on ? ' checked' : '') + ' aria-label="เลือก ' + esc(l.name) + '"></td>' +
-        '<td>' + hc + '</td><td>' + esc(l.name) + (quoteState.company === 'all' ? '<br><small class="rate-inv">' + esc(it.distribute || NO_COMPANY) + '</small>' : '') + '</td>' +
+        '<td>' + hc + '</td><td>' + esc(l.name) + (seriesOf(it) === 'WV' ? ' <span class="pill">เวชภัณฑ์ · WV</span>' : '') + (quoteState.company === 'all' ? '<br><small class="rate-inv">' + esc(it.distribute || NO_COMPANY) + '</small>' : '') + '</td>' +
         '<td class="mono plan"' + (it.plan ? ' title="แผนจัดซื้อ ฿' + fmt(it.plan.value) + '"' : '') + '>' + (it.plan ? fmt1(it.plan.qty) : '–') + '</td>' +
         hospCell(it) +
         '<td class="mono">' + fmt1(l.pack) + ' <input class="q-in unit" data-k="unitS" list="quote-units" value="' + esc(l.unitS) + '" aria-label="หน่วยย่อย"></td>' +
@@ -1968,11 +2039,18 @@
     }).join('') : '<tr><td colspan="9" class="table-note" style="padding:14px">ไม่พบรายการ</td></tr>';
     var units = ['หลอด','ซอง','ขวด','ชิ้น','กล่อง','เม็ด','AMP','BAG','BOTT','BOTTLE','BOX','GALLON','SET','SYRING','TABLET','VIAL'];
     document.getElementById('quote-units').innerHTML = units.map(function(u){ return '<option value="' + u + '"></option>'; }).join('');
-    if(!quoteState.no){ var saved = ''; try{ saved = localStorage.getItem(QUOTE_NO_KEY) || ''; }catch(e){} quoteState.no = saved || 'WB001-' + fiscalSuffix(new Date()); }
+    QUOTE_SERIES.forEach(function(s){ if(!quoteState.nos[s]) quoteState.nos[s] = savedNo(s); });
     if(!quoteState.date) quoteState.date = todayIso();
-    document.getElementById('quote-no').value = quoteState.no;
+    document.getElementById('quote-no').value = quoteState.nos.WB;
+    document.getElementById('quote-no-wv').value = quoteState.nos.WV;
+    var docs = quoteHist && quoteHist.docs || [];
+    fillSelect('quote-hist', docs.length ? docs.map(function(d){
+      return [d.no, d.no + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '')];
+    }) : [['', 'ยังไม่มีใบที่ส่งออก']], quoteState.editing ? quoteState.editing.no : '');
+    document.getElementById('quote-reopen').disabled = !docs.length;
+    document.getElementById('quote-cancel-edit').hidden = !quoteState.editing;
     document.getElementById('quote-date').value = quoteState.date;
-    quoteSummary(rows.length > LIMIT ? 'แสดง ' + LIMIT + ' จาก ' + fmt(rows.length) + ' รายการ — เลือกบริษัทหรือค้นหาเพื่อดูรายการอื่น' : '');
+    quoteSummary([quoteState.note, rows.length > LIMIT ? 'แสดง ' + LIMIT + ' จาก ' + fmt(rows.length) + ' รายการ — เลือกบริษัทหรือค้นหาเพื่อดูรายการอื่น' : ''].filter(Boolean).join(' · '));
   }
   /* ยอดรวมใน รพ = คลังยา + ห้องจ่ายยาทุกห้อง (กล่อง) แบบเดียวกับตารางอัตราการใช้ยา */
   function hospCell(it){
@@ -1982,9 +2060,10 @@
   }
   function quoteSummary(extra){
     var g = quoteGroups();
-    document.getElementById('quote-summary').textContent = (g.count
-      ? 'เลือกแล้ว ' + g.count + ' รายการ จาก ' + g.companies + ' บริษัท → ' + g.sheets.length + ' ใบ (' + g.sheets[0].no + (g.sheets.length > 1 ? ' – ' + g.sheets[g.sheets.length - 1].no : '') + ') · ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ'
-      : 'ติ๊กเลือกรายการยา ใส่จำนวนซื้อ แล้วกดส่งออก · แยกใบตามบริษัท (distribute) ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ') + (extra ? ' · ' + extra : '');
+    var ed = quoteState.editing;
+    document.getElementById('quote-summary').textContent = (ed ? 'กำลังแก้ไขใบ ' + ed.no + ' — เพิ่ม / ลบ / แก้จำนวนได้ แล้วกดส่งออก จะได้ไฟล์เลขเดิม (เลขถัดไปไม่เปลี่ยน) · ' : '') + (g.count
+      ? 'เลือกแล้ว ' + g.count + ' รายการ จาก ' + g.companies + ' บริษัท → ' + g.sheets.length + ' ใบ (' + seriesRanges(g.sheets).join(', ') + ') · ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ'
+      : 'ติ๊กเลือกรายการ ใส่จำนวนซื้อ แล้วกดส่งออก · แยกใบตามบริษัท (distribute) ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ · ยาใช้เลข WB เวชภัณฑ์ที่มิใช่ยาใช้เลข WV') + (extra ? ' · ' + extra : '');
   }
 
   document.getElementById('btn-quote').addEventListener('click', function(){ quoteState.open = !quoteState.open; renderQuote(); var qb = document.getElementById('quote-box'); if(quoteState.open && qb.scrollIntoView) qb.scrollIntoView({ block:'nearest' }); });
@@ -1993,9 +2072,20 @@
   document.getElementById('quote-only-out').addEventListener('change', function(e){ quoteState.onlyOut = e.target.checked; renderQuote(); });
   var quoteTimer;
   document.getElementById('quote-search').addEventListener('input', function(e){ clearTimeout(quoteTimer); var v = e.target.value; quoteTimer = setTimeout(function(){ quoteState.search = v; renderQuote(); }, 150); });
-  document.getElementById('quote-no').addEventListener('input', function(e){ quoteState.no = e.target.value.trim(); quoteSummary(''); });
+  document.getElementById('quote-no').addEventListener('input', function(e){ quoteState.nos.WB = e.target.value.trim(); quoteSummary(''); });
+  document.getElementById('quote-no-wv').addEventListener('input', function(e){ quoteState.nos.WV = e.target.value.trim(); quoteSummary(''); });
+  document.getElementById('quote-reopen').addEventListener('click', function(){ var v = document.getElementById('quote-hist').value; if(v) reopenQuote(v); });
+  document.getElementById('quote-cancel-edit').addEventListener('click', function(){
+    quoteState.editing = null; quoteState.sel = {}; quoteState.note = '';
+    QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = savedNo(s); });
+    renderQuote();
+  });
   document.getElementById('quote-date').addEventListener('change', function(e){ quoteState.date = e.target.value; });
-  document.getElementById('quote-clear').addEventListener('click', function(){ quoteState.sel = {}; renderQuote(); });
+  document.getElementById('quote-clear').addEventListener('click', function(){
+    quoteState.sel = {}; quoteState.note = '';
+    if(quoteState.editing){ quoteState.editing = null; QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = savedNo(s); }); }
+    renderQuote();
+  });
   document.getElementById('quote-export').addEventListener('click', exportQuotes);
   var quoteBody = document.getElementById('quote-table');
   quoteBody.addEventListener('change', function(e){
@@ -2469,7 +2559,7 @@
   renderAll();
   dbAll().then(function(recs){
     var savedKpi = null;
-    recs.forEach(function(r){ if(r.slot === PREV_SLOT) state.prev = r; else if(r.slot === KPI_SLOT) savedKpi = r; else state.datasets[r.slot] = r; });
+    recs.forEach(function(r){ if(r.slot === PREV_SLOT) state.prev = r; else if(r.slot === KPI_SLOT) savedKpi = r; else if(r.slot === QUOTE_HIST_SLOT) quoteHist = r; else state.datasets[r.slot] = r; });
     if(savedKpi) kpiStore = savedKpi; else { kpiStore = kpiSeed(); dbPut([kpiStore]).catch(function(){}); }
     rebuild(); renderAll();
   }).catch(function(){ storageOk = false; updateSourceUI(); renderKpi(); });
