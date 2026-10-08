@@ -449,8 +449,9 @@
     </div>
     <datalist id="quote-units"></datalist>
     <div class="table-tools" style="margin:12px 0 0">
-      <label class="q-field">เลขที่ใบแรก ยา <input class="q-in" id="quote-no" style="width:110px" placeholder="WB001-70"></label>
-      <label class="q-field">เวชภัณฑ์ที่มิใช่ยา <input class="q-in" id="quote-no-wv" style="width:110px" placeholder="WV001-70"></label>
+      <label class="q-field" title="ทะเบียนยา">เลขที่ใบแรก ยา <input class="q-in" id="quote-no-W" style="width:100px" placeholder="W001-70"></label>
+      <label class="q-field" title="ทะเบียนเวชภัณฑ์ที่มิใช่ยา / วัสดุเภสัชกรรม / อื่น ๆ">เวชภัณฑ์ / วัสดุ / อื่น ๆ <input class="q-in" id="quote-no-WM" style="width:100px" placeholder="WM001-70"></label>
+      <label class="q-field" title="ทะเบียนเภสัชเคมีภัณฑ์">เภสัชเคมีภัณฑ์ <input class="q-in" id="quote-no-WC" style="width:100px" placeholder="WC001-70"></label>
       <label class="q-field">วันที่ <input class="q-in" id="quote-date" type="date"></label>
       <button type="button" class="btn-ghost" id="quote-clear">ล้างที่เลือก</button>
       <button type="button" class="btn-solid" id="quote-export">ส่งออกใบเสนอราคา (.xlsx)</button>
@@ -1652,15 +1653,20 @@
   var QUOTE_MAX = 8, QUOTE_ITEM_ROW = 7, QUOTE_LAST_COL = 12;
   var EXCELJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
   var QUOTE_NO_KEY = 'rj2-quote-next-no';
-  var quoteState = { open:false, company:'all', onlyOut:false, search:'', sel:{}, edits:{}, nos:{ WB:'', WV:'' }, date:'', editing:null, note:'' };
-  /* เลขที่แยก 2 ชุด: ยา = WB, เวชภัณฑ์ที่มิใช่ยา = WV (ใช้ Template เดียวกัน) · เลขถัดไปจำไว้ในเครื่องนี้และไม่ย้อนกลับ */
-  var QUOTE_SERIES = ['WB', 'WV'], QUOTE_HIST_SLOT = '_quotes', quoteHist = null;
-  function seriesOf(it){ return it.regType === 'ทะเบียนเวชภัณฑ์ที่มิใช่ยา' ? 'WV' : 'WB'; }
+  var quoteState = { open:false, company:'all', onlyOut:false, search:'', sel:{}, edits:{}, nos:{ W:'', WM:'', WC:'' }, date:'', editing:null, note:'' };
+  /* เลขที่แยก 3 ชุด (พี่โอมกำหนด, ใช้ Template เดียวกัน) · เลขถัดไปจำไว้ในเครื่องนี้และไม่ย้อนกลับ
+     W  = ทะเบียนยา · WC = ทะเบียนเภสัชเคมีภัณฑ์ · WM = ทะเบียนเวชภัณฑ์ที่มิใช่ยา / วัสดุเภสัชกรรม / อื่น ๆ */
+  var QUOTE_SERIES = ['W', 'WM', 'WC'], QUOTE_HIST_SLOT = '_quotes', quoteHist = null;
+  var SERIES_LABEL = { W:'ยา', WM:'เวชภัณฑ์ / วัสดุ / อื่น ๆ', WC:'เภสัชเคมีภัณฑ์' };
+  var SERIES_OLD = { W:'WB', WM:'WV' };   /* ชุดเดิมก่อนแยก 3 ชุด — ใช้เลขที่ค้างไว้ต่อ */
+  function seriesOf(it){ return it.regType === 'ทะเบียนยา' ? 'W' : it.regType === 'ทะเบียนเภสัชเคมีภัณฑ์' ? 'WC' : 'WM'; }
   function noKey(s){ return 'rj2-quote-next-' + s; }
   function savedNo(s){
     var v = '';
-    if(quoteHist && quoteHist.next && quoteHist.next[s]) return quoteHist.next[s];
-    try{ v = localStorage.getItem(noKey(s)) || (s === 'WB' ? localStorage.getItem(QUOTE_NO_KEY) : '') || ''; }catch(e){}
+    var old = SERIES_OLD[s], nx = quoteHist && quoteHist.next || {};
+    if(nx[s]) return nx[s];
+    if(old && nx[old]) return nx[old];
+    try{ v = localStorage.getItem(noKey(s)) || (old && localStorage.getItem(noKey(old))) || (s === 'W' ? localStorage.getItem(QUOTE_NO_KEY) : '') || ''; }catch(e){}
     return v || s + '001-' + fiscalSuffix(new Date());
   }
   function noParts(no){ var m = /^(.*?)(\d+)(\D.*)?$/.exec(String(no || '').trim()); return m ? { pre:m[1].toUpperCase(), n:Number(m[2]), suf:m[3] || '' } : null; }
@@ -1963,7 +1969,7 @@
       dbPut([quoteHist]).catch(function(){ storageOk = false; });
       QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = savedNo(s); });
       quoteState.note = (wasEditing ? 'แก้ไขใบ ' + wasEditing.no + ' แล้ว (เลขเดิม)' : 'ส่งออกแล้ว ' + g.sheets.length + ' ใบ (' + ranges.join(', ') + ')') +
-        ' ไฟล์ ' + name + ' · เลขที่ใบถัดไป ยา ' + quoteState.nos.WB + ' / เวชภัณฑ์ ' + quoteState.nos.WV;
+        ' ไฟล์ ' + name + ' · เลขที่ใบถัดไป ' + QUOTE_SERIES.map(function(s){ return SERIES_LABEL[s] + ' ' + quoteState.nos[s]; }).join(' / ');
       renderQuote();
     }).catch(function(err){
       msg.textContent = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
@@ -1991,8 +1997,9 @@
       quoteState.sel[l.id] = 1;
       quoteState.edits[l.id] = { qty:String(l.qty), price:String(l.price), unitS:l.unitS, unitP:l.unitP };
     });
-    quoteState.editing = { no:doc.no, series:doc.series };
-    quoteState.nos[doc.series] = doc.no;
+    var ser = doc.series === 'WB' ? 'W' : doc.series === 'WV' ? 'WM' : doc.series;
+    quoteState.editing = { no:doc.no, series:ser };
+    quoteState.nos[ser] = doc.no;
     quoteState.date = doc.date;
     quoteState.company = 'all'; quoteState.search = ''; document.getElementById('quote-search').value = '';
     quoteState.note = gone.length ? 'ไม่พบในข้อมูลที่นำเข้าตอนนี้: ' + gone.join(', ') : '';
@@ -2029,7 +2036,7 @@
       var l = quoteLine(it), on = !!quoteState.sel[it.hospcode], hc = esc(it.hospcode), total = (+l.qty || 0) * (+l.price || 0);
       return '<tr data-hc="' + hc + '"' + (on ? ' class="on"' : '') + '>' +
         '<td><input type="checkbox" data-k="sel"' + (on ? ' checked' : '') + ' aria-label="เลือก ' + esc(l.name) + '"></td>' +
-        '<td>' + hc + '</td><td>' + esc(l.name) + (seriesOf(it) === 'WV' ? ' <span class="pill">เวชภัณฑ์ · WV</span>' : '') + (quoteState.company === 'all' ? '<br><small class="rate-inv">' + esc(it.distribute || NO_COMPANY) + '</small>' : '') + '</td>' +
+        '<td>' + hc + '</td><td>' + esc(l.name) + (seriesOf(it) !== 'W' ? ' <span class="pill">' + SERIES_LABEL[seriesOf(it)] + ' · ' + seriesOf(it) + '</span>' : '') + (quoteState.company === 'all' ? '<br><small class="rate-inv">' + esc(it.distribute || NO_COMPANY) + '</small>' : '') + '</td>' +
         '<td class="mono plan"' + (it.plan ? ' title="แผนจัดซื้อ ฿' + fmt(it.plan.value) + '"' : '') + '>' + (it.plan ? fmt1(it.plan.qty) : '–') + '</td>' +
         hospCell(it) +
         '<td class="mono">' + fmt1(l.pack) + ' <input class="q-in unit" data-k="unitS" list="quote-units" value="' + esc(l.unitS) + '" aria-label="หน่วยย่อย"></td>' +
@@ -2041,8 +2048,7 @@
     document.getElementById('quote-units').innerHTML = units.map(function(u){ return '<option value="' + u + '"></option>'; }).join('');
     QUOTE_SERIES.forEach(function(s){ if(!quoteState.nos[s]) quoteState.nos[s] = savedNo(s); });
     if(!quoteState.date) quoteState.date = todayIso();
-    document.getElementById('quote-no').value = quoteState.nos.WB;
-    document.getElementById('quote-no-wv').value = quoteState.nos.WV;
+    QUOTE_SERIES.forEach(function(s){ document.getElementById('quote-no-' + s).value = quoteState.nos[s]; });
     var docs = quoteHist && quoteHist.docs || [];
     fillSelect('quote-hist', docs.length ? docs.map(function(d){
       return [d.no, d.no + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '')];
@@ -2063,7 +2069,7 @@
     var ed = quoteState.editing;
     document.getElementById('quote-summary').textContent = (ed ? 'กำลังแก้ไขใบ ' + ed.no + ' — เพิ่ม / ลบ / แก้จำนวนได้ แล้วกดส่งออก จะได้ไฟล์เลขเดิม (เลขถัดไปไม่เปลี่ยน) · ' : '') + (g.count
       ? 'เลือกแล้ว ' + g.count + ' รายการ จาก ' + g.companies + ' บริษัท → ' + g.sheets.length + ' ใบ (' + seriesRanges(g.sheets).join(', ') + ') · ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ'
-      : 'ติ๊กเลือกรายการ ใส่จำนวนซื้อ แล้วกดส่งออก · แยกใบตามบริษัท (distribute) ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ · ยาใช้เลข WB เวชภัณฑ์ที่มิใช่ยาใช้เลข WV') + (extra ? ' · ' + extra : '');
+      : 'ติ๊กเลือกรายการ ใส่จำนวนซื้อ แล้วกดส่งออก · แยกใบตามบริษัท (distribute) ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ · เลขที่แยกชุด: ยา W / เวชภัณฑ์ที่มิใช่ยา วัสดุ อื่น ๆ WM / เภสัชเคมีภัณฑ์ WC') + (extra ? ' · ' + extra : '');
   }
 
   document.getElementById('btn-quote').addEventListener('click', function(){ quoteState.open = !quoteState.open; renderQuote(); var qb = document.getElementById('quote-box'); if(quoteState.open && qb.scrollIntoView) qb.scrollIntoView({ block:'nearest' }); });
@@ -2072,8 +2078,9 @@
   document.getElementById('quote-only-out').addEventListener('change', function(e){ quoteState.onlyOut = e.target.checked; renderQuote(); });
   var quoteTimer;
   document.getElementById('quote-search').addEventListener('input', function(e){ clearTimeout(quoteTimer); var v = e.target.value; quoteTimer = setTimeout(function(){ quoteState.search = v; renderQuote(); }, 150); });
-  document.getElementById('quote-no').addEventListener('input', function(e){ quoteState.nos.WB = e.target.value.trim(); quoteSummary(''); });
-  document.getElementById('quote-no-wv').addEventListener('input', function(e){ quoteState.nos.WV = e.target.value.trim(); quoteSummary(''); });
+  QUOTE_SERIES.forEach(function(s){
+    document.getElementById('quote-no-' + s).addEventListener('input', function(e){ quoteState.nos[s] = e.target.value.trim(); quoteSummary(''); });
+  });
   document.getElementById('quote-reopen').addEventListener('click', function(){ var v = document.getElementById('quote-hist').value; if(v) reopenQuote(v); });
   document.getElementById('quote-cancel-edit').addEventListener('click', function(){
     quoteState.editing = null; quoteState.sel = {}; quoteState.note = '';
