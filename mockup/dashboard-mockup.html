@@ -495,7 +495,7 @@
     <h2>เดือนสำรองคงคลัง</h2>
     <span class="hint">KPI THIP ≤ 1.33 · ไม่ขึ้นกับตัวกรอง</span>
   </header>
-  <p class="desc">เดือนสำรองคงคลัง = มูลค่ายาคงคลัง (ณ สิ้นเดือน) ÷ มูลค่าการจ่ายยาออกจากคลัง · มูลค่าคงคลังบันทึกให้เองจากไฟล์คลังยาที่นำเข้าครั้งแรกของเดือน · มูลค่าจ่ายคิดจากไฟล์ dispen_inven · แก้ตัวเลขในตารางได้ทุกช่อง (ลบตัวเลขออกเพื่อกลับไปใช้ค่าจากไฟล์)</p>
+  <p class="desc">เดือนสำรองคงคลัง = มูลค่ายาคงคลัง (ณ สิ้นเดือน) ÷ มูลค่าการจ่ายยาออกจากคลัง · มูลค่าคงคลัง (เฉพาะยา) บันทึกให้เองจากไฟล์คลังยา ตามวันที่ในไฟล์ (ใช้ยอดที่ใกล้สิ้นเดือนที่สุด) · มูลค่าจ่ายคิดจากไฟล์ dispen_inven · แก้ตัวเลขในตารางได้ทุกช่อง (ลบตัวเลขออกเพื่อกลับไปใช้ค่าจากไฟล์)</p>
   <div class="table-tools"><select class="search field-select" id="kpi-fy" aria-label="ปีงบประมาณ"></select><span class="table-note" id="kpi-note" style="margin:0"></span></div>
   <div class="kpi-legend">
     <span><i style="background:var(--good)"></i>≤ 1.33</span>
@@ -1143,8 +1143,9 @@
           return;
         }
         recs = recs.filter(function(r){ return r.slot !== PREV_SLOT; });
-        if(found.inventory) kpiRecordStock(found.inventory);
-        rebuild(); resetFilters(); renderAll();
+        rebuild();
+        if(state.datasets.inventory) kpiRecordStock(state.datasets.inventory);
+        resetFilters(); renderAll();
         showNote('นำเข้าแล้ว ' + recs.length + ' ไฟล์: ' + recs.map(function(r){ return slotLabel(r.slot); }).join(', ') +
           (dup.length ? ' · มีไฟล์ซ้ำประเภทเดียวกัน ใช้ไฟล์ที่วางทีหลัง: ' + dup.join(', ') : '') +
           (keptLot ? ' · คลังยามี 2 ไฟล์ ใช้ไฟล์ที่มี lot / expdate' : '') +
@@ -2264,12 +2265,17 @@
   function kpiSave(){ if(kpiStore) dbPut([kpiStore]).catch(function(){ storageOk = false; }); }
   function kpiRecordStock(inv){
     if(!kpiStore) kpiStore = kpiSeed();
-    /* เดือนของยอด: ตามวันที่ในไฟล์ (tdate ของ inventory_exp) ถ้าไม่มีใช้วันที่นำเข้า */
-    var asof = inv.rows.map(function(r){ return r.asof; }).filter(Boolean)[0], d = new Date();
-    var ym = asof ? Math.floor(asof / 100) : d.getFullYear() * 100 + d.getMonth() + 1;
-    if(kpiStore.stock[ym]) return;                 /* เก็บเฉพาะครั้งแรกของเดือน */
-    var v = inv.rows.reduce(function(s, r){ return s + (r.value || 0); }, 0);
-    kpiStore.stock[ym] = { v:Math.round(v * 100) / 100, src:'import', at:inv.importedAt, file:inv.fileName, asof:asof || null };
+    /* เดือนของยอด = เดือนของวันที่ในไฟล์ (tdate ของ inventory_exp) เช่น 31 ต.ค. = ต.ค. · ถ้าไม่มีใช้วันที่นำเข้า
+       ในเดือนเดียวกันใช้ไฟล์ที่วันที่ใกล้สิ้นเดือนที่สุด · ช่องที่พิมพ์เองไม่ถูกแทนที่ */
+    var d = new Date(), asof = inv.rows.map(function(r){ return r.asof; }).filter(Boolean)[0] || (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate());
+    var ym = Math.floor(asof / 100), cur = kpiStore.stock[ym];
+    if(cur && (cur.src !== 'import' || (cur.asof || 0) > asof)) return;
+    /* นับเฉพาะยา (ทะเบียนยา) ในคลังยา — พี่โอมยืนยัน · ถ้ายังไม่มี Meditem / ทะเบียน จะยังแยกไม่ได้ */
+    var L = state.lookups, canTell = !!(L && (Object.keys(L.med).length || Object.keys(L.reg).length));
+    var v = inv.rows.reduce(function(s, r){ return s + (!canTell || regTypeOf(L, r.id) === 'ทะเบียนยา' ? (r.value || 0) : 0); }, 0);
+    v = Math.round(v * 100) / 100;
+    if(cur && cur.asof === asof && cur.v === v && cur.drugOnly === canTell) return;
+    kpiStore.stock[ym] = { v:v, src:'import', at:inv.importedAt, file:inv.fileName, asof:asof, drugOnly:canTell };
     kpiSave();
   }
   function kpiPayFromFile(){
@@ -2283,7 +2289,8 @@
     if(e.src === 'manual') return 'พิมพ์เอง';
     if(e.src === 'slide') return 'จากตารางในสไลด์';
     if(e.src === 'file') return 'จาก dispen_inven';
-    if(e.src === 'import') return e.asof ? 'จากไฟล์คลังยา ยอด ณ ' + (e.asof % 100) + ' ' + TH_MONTHS_ABBR[Math.floor(e.asof / 100) % 100 - 1] + '. ' + String(Math.floor(e.asof / 10000) + 543).slice(-2) : 'จากไฟล์คลังยาที่นำเข้า ' + fmtDate(e.at);
+    if(e.src === 'import') return 'จากไฟล์คลังยา ยอด ณ ' + (e.asof % 100) + ' ' + TH_MONTHS_ABBR[Math.floor(e.asof / 100) % 100 - 1] + '. ' + String(Math.floor(e.asof / 10000) + 543).slice(-2) +
+      (e.drugOnly === false ? ' (รวมทุกรายการ — นำเข้า Meditem เพื่อแยกเฉพาะยา)' : ' · เฉพาะยา');
     return '';
   }
 
