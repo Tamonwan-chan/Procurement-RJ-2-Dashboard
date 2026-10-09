@@ -1667,7 +1667,12 @@
     if(nx[s]) return nx[s];
     if(old && nx[old]) return nx[old];
     try{ v = localStorage.getItem(noKey(s)) || (old && localStorage.getItem(noKey(old))) || (s === 'W' ? localStorage.getItem(QUOTE_NO_KEY) : '') || ''; }catch(e){}
-    return v || s + '001-' + fiscalSuffix(new Date());
+    var fy = fiscalSuffix(new Date());
+    if(!v) return s + '001-' + fy;
+    /* ขึ้นปีงบใหม่: เริ่มลำดับที่ 001 และเปลี่ยนท้ายเป็นปีงบใหม่อัตโนมัติ (พี่โอมยืนยัน) */
+    var m = /^(.*?)(\d+)-(\d{2})$/.exec(v);
+    if(m && m[3] !== fy){ var one = '1'; while(one.length < m[2].length) one = '0' + one; v = m[1] + one + '-' + fy; }
+    return v;
   }
   function noParts(no){ var m = /^(.*?)(\d+)(\D.*)?$/.exec(String(no || '').trim()); return m ? { pre:m[1].toUpperCase(), n:Number(m[2]), suf:m[3] || '' } : null; }
   function laterNo(a, b){ var x = noParts(a), y = noParts(b); if(!x) return b; if(!y) return a; return x.pre === y.pre && x.suf === y.suf && x.n >= y.n ? a : b; }
@@ -2367,7 +2372,7 @@
   /* ---------------- เดือนสำรองคงคลัง (KPI THIP ≤ 1.33) ----------------
      มูลค่าคงคลัง ณ สิ้นเดือน: บันทึกจากไฟล์คลังยาที่นำเข้าครั้งแรกของเดือน (พี่โอมเลือก) แก้ไขได้
      มูลค่าจ่าย: จาก dispen_inven (เฉพาะรายการที่มีหน่วยรับยา) ถ้าไม่มีไฟล์ของเดือนนั้นใช้ค่าที่พิมพ์ / ค่าตั้งต้นจากสไลด์
-     ลำดับความสำคัญ: พิมพ์เอง > ตารางสไลด์ (พี่โอมยืนยัน) > ไฟล์ */
+     ลำดับความสำคัญ: พิมพ์เอง > ไฟล์ dispen_inven > ตารางสไลด์ (พี่โอมให้ใช้ไฟล์) */
   var KPI_SLOT = '_kpi', KPI_GOOD = 1.33, KPI_WARN = 2.00;
   var kpiStore = null, kpiState = { fy:0 };
   function kpiSeed(){
@@ -2403,8 +2408,8 @@
   function kpiSrcText(e, kind){
     if(!e) return kind === 'pay' ? 'ยังไม่มีไฟล์ dispen_inven ของเดือนนี้' : 'ยังไม่มีข้อมูล';
     if(e.src === 'manual') return 'พิมพ์เอง';
-    if(e.src === 'slide') return 'จากตารางในสไลด์' + (e.fileV ? ' · dispen_inven = ' + fmt(e.fileV) : '');
-    if(e.src === 'file') return 'จาก dispen_inven (ตามประเภทการจ่ายที่เลือก)';
+    if(e.src === 'slide') return 'จากตารางในสไลด์';
+    if(e.src === 'file') return 'จาก dispen_inven (ตามประเภทการจ่ายที่เลือก)' + (e.slideV ? ' · สไลด์เดิม ' + fmt(e.slideV) : '');
     if(e.src === 'import') return 'จากไฟล์คลังยา ยอด ณ ' + (e.asof % 100) + ' ' + TH_MONTHS_ABBR[Math.floor(e.asof / 100) % 100 - 1] + '. ' + String(Math.floor(e.asof / 10000) + 543).slice(-2) +
       (e.drugOnly === false ? ' (รวมทุกรายการ — นำเข้า Meditem เพื่อแยกเฉพาะยา)' : ' · เฉพาะยา');
     return '';
@@ -2417,8 +2422,7 @@
     function payOf(ym){
       var e = kpiStore.pay[ym];
       if(e && e.src === 'manual') return e;
-      if(e && e.src === 'slide') return fileP[ym] ? { v:e.v, src:'slide', fileV:fileP[ym] } : e;
-      if(fileP[ym]) return { v:fileP[ym], src:'file' };
+      if(fileP[ym]) return { v:fileP[ym], src:'file', slideV:e && e.src === 'slide' ? e.v : null };
       return e || null;
     }
     var fys = {};
