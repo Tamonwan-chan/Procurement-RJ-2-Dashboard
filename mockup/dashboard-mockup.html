@@ -212,6 +212,10 @@
   .pt-row .rvalue{ font-size:12.5px; text-align:right; font-family:'IBM Plex Mono', monospace; }
   .pt-row .rvalue small{ display:block; font-size:11px; color:var(--ink-faint); }
   .pt-up{ color:var(--critical); } .pt-down{ color:var(--good); }
+  /* ป้ายลำดับสีสด (พี่โอมขอเพิ่มความสดใส ตามตารางเดิม: แดง / เขียว) */
+  .rank-badge{ display:inline-block; min-width:26px; padding:2px 7px; border-radius:6px; font-weight:700; text-align:center; }
+  .rank-badge.hot{ background:#D32A22; color:#FFFFFF; }
+  .rank-badge.mid{ background:#15803D; color:#FFFFFF; }
   @media (max-width:700px){ .pt-row{ grid-template-columns:minmax(90px,1fr) 1.2fr 120px; } }
   .kpi-chart text{ font-family:'IBM Plex Sans Thai', sans-serif; fill:var(--ink-muted); }
   .kpi-chart .k-val{ font-family:'IBM Plex Mono', monospace; font-weight:600; }
@@ -2422,7 +2426,8 @@
     body.innerHTML = shown.length ? shown.map(function(a){
       var unit = a.pack > 1 ? 'กล่อง <span class="table-note" style="margin:0">(' + fmt1(a.pack) + ' ' + esc(a.unit) + ')</span>' : esc(a.unit || '–');
       var c = change(a);
-      return '<tr><td class="mono">' + a.rank + '</td><td>' + esc(a.generic || '–') + '</td><td class="mono">' + esc(a.gpu || '–') + '</td>' +
+      var badge = a.rank <= 3 ? 'hot' : a.rank <= 10 ? 'mid' : '';
+      return '<tr><td class="mono">' + (badge ? '<span class="rank-badge ' + badge + '">' + a.rank + '</span>' : a.rank) + '</td><td>' + esc(a.generic || '–') + '</td><td class="mono">' + esc(a.gpu || '–') + '</td>' +
         '<td title="hospcode ' + esc(a.id) + '">' + esc(a.name) + '</td><td class="mono">' + esc(a.tpu || '–') + '</td>' +
         '<td class="mono">' + fmt1(a.qty) + '</td><td>' + unit + '</td><td class="mono">' + fmt2(a.value) + '</td>' +
         (prev ? '<td class="mono">' + (a.prev === null ? '–' : mv ? fmt1(a.prev) : fmt2(a.prev)) + '</td><td class="mono ' + (c ? c.cls : '') + '">' + (c ? c.txt : '') + '</td>' : '') + '</tr>';
