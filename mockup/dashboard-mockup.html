@@ -203,6 +203,16 @@
   th.plan, td.plan{ color:var(--critical); font-weight:600; }
   :root{ --disp:#C2651A; }
   .kpi-chart{ width:100%; height:auto; display:block; margin:4px 0 6px; }
+  .pt-chart{ display:flex; flex-direction:column; gap:7px; margin:4px 0 18px; }
+  .pt-row{ display:grid; grid-template-columns:minmax(120px,230px) 1fr 170px; align-items:center; gap:10px; }
+  .pt-row .rlabel{ font-size:12.5px; color:var(--ink-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pt-bars{ display:flex; flex-direction:column; gap:2px; }
+  .pt-bar{ height:12px; border-radius:3px; background:var(--cat-1); min-width:2px; }
+  .pt-bar.prev{ height:7px; background:var(--cat-1); opacity:.38; }
+  .pt-row .rvalue{ font-size:12.5px; text-align:right; font-family:'IBM Plex Mono', monospace; }
+  .pt-row .rvalue small{ display:block; font-size:11px; color:var(--ink-faint); }
+  .pt-up{ color:var(--critical); } .pt-down{ color:var(--good); }
+  @media (max-width:700px){ .pt-row{ grid-template-columns:minmax(90px,1fr) 1.2fr 120px; } }
   .kpi-chart text{ font-family:'IBM Plex Sans Thai', sans-serif; fill:var(--ink-muted); }
   .kpi-chart .k-val{ font-family:'IBM Plex Mono', monospace; font-weight:600; }
   .kpi-legend{ display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12.5px; color:var(--ink-muted); margin-bottom:10px; }
@@ -409,13 +419,16 @@
     <h2 id="plantop-title">10 อันดับมูลค่าแผนจัดซื้อสูงสุด</h2>
     <span class="hint">จากไฟล์ planfin · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
-  <p class="desc">เรียงตามมูลค่าแผนจัดซื้อทั้งปี (buytotalvalue) รายการละแถว · จำนวน = buytotalamount · GPU / TPU ใช้ตาม Meditem ก่อน ถ้าไม่มีจึงใช้จาก planfin</p>
+  <p class="desc">มูลค่า = buytotalvalue · จำนวน = buytotalamount (หน่วยจัดซื้อตามแผนของยาแต่ละตัว) รายการละแถว · GPU / TPU ใช้ตาม Meditem ก่อน ถ้าไม่มีจึงใช้จาก planfin · นำเข้า planfin ได้ 2 ปีงบ (เช่น ปี 69 และ 70) เพื่อดูแนวโน้มเทียบกัน</p>
   <div class="table-tools">
     <select class="search field-select" id="plantop-top" aria-label="จำนวนอันดับ"><option value="10" selected>10 อันดับ</option><option value="20">20 อันดับ</option><option value="50">50 อันดับ</option><option value="0">ทั้งหมด</option></select>
     <input class="search" id="plantop-search" type="search" placeholder="ค้นหา hospcode / ชื่อยา / GPU / TPU" aria-label="ค้นหาในแผนจัดซื้อ">
+    <div class="chips" id="plantop-metric"></div>
   </div>
+  <div class="kpi-legend" id="plantop-legend"></div>
+  <div class="pt-chart" id="plantop-chart"></div>
   <div class="table-scroll" style="max-height:460px">
-    <table style="min-width:1000px"><thead><tr><th class="mono">ลำดับที่</th><th>ชื่อสามัญ</th><th>GPU</th><th>NAME</th><th>TPU</th><th class="mono">จำนวน</th><th>หน่วยนับ</th><th class="mono">มูลค่าจัดซื้อ (บาท)</th></tr></thead>
+    <table style="min-width:1000px"><thead><tr id="plantop-head"></tr></thead>
     <tbody id="plantop-table"></tbody></table>
   </div>
   <div class="table-note" id="plantop-count"></div>
@@ -901,12 +914,16 @@
     rowsOf('registry').forEach(function(r){ L.reg[r.id] = r; });
     L.disp = rowsOf('dispense');
     L.po = rowsOf('po');
-    L.plan = {}; L.planYear = 0;
+    /* planfin: L.plan = ปีงบล่าสุด (ใช้กับห้ามซื้อเกิน / ราคาใบเสนอราคา / กราฟ GPU) · L.planByYear = ทุกปีที่นำเข้า (สูงสุด 2 ปี) */
+    L.planByYear = {}; L.planYear = 0;
     rowsOf('plan').forEach(function(r){
-      var x = L.plan[r.id] || (L.plan[r.id] = { qty:0, value:0, year:r.year, name:r.name, gpucode:r.gpucode, tpucode:r.tpucode, pack:r.pack, unit:r.unit, cost:r.cost || 0 });
+      var by = L.planByYear[r.year] || (L.planByYear[r.year] = {});
+      var x = by[r.id] || (by[r.id] = { qty:0, value:0, year:r.year, name:r.name, gpucode:r.gpucode, tpucode:r.tpucode, pack:r.pack, unit:r.unit, cost:r.cost || 0 });
       x.qty += r.qty; x.value += r.value;
       if(r.year > L.planYear) L.planYear = r.year;
     });
+    L.planYears = Object.keys(L.planByYear).map(Number).sort();
+    L.plan = L.planByYear[L.planYear] || {};
     /* Meditem เก็บหน่วยเป็นรหัส — เรียนชื่อหน่วยจาก planfin / dispen_inven ของยาตัวเดียวกัน */
     L.unitOf = {}; var votes = {};
     function vote(id, name){
@@ -1114,6 +1131,11 @@
           var slot = detectSlot(t, f.name); if(!slot) return;
           var rows = extractRows(slot, t); if(!rows.length) return;
           var hasExp = rows.some(function(r){ return r.exp || r.lot; });
+          if(found[slot] && slot === 'plan'){
+            /* planfin หลายปีงบวางพร้อมกันได้ (เช่น ปี 69 + 70) */
+            found.plan.rows = found.plan.rows.concat(rows); found.plan.rowCount = found.plan.rows.length; found.plan.fileName += ', ' + f.name;
+            hit = true; return;
+          }
           if(found[slot]){
             if(slot === 'inventory' && found[slot].hasExp !== hasExp){
               keptLot = true;
@@ -1135,6 +1157,13 @@
         recs.push(state.prev);
       }
       recs.forEach(function(r){
+        if(r.slot === 'plan'){
+          /* แทนที่เฉพาะปีงบที่อยู่ในไฟล์ใหม่ และเก็บไว้ไม่เกิน 2 ปีงบล่าสุด */
+          var yrs = {}; r.rows.forEach(function(x){ yrs[x.year] = 1; });
+          var all = (state.datasets.plan ? state.datasets.plan.rows.filter(function(x){ return !yrs[x.year]; }) : []).concat(r.rows);
+          var keep = {}; all.map(function(x){ return x.year; }).filter(function(y, i, a){ return a.indexOf(y) === i; }).sort().slice(-2).forEach(function(y){ keep[y] = 1; });
+          r.rows = all.filter(function(x){ return keep[x.year]; }); r.rowCount = r.rows.length;
+        }
         if((r.slot === 'dispense' || r.slot === 'po') && state.datasets[r.slot]){
           var months = {}; r.rows.forEach(function(x){ months[x.ym] = 1; });
           r.rows = state.datasets[r.slot].rows.filter(function(x){ return !months[x.ym]; }).concat(r.rows);
@@ -1163,6 +1192,7 @@
     });
   }
 
+  function planYearsText(rows){ return rows.map(function(x){ return x.year; }).filter(function(y, i, a){ return y && a.indexOf(y) === i; }).sort().map(function(y){ return String(y).slice(-2); }).join(', '); }
   function updateSourceUI(){
     var badge = document.getElementById('mode-badge');
     var ds = state.datasets;
@@ -1180,7 +1210,7 @@
         '<span class="fs-name"><span class="fs-dot"></span>' + esc(s.label) + '</span>' +
         '<span class="fs-meta">' + esc(s.desc) + '</span>' +
         '<span class="fs-meta' + (r ? '' : ' fs-empty') + '" title="' + esc(r ? r.fileName : '') + '">' +
-          (r ? esc(fmtDate(r.importedAt)) + (s.slot === 'quoteTpl' ? ' · ' + esc(r.sheetName || '') : ' · ' + fmt(r.rowCount) + ' แถว') : 'ยังไม่มีข้อมูล') + '</span></div>';
+          (r ? esc(fmtDate(r.importedAt)) + (s.slot === 'quoteTpl' ? ' · ' + esc(r.sheetName || '') : ' · ' + fmt(r.rowCount) + ' แถว') + (s.slot === 'plan' ? ' · ปีงบ ' + planYearsText(r.rows) : '') : 'ยังไม่มีข้อมูล') + '</span></div>';
     }).join('');
     var missingSlots = FILE_SLOTS.filter(function(s){ return !ds[s.slot]; });
     document.getElementById('fs-missing').textContent = missingSlots.length ? '· ยังไม่มี ' + missingSlots.length + ' ไฟล์' : '';
@@ -2330,37 +2360,77 @@
   });
 
   /* ---------------- 10 อันดับมูลค่าแผนจัดซื้อ (planfin) ---------------- */
-  var planTopState = { top:10, search:'' };
+  var planTopState = { top:10, search:'', metric:'value' };
+  var PLAN_CHART_MAX = 50;
   function renderPlanTop(){
     dispAttr = {};
     var L = state.lookups, plan = L && L.plan, body = document.getElementById('plantop-table');
     var title = document.getElementById('plantop-title'), count = document.getElementById('plantop-count');
-    var label = planTopState.top ? planTopState.top + ' อันดับ' : 'อันดับ';
-    title.textContent = label + 'มูลค่าแผนจัดซื้อสูงสุด' + (L && L.planYear ? ' ' + L.planYear : '');
+    var mv = planTopState.metric === 'qty', mName = mv ? 'จำนวน' : 'มูลค่า';
+    title.textContent = (planTopState.top ? planTopState.top + ' อันดับ' : 'อันดับ') + mName + 'แผนจัดซื้อสูงสุด';
+    var mBox = document.getElementById('plantop-metric'); mBox.innerHTML = '';
+    [['value', 'มูลค่า'], ['qty', 'จำนวน']].forEach(function(o){
+      mBox.appendChild(chip(o[1], planTopState.metric === o[0], function(){ planTopState.metric = o[0]; renderPlanTop(); }, { sm:true }));
+    });
+    var years = L && L.planYears || [], cur = L && L.planYear, prevY = years.length > 1 ? years[years.length - 2] : 0;
+    var prev = prevY ? L.planByYear[prevY] : null, yy = function(y){ return String(y).slice(-2); };
+    document.getElementById('plantop-head').innerHTML = '<th class="mono">ลำดับที่</th><th>ชื่อสามัญ</th><th>GPU</th><th>NAME</th><th>TPU</th><th class="mono">จำนวน' + (prev ? ' ปี ' + yy(cur) : '') + '</th><th>หน่วยนับ</th><th class="mono">มูลค่าจัดซื้อ' + (prev ? ' ปี ' + yy(cur) : '') + ' (บาท)</th>' +
+      (prev ? '<th class="mono">' + mName + ' ปี ' + yy(prevY) + '</th><th class="mono">เปลี่ยนแปลง</th>' : '');
+    var cols = prev ? 10 : 8;
+    document.getElementById('plantop-legend').innerHTML = prev
+      ? '<span><i style="background:var(--cat-1)"></i>ปีงบ ' + cur + '</span><span><i style="background:var(--cat-1);opacity:.38"></i>ปีงบ ' + prevY + '</span><span>เปลี่ยนแปลง <b class="pt-up">▲ เพิ่ม</b> / <b class="pt-down">▼ ลด</b> จากปีก่อน</span>'
+      : (cur ? '<span><i style="background:var(--cat-1)"></i>ปีงบ ' + cur + '</span><span>นำเข้า planfin อีกปีงบเพื่อดูแนวโน้มเทียบกัน</span>' : '');
+    var chartBox = document.getElementById('plantop-chart'); chartBox.innerHTML = '';
     if(!plan || !Object.keys(plan).length){
-      body.innerHTML = '<tr><td colspan="8" class="table-note" style="padding:14px">ยังไม่มีข้อมูล — ลากไฟล์ planfin มาวาง</td></tr>';
+      body.innerHTML = '<tr><td colspan="' + cols + '" class="table-note" style="padding:14px">ยังไม่มีข้อมูล — ลากไฟล์ planfin มาวาง</td></tr>';
       count.textContent = ''; return;
     }
-    var items = {}; state.items.forEach(function(it){ items[it.id] = it; });
+    var items = {}; state.items.forEach(function(it){ items[it.hospcode] = it; });
     var list = Object.keys(plan).filter(function(id){ return plan[id].value > 0 && dispItemOk(id); }).map(function(id){
-      var x = plan[id], it = items[id] || {}, m = L.med[id] || {}, dc = L.dc[id] || {};
+      var x = plan[id], it = items[id] || {}, m = L.med[id] || {}, dc = L.dc[id] || {}, p0 = prev && prev[id];
       return { id:id, value:x.value, qty:x.qty, generic:dc.generic || it.generic || '', name:x.name || it.tradename || L.names[id] || '',
-        gpu:m.gpucode || (L.reg[id] || {}).gpucode || x.gpucode || '', tpu:m.tpucode || x.tpucode || '', pack:x.pack || 0, unit:x.unit || '' };
-    }).sort(function(a, b){ return b.value - a.value; });
+        gpu:m.gpucode || (L.reg[id] || {}).gpucode || x.gpucode || '', tpu:m.tpucode || x.tpucode || '', pack:x.pack || 0, unit:x.unit || '',
+        prev:p0 ? (mv ? p0.qty : p0.value) : null };
+    });
+    function metric(a){ return mv ? a.qty : a.value; }
+    list.sort(function(a, b){ return metric(b) - metric(a) || b.value - a.value; });
     var total = list.reduce(function(s, a){ return s + a.value; }, 0);
     list.forEach(function(a, i){ a.rank = i + 1; });
     var q = planTopState.search.trim().toLowerCase();
     var shown = list.filter(function(a){ return !q || [a.id, a.generic, a.name, a.gpu, a.tpu].join(' ').toLowerCase().indexOf(q) >= 0; });
     if(!q && planTopState.top) shown = shown.slice(0, planTopState.top);
+    function change(a){
+      if(a.prev === null) return prev ? { txt:'ใหม่ปีนี้', cls:'' } : null;
+      if(!a.prev) return { txt:'–', cls:'' };
+      var d = (metric(a) - a.prev) / a.prev * 100;
+      return { txt:(d >= 0 ? '▲ ' : '▼ ') + fmt1(Math.abs(d)) + '%', cls:d >= 0 ? 'pt-up' : 'pt-down' };
+    }
+    function show(v){ return mv ? fmt1(v) : '฿' + fmt(v); }
+    /* กราฟแท่ง: สเกลเดียวกันทั้งสองปี */
+    var inChart = shown.slice(0, PLAN_CHART_MAX);
+    var max = Math.max.apply(null, inChart.map(function(a){ return Math.max(metric(a), a.prev || 0); }).concat([1]));
+    inChart.forEach(function(a){
+      var c = change(a), row = document.createElement('div'); row.className = 'pt-row';
+      row.innerHTML = '<div class="rlabel" title="' + esc(a.name) + '">' + a.rank + '. ' + esc(a.name) + '</div>' +
+        '<div class="pt-bars"><div class="pt-bar" style="width:' + (metric(a) / max * 100) + '%"></div>' +
+        (prev ? '<div class="pt-bar prev" style="width:' + ((a.prev || 0) / max * 100) + '%"></div>' : '') + '</div>' +
+        '<div class="rvalue">' + show(metric(a)) + (prev ? '<small>ปี ' + yy(prevY) + ' ' + (a.prev === null ? '–' : show(a.prev)) + (c ? ' · <span class="' + c.cls + '">' + c.txt + '</span>' : '') + '</small>' : '') + '</div>';
+      bindTooltip(row.querySelector('.pt-bar'), a.name + ' · ปี ' + yy(cur) + ' ' + show(metric(a)) + (prev ? ' · ปี ' + yy(prevY) + ' ' + (a.prev === null ? 'ไม่มีในแผน' : show(a.prev)) : ''));
+      chartBox.appendChild(row);
+    });
+    if(shown.length > PLAN_CHART_MAX){ var more = document.createElement('div'); more.className = 'table-note'; more.textContent = 'กราฟแสดง ' + PLAN_CHART_MAX + ' อันดับแรก · ดูทั้งหมดในตารางด้านล่าง'; chartBox.appendChild(more); }
     body.innerHTML = shown.length ? shown.map(function(a){
       var unit = a.pack > 1 ? 'กล่อง <span class="table-note" style="margin:0">(' + fmt1(a.pack) + ' ' + esc(a.unit) + ')</span>' : esc(a.unit || '–');
+      var c = change(a);
       return '<tr><td class="mono">' + a.rank + '</td><td>' + esc(a.generic || '–') + '</td><td class="mono">' + esc(a.gpu || '–') + '</td>' +
         '<td title="hospcode ' + esc(a.id) + '">' + esc(a.name) + '</td><td class="mono">' + esc(a.tpu || '–') + '</td>' +
-        '<td class="mono">' + fmt1(a.qty) + '</td><td>' + unit + '</td><td class="mono">' + fmt2(a.value) + '</td></tr>';
-    }).join('') : '<tr><td colspan="8" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง</td></tr>';
+        '<td class="mono">' + fmt1(a.qty) + '</td><td>' + unit + '</td><td class="mono">' + fmt2(a.value) + '</td>' +
+        (prev ? '<td class="mono">' + (a.prev === null ? '–' : mv ? fmt1(a.prev) : fmt2(a.prev)) + '</td><td class="mono ' + (c ? c.cls : '') + '">' + (c ? c.txt : '') + '</td>' : '') + '</tr>';
+    }).join('') : '<tr><td colspan="' + cols + '" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง</td></tr>';
     var sub = shown.reduce(function(s, a){ return s + a.value; }, 0);
-    count.textContent = 'แสดง ' + fmt(shown.length) + ' จาก ' + fmt(list.length) + ' รายการ · มูลค่ารวมที่แสดง ฿' + fmt2(sub) +
-      (total ? ' (' + fmt1(sub / total * 100) + '% ของแผนทั้งหมด ฿' + fmt2(total) + ')' : '');
+    count.textContent = 'ปีงบ ' + cur + ' · แสดง ' + fmt(shown.length) + ' จาก ' + fmt(list.length) + ' รายการ · มูลค่ารวมที่แสดง ฿' + fmt2(sub) +
+      (total ? ' (' + fmt1(sub / total * 100) + '% ของแผนทั้งหมด ฿' + fmt2(total) + ')' : '') +
+      (prev ? ' · แผนปีงบ ' + prevY + ' ทั้งหมด ฿' + fmt2(Object.keys(prev).reduce(function(s, id){ return s + prev[id].value; }, 0)) : '');
   }
   document.getElementById('plantop-top').addEventListener('change', function(e){ planTopState.top = Number(e.target.value); renderPlanTop(); });
   var planTopTimer;
