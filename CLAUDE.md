@@ -29,7 +29,9 @@ Context for any Claude Code session that opens this repo (the owner works from m
 
 ## Key business rules (details in the .md and README)
 - Items join on meditem = hospcode = รหัสเวชภัณฑ์ = hospdrugid. Central stock (inventory_exp) is in boxes; dispensing rooms are in units ÷ packqty.
-- Dispensing (dispen_inven) counts by dispense type, column H `name`: ขอเบิก, เบิกกรณีพิเศษ, เบิกฉุกเฉิน, แลกเปลี่ยน; value = payqty × unitcost.
+- Dispensing (dispen_inven) counts by dispense type, column H `name`: every type except เบิกฉุกเฉิน (115, clears borrowed drugs), จ่ายทั่วไป (101) and ปรับยอดคงคลัง (120); value = payqty × unitcost.
+- PO_inven counts only `minptype` 101 รับจากการสั่งซื้อ (the real export has five columns all named `name`; supplier = `company_dspname`, else `note`).
+- Stock history: every inventory_exp import is stored per month (`_stockhist` in IndexedDB, 2 fiscal years) for the year-comparison report; a file dated older than the current one is kept as history only.
 - เดือนสำรองคงคลัง = drug-only stock value at month end ÷ dispensed value; KPI ≤ 1.33; line green ≤ 1.33, orange ≤ 2.00, red > 2.00, plus mean line.
 - GPU chart = PO_inven purchase value since fiscal-year start, ฿500,000 ceiling, planfin totals by GPU at the bar end.
 - planfin: latest year drives "ห้ามซื้อเกิน", quote prices (cost per box) and the GPU chart; up to 2 years kept for the ranking comparison.
