@@ -2362,11 +2362,19 @@
     var typeStat = {};
     inFy.forEach(function(r){ var k = r.kind || 'ไม่ระบุประเภท', t = typeStat[k] || (typeStat[k] = { n:0, v:0 }); t.n++; t.v += r.qty * r.cost; });
     var typeBox = document.getElementById('disp-types'); typeBox.innerHTML = '';
-    Object.keys(typeStat).sort(function(a, b){ return (dispTypeOn(b) ? 1 : 0) - (dispTypeOn(a) ? 1 : 0) || typeStat[b].v - typeStat[a].v; }).forEach(function(k){
+    /* ลำดับปุ่มคงที่ (ประเภทที่นับตามค่าเริ่มต้นขึ้นก่อน) — ไม่สลับตำแหน่งเมื่อกด จะได้ไม่กดผิดปุ่ม */
+    function dispTypeDefault(k){ return !!k && k !== 'ไม่ระบุประเภท' && !DISP_TYPES_EXCLUDED.test(k); }
+    Object.keys(typeStat).sort(function(a, b){ return (dispTypeDefault(b) ? 1 : 0) - (dispTypeDefault(a) ? 1 : 0) || typeStat[b].v - typeStat[a].v; }).forEach(function(k){
       var c = chip(k.replace(/^จ่ายจากการ/, '').replace(/^จ่าย/, ''), dispTypeOn(k), function(){ dispState.types[k] = !dispTypeOn(k); renderDispense(); renderKpi(); renderReport(); }, { sm:true, count:typeStat[k].n });
       c.title = k + ' · ' + fmt(typeStat[k].n) + ' รายการ · ฿' + fmt(typeStat[k].v);
       typeBox.appendChild(c);
     });
+    if(Object.keys(typeStat).some(function(k){ return dispTypeOn(k) !== dispTypeDefault(k); })){
+      var reset = document.createElement('button'); reset.type = 'button'; reset.className = 'btn-ghost'; reset.textContent = 'กลับค่าเริ่มต้น';
+      reset.title = 'นับทุกประเภท ยกเว้น เบิกฉุกเฉิน จ่ายทั่วไป และปรับยอดคงคลัง';
+      reset.addEventListener('click', function(){ dispState.types = {}; renderDispense(); renderKpi(); renderReport(); });
+      typeBox.appendChild(reset);
+    }
     var excluded = inFy.filter(function(r){ return !dispTypeOn(r.kind); });
     var rows = inFy.filter(function(r){ return dispTypeOn(r.kind) && dispItemOk(r.id); });
     var exVal = excluded.reduce(function(s, r){ return s + r.qty * r.cost; }, 0);
