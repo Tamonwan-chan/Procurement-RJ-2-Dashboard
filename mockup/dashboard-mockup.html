@@ -217,6 +217,8 @@
   .rank-badge.hot{ background:#D32A22; color:#FFFFFF; }
   .rank-badge.mid{ background:#15803D; color:#FFFFFF; }
   @media (max-width:700px){ .pt-row{ grid-template-columns:minmax(90px,1fr) 1.2fr 120px; } }
+  #disp-flow .pt-row{ grid-template-columns:minmax(70px,110px) 1fr 290px; }
+  @media (max-width:700px){ #disp-flow .pt-row{ grid-template-columns:60px 1fr 150px; } }
   /* รายงานสถิติคลังยา: หัวตาราง 2 ชั้น (หัวข้อ × ปีงบ) */
   .rep-table thead th{ position:static; text-align:center; }
   .rep-table thead tr:first-child th{ border-bottom:none; }
@@ -555,6 +557,9 @@
   <div class="table-note" id="disp-note" style="margin:-4px 0 12px"></div>
   <div class="subhead">มูลค่าการจ่ายต่อเดือน (ต้นปีงบ – ปัจจุบัน)</div>
   <div class="barlist" id="disp-months" style="margin-bottom:26px"></div>
+  <div class="subhead">การรับเข้า – จ่ายยาออกจากคลัง (รายเดือน)</div>
+  <div class="kpi-legend"><span><i style="background:var(--ned)"></i>รับเข้าคลัง</span><span><i style="background:var(--disp)"></i>จ่ายออกจากคลัง</span><span>สุทธิ = รับเข้า − จ่ายออก</span></div>
+  <div class="pt-chart" id="disp-flow"></div>
   <div class="subhead">ยาที่มีการใช้มากที่สุด</div>
   <div class="table-tools">
     <select class="search field-select" id="disp-sort" aria-label="เรียงตาม"><option value="value">เรียงตามมูลค่า</option><option value="qty">เรียงตามจำนวน</option></select>
@@ -922,13 +927,15 @@
         name:txt(g(r,'medname')), gpucode:clean(g(r,'gpucode')), tpucode:clean(g(r,'tpucode')), pack:num(g(r,'packqty')), unit:txt(g(r,'unitname')), cost:num(g(r,'cost')) });
       else if(slot === 'po'){
         /* รับจากการสั่งซื้อ: มูลค่า = unitcost (= rcvqty × minpunitcost ราคาต่อกล่อง) */
-        /* นับเฉพาะประเภทการรับ 101 รับจากการสั่งซื้อ (minptype) — ไม่นับ 115 รับจากการเบิกฉุกเฉิน ฯลฯ (พี่โอม 14 ต.ค. 69) */
-        if('minptype' in c && clean(g(r,'minptype')) && clean(g(r,'minptype')) !== '101') return;
-        if('name4' in c && g(r,'name4') && !/สั่งซื้อ/.test(String(g(r,'name4')))) return;
+        /* ประเภทการรับ (minptype): เก็บทุกประเภท ยกเว้น 115 รับจากการเบิกฉุกเฉิน (พี่โอมขีดออก) ·
+           ส่วนจัดซื้อ (กราฟ GPU / รับจากการสั่งซื้อ / รายงานสถิติ) ใช้เฉพาะ 101 รับจากการสั่งซื้อ */
+        var rtype = clean(g(r,'minptype')), rname = 'name4' in c ? txt(g(r,'name4')) : '';
+        if(rtype === '115' || /เบิกฉุกเฉิน/.test(rname)) return;
         var pd = dateParts(g(r,'minpdate')); if(!pd) return;
         var pq = num(g(r,'rcvqty')), pp = num(g(r,'minpunitcost'));
         out.push({ id:id, ym:pd.ym, name:txt(g(r,'medname')), qty:pq, price:pp, value:num(g(r,'unitcost')) || pq * pp,
-          company:clean(g(r,'company_dspname')) || clean(g(r,'note')), unit:clean(g(r,'name')), pack:num(g(r,'packqty')), inv:clean(g(r,'invno')) });
+          company:clean(g(r,'company_dspname')) || clean(g(r,'note')), unit:clean(g(r,'name')), pack:num(g(r,'packqty')), inv:clean(g(r,'invno')),
+          rtype:rtype, rname:rname });
       }
       else if(slot === 'list') out.push({ id:id, name:txt(g(r,'medname')), lowrate:num(g(r,'lowrate')), highrate:num(g(r,'highrate')),
         userate:num(g(r,'userate')), sumqty:num(g(r,'sumqty')) });
@@ -975,7 +982,9 @@
     L.reg = {};
     rowsOf('registry').forEach(function(r){ L.reg[r.id] = r; });
     L.disp = rowsOf('dispense');
-    L.po = rowsOf('po');
+    /* L.recv = รับเข้าคลังทุกประเภท (ยกเว้น 115) · L.po = เฉพาะรับจากการสั่งซื้อ (101 หรือไม่ระบุประเภท) */
+    L.recv = rowsOf('po');
+    L.po = L.recv.filter(function(r){ return !r.rtype || r.rtype === '101'; });
     /* planfin: L.plan = ปีงบล่าสุด (ใช้กับห้ามซื้อเกิน / ราคาใบเสนอราคา / กราฟ GPU) · L.planByYear = ทุกปีที่นำเข้า (สูงสุด 2 ปี) */
     L.planByYear = {}; L.planYear = 0;
     rowsOf('plan').forEach(function(r){
@@ -2349,7 +2358,7 @@
     if(!all.length){
       document.getElementById('disp-months').innerHTML = '<div class="table-note">นำเข้าไฟล์ dispen_inven (การจ่ายยาจากคลัง) เพื่อดูมูลค่าการจ่ายรายเดือนและยาที่ใช้มากที่สุด</div>';
       document.getElementById('disp-table').innerHTML = '';
-      ['disp-fy','disp-month','disp-room'].forEach(function(i){ document.getElementById(i).innerHTML = ''; });
+      ['disp-fy','disp-month','disp-room','disp-flow'].forEach(function(i){ document.getElementById(i).innerHTML = ''; });
       document.getElementById('disp-note').textContent = ''; document.getElementById('disp-count').textContent = '';
       return;
     }
@@ -2397,6 +2406,36 @@
     var tot = document.createElement('div'); tot.className = 'table-note';
     tot.textContent = 'รวมต้นปีงบ – ' + monthLabel(lastYm) + ': ฿' + fmt(ytd) + ' · เดือนที่ไม่มีข้อมูล = ยังไม่ได้นำเข้าไฟล์ของเดือนนั้น';
     mBox.appendChild(tot);
+
+    /* การรับเข้า – จ่ายออกจากคลัง: รับเข้า = PO_inven ทุกประเภทการรับ ยกเว้น 115 · จ่ายออก = ประเภทการจ่ายที่เลือกด้านบน */
+    var flowBox = document.getElementById('disp-flow'); flowBox.innerHTML = '';
+    var recv = (state.lookups && state.lookups.recv || []).filter(function(r){ return fiscalOf(r.ym) === dispState.fy && dispItemOk(r.id); });
+    if(!(state.lookups && state.lookups.recv && state.lookups.recv.length)){
+      flowBox.innerHTML = '<div class="table-note">ยังไม่มีข้อมูลรับเข้า — ลากไฟล์ PO_inven (บันทึกรับเวชภัณฑ์) มาวาง</div>';
+    } else {
+      var inM = {}, types = {};
+      recv.forEach(function(r){ inM[r.ym] = (inM[r.ym] || 0) + r.value; types[r.rtype || '101'] = 1; });
+      var flowLast = months.filter(function(ym){ return byMonth[ym] || inM[ym]; }).pop() || months[0];
+      var flowMonths = months.filter(function(ym){ return ym <= flowLast; });
+      var fMax = Math.max.apply(null, flowMonths.map(function(ym){ return Math.max(inM[ym] || 0, byMonth[ym] || 0); }).concat([1]));
+      var sumIn = 0, sumOut = 0;
+      flowMonths.forEach(function(ym){
+        var a = inM[ym] || 0, b = byMonth[ym] || 0, net = a - b; sumIn += a; sumOut += b;
+        var row = document.createElement('div'); row.className = 'pt-row';
+        row.innerHTML = '<div class="rlabel">' + monthLabel(ym) + '</div>' +
+          '<div class="pt-bars"><div class="pt-bar" style="background:var(--ned);width:' + (a / fMax * 100) + '%"></div>' +
+          '<div class="pt-bar" style="background:var(--disp);width:' + (b / fMax * 100) + '%"></div></div>' +
+          '<div class="rvalue">' + (a || b ? 'สุทธิ ' + (net >= 0 ? '+' : '−') + '฿' + fmt(Math.abs(net)) : '<small>ไม่มีข้อมูล</small>') +
+          (a || b ? '<small>รับ ฿' + fmt(a) + ' · จ่าย ฿' + fmt(b) + '</small>' : '') + '</div>';
+        bindTooltip(row.querySelector('.pt-bars'), monthLabel(ym) + ' · รับเข้า ฿' + fmt(a) + ' · จ่ายออก ฿' + fmt(b) + ' · สุทธิ ' + (net >= 0 ? '+' : '−') + '฿' + fmt(Math.abs(net)));
+        flowBox.appendChild(row);
+      });
+      var ft = document.createElement('div'); ft.className = 'table-note';
+      var tNet = sumIn - sumOut;
+      ft.textContent = 'รวมต้นปีงบ – ' + monthLabel(flowLast) + ': รับเข้า ฿' + fmt(sumIn) + ' · จ่ายออก ฿' + fmt(sumOut) + ' · สุทธิ ' + (tNet >= 0 ? '+' : '−') + '฿' + fmt(Math.abs(tNet)) +
+        ' · รับเข้านับทุกประเภทการรับ ยกเว้น 115 รับจากการเบิกฉุกเฉิน (ไฟล์ที่นำเข้ามีประเภท ' + Object.keys(types).sort().join(', ') + ')';
+      flowBox.appendChild(ft);
+    }
 
     /* most used */
     fillSelect('disp-month', [['all', 'ทุกเดือนในปีงบ']].concat(have.map(function(ym){ return [ym, monthLabel(ym)]; })), dispState.month);
