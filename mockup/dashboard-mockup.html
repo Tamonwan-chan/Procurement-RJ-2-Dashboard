@@ -2713,7 +2713,7 @@
     function change(a){
       if(a.prev === null) return prev ? { txt:'ใหม่ปีนี้', cls:'' } : null;
       if(!a.prev) return { txt:'–', cls:'' };
-      var d = (metric(a) - a.prev) / a.prev * 100;
+      var d = (metric(a) - a.prev) / a.prev * 100; if(Math.abs(d) < 0.05) return { txt:'0%', cls:'' };
       return { txt:(d >= 0 ? '▲ ' : '▼ ') + fmt1(Math.abs(d)) + '%', cls:d >= 0 ? 'pt-up' : 'pt-down' };
     }
     function show(v){ return mv ? fmt1(v) : '฿' + fmt(v); }
