@@ -559,6 +559,7 @@
   <div class="barlist" id="disp-months" style="margin-bottom:26px"></div>
   <div class="subhead">การรับเข้า – จ่ายยาออกจากคลัง (รายเดือน)</div>
   <div class="kpi-legend"><span><i style="background:var(--ned)"></i>รับเข้าคลัง</span><span><i style="background:var(--disp)"></i>จ่ายออกจากคลัง</span><span>สุทธิ = รับเข้า − จ่ายออก</span></div>
+  <div class="chips" id="disp-flow-types" style="margin-bottom:10px"></div>
   <div class="pt-chart" id="disp-flow"></div>
   <div class="subhead">ยาที่มีการใช้มากที่สุด</div>
   <div class="table-tools">
@@ -2417,7 +2418,11 @@
   }
 
   /* ---------------- การจ่ายยาจากคลัง (dispen_inven) ---------------- */
-  var dispState = { fy:0, month:'all', room:'all', sort:'value', top:30, search:'', types:{} };
+  var dispState = { fy:0, month:'all', room:'all', sort:'value', top:30, search:'', types:{}, rtypes:{} };
+  /* ประเภทการรับใน RHIS (บันทึกรับเวชภัณฑ์) — 115 รับจากการเบิกฉุกเฉิน ไม่นำเข้าเลย */
+  var RECV_TYPE_NAME = { '101':'รับจากการสั่งซื้อ', '102':'รับจากโครงการพิเศษ', '103':'รับทั่วไป', '104':'รับจากการบริจาคจากการสั่งซื้อ', '105':'รับจากการบริจาค',
+    '106':'รับจากการแลกเปลี่ยน', '107':'รับคืนจากหน่วยเบิก', '108':'รับจากการขอเบิก', '111':'รับจากคลังพัสดุ' };
+  function recvTypeOn(k){ return k in dispState.rtypes ? !!dispState.rtypes[k] : true; }
   var dispAttr = {};
   function dispItemOk(id){
     var L = state.lookups; if(!L) return true;
@@ -2448,7 +2453,7 @@
     if(!all.length){
       document.getElementById('disp-months').innerHTML = '<div class="table-note">นำเข้าไฟล์ dispen_inven (การจ่ายยาจากคลัง) เพื่อดูมูลค่าการจ่ายรายเดือนและยาที่ใช้มากที่สุด</div>';
       document.getElementById('disp-table').innerHTML = '';
-      ['disp-fy','disp-month','disp-room','disp-flow'].forEach(function(i){ document.getElementById(i).innerHTML = ''; });
+      ['disp-fy','disp-month','disp-room','disp-flow','disp-flow-types'].forEach(function(i){ document.getElementById(i).innerHTML = ''; });
       document.getElementById('disp-note').textContent = ''; document.getElementById('disp-count').textContent = '';
       return;
     }
@@ -2499,12 +2504,25 @@
 
     /* การรับเข้า – จ่ายออกจากคลัง: รับเข้า = PO_inven ทุกประเภทการรับ ยกเว้น 115 · จ่ายออก = ประเภทการจ่ายที่เลือกด้านบน */
     var flowBox = document.getElementById('disp-flow'); flowBox.innerHTML = '';
-    var recv = (state.lookups && state.lookups.recv || []).filter(function(r){ return fiscalOf(r.ym) === dispState.fy && dispItemOk(r.id); });
+    var recvAll = (state.lookups && state.lookups.recv || []).filter(function(r){ return fiscalOf(r.ym) === dispState.fy && dispItemOk(r.id); });
+    /* ประเภทย่อยของการรับเข้า (พี่โอมขอเลือกได้) · จ่ายออกใช้ปุ่มประเภทการจ่ายด้านบน */
+    var rStat = {}; recvAll.forEach(function(r){ var k = r.rtype || '101', t = rStat[k] || (rStat[k] = { n:0, v:0 }); t.n++; t.v += r.value; });
+    var rBox = document.getElementById('disp-flow-types'); rBox.innerHTML = '';
+    if(recvAll.length){
+      var lab = document.createElement('span'); lab.className = 'table-note'; lab.style.margin = '0 4px 0 0'; lab.textContent = 'รับเข้า:'; rBox.appendChild(lab);
+      Object.keys(rStat).sort().forEach(function(k){
+        var c = chip(k + ' ' + (RECV_TYPE_NAME[k] || ''), recvTypeOn(k), function(){ dispState.rtypes[k] = !recvTypeOn(k); renderDispense(); }, { sm:true, count:rStat[k].n });
+        c.title = k + ' ' + (RECV_TYPE_NAME[k] || '') + ' · ' + fmt(rStat[k].n) + ' รายการ · ฿' + fmt(rStat[k].v); rBox.appendChild(c);
+      });
+      var lab2 = document.createElement('span'); lab2.className = 'table-note'; lab2.style.margin = '0 0 0 8px'; lab2.textContent = 'จ่ายออก: ตามปุ่มประเภทการจ่ายด้านบน'; rBox.appendChild(lab2);
+    }
+    var recv = recvAll.filter(function(r){ return recvTypeOn(r.rtype || '101'); });
     if(!(state.lookups && state.lookups.recv && state.lookups.recv.length)){
       flowBox.innerHTML = '<div class="table-note">ยังไม่มีข้อมูลรับเข้า — ลากไฟล์ PO_inven (บันทึกรับเวชภัณฑ์) มาวาง</div>';
     } else {
       var inM = {}, types = {};
       recv.forEach(function(r){ inM[r.ym] = (inM[r.ym] || 0) + r.value; types[r.rtype || '101'] = 1; });
+      if(!Object.keys(types).length) types['ไม่ได้เลือก'] = 1;
       var flowLast = months.filter(function(ym){ return byMonth[ym] || inM[ym]; }).pop() || months[0];
       var flowMonths = months.filter(function(ym){ return ym <= flowLast; });
       var fMax = Math.max.apply(null, flowMonths.map(function(ym){ return Math.max(inM[ym] || 0, byMonth[ym] || 0); }).concat([1]));
@@ -2523,7 +2541,7 @@
       var ft = document.createElement('div'); ft.className = 'table-note';
       var tNet = sumIn - sumOut;
       ft.textContent = 'รวมต้นปีงบ – ' + monthLabel(flowLast) + ': รับเข้า ฿' + fmt(sumIn) + ' · จ่ายออก ฿' + fmt(sumOut) + ' · สุทธิ ' + (tNet >= 0 ? '+' : '−') + '฿' + fmt(Math.abs(tNet)) +
-        ' · รับเข้านับทุกประเภทการรับ ยกเว้น 115 รับจากการเบิกฉุกเฉิน (ไฟล์ที่นำเข้ามีประเภท ' + Object.keys(types).sort().join(', ') + ')';
+        ' · รับเข้านับประเภทที่เลือก (' + Object.keys(types).sort().join(', ') + ') ไม่นับ 115 รับจากการเบิกฉุกเฉิน';
       flowBox.appendChild(ft);
     }
 
@@ -2897,7 +2915,8 @@
     { k:'disp', label:'จ่ายจากคลัง', color:'var(--disp)' }
   ];
   var REP_BY = [['month', 'รวม (รายเดือน)'], ['ed', 'ED / NED'], ['gpsc', 'กลุ่ม GPSC'], ['gpu', 'GPU']];
-  var REP_METRIC = [['value', 'มูลค่า (บาท)'], ['items', 'จำนวนรายการ'], ['boxes', 'จำนวน (กล่อง)']];
+  /* พี่โอมขีด "จำนวน (กล่อง)" ออก (ผลรวมกล่องของยาต่างขนาดกัน เทียบกันไม่ได้) — เหลือ มูลค่า / จำนวนรายการ */
+  var REP_METRIC = [['value', 'มูลค่า (บาท)'], ['items', 'จำนวนรายการ']];
   var REP_ED = { ED:'ED (ก ข ค ง)', NED:'NED', other:'อื่น ๆ (ไม่นับใน ED : NED)' };
   var repState = { by:'month', metric:'value', measure:'disp', top:15 };
   var REP_CHART_MAX = 50;
@@ -3025,14 +3044,15 @@
     else keys = Object.keys(agg).sort(function(a, b){
       function v(k){ var c = agg[k][repState.measure]; return c && c[d.cur] ? repMetric(c[d.cur]) : 0; }
       function vp(k){ var c = agg[k][repState.measure]; return c && d.prev && c[d.prev] ? repMetric(c[d.prev]) : 0; }
-      return v(b) - v(a) || vp(b) - vp(a) || String(a).localeCompare(String(b), 'th');
+      function none(k){ return k === 'ไม่มี gpucode' || k === NO_GPS; }
+      return (none(a) ? 1 : 0) - (none(b) ? 1 : 0) || v(b) - v(a) || vp(b) - vp(a) || String(a).localeCompare(String(b), 'th');
     });
     var allCount = keys.length;
     if(repState.by !== 'month' && repState.by !== 'ed' && repState.top) keys = keys.slice(0, repState.top);
     function label(k){
       if(repState.by === 'month') return repShortMonth(d.months[d.cur][k]);
       if(repState.by === 'ed') return REP_ED[k];
-      if(repState.by === 'gpu') return d.labels[k] ? d.labels[k] + ' (' + k + ')' : k;
+      if(repState.by === 'gpu') return d.labels[k] ? d.labels[k] + ' (GPU ' + k + ')' : k;
       return k;
     }
     function val(src, m, fy){ var c = src && src[m] && src[m][fy]; return c ? repMetric(c) : null; }
