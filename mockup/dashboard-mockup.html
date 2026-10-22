@@ -711,6 +711,7 @@
     return { slot:'room:' + l.id, label:'ห้องจ่ายยา ' + l.short, desc:'ยอดคงเหลือ (unit)', room:l.id };
   })).concat([{ slot:'list', label:'list', desc:'แจ้งความต้องการซื้อ' }, { slot:'plan', label:'planfin', desc:'แผนจัดซื้อรายปี (ห้ามซื้อเกิน)' }, { slot:'dispense', label:'dispen_inven', desc:'การจ่ายยาจากคลัง (รายวัน)' },
     { slot:'po', label:'PO_inven', desc:'รับจากการสั่งซื้อ (มูลค่าจัดซื้อ)' },
+    { slot:'invstatus', label:'Inventory Status', desc:'คงคลัง ณ สิ้นเดือน ย้อนหลัง (ชื่อไฟล์ระบุเดือน เช่น 01-69)' },
     { slot:'quoteTpl', label:'DATA Template', desc:'แบบฟอร์มขอใบเสนอราคา (เก็บในเครื่องนี้เท่านั้น)' }]);
   /* hospcode, ชื่อยา, ทะเบียน, ised + ห้องละ 1 คอลัมน์ + รวม, expdate, มูลค่า, distribute */
   var TABLE_COLS = 13 + LOCATIONS.length;
@@ -1190,12 +1191,19 @@
     if(!files.length) return;
     hideError();
     showNote('กำลังอ่านไฟล์ ' + files.length + ' ไฟล์…');
-    var found = {}, unknown = [], dup = [], keptLot = false;
+    var found = {}, unknown = [], dup = [], keptLot = false, statusFiles = [];
     var chain = Promise.resolve();
     files.forEach(function(f){
       chain = chain.then(function(){ return readFile(f); }).then(function(buf){
         var wb = XLSX.read(buf, { type:'array' });
         var hit = false;
+        /* Inventory Status (คงคลัง ณ สิ้นเดือน ย้อนหลัง): ในไฟล์ไม่มีวันที่ ใช้เดือนจากชื่อไฟล์ เช่น "Inventory_status 01-69" = ม.ค.69
+           หัวคอลัมน์ซ้ำกับไฟล์คลังยา / ห้องจ่ายยา จึงจับจากชื่อไฟล์ก่อน และเก็บเป็นประวัติอย่างเดียว ไม่แทนคงคลังปัจจุบัน */
+        var stAsof = invStatusAsof(f.name);
+        if(stAsof){
+          var stRows = parseInvStatus(wb, stAsof);
+          if(stRows.length){ statusFiles.push({ fileName:f.name, importedAt:new Date().toISOString(), rows:stRows, asof:stAsof }); return; }
+        }
         var tplSheet = quoteSheetName(wb);
         if(tplSheet){
           found.quoteTpl = { slot:'quoteTpl', fileName:f.name, sheetName:tplSheet.trim(), importedAt:new Date().toISOString(), rowCount:1, buf:buf };
@@ -1254,7 +1262,7 @@
       state.fresh = Object.keys(found);
       var save = recs.length ? dbPut(recs).catch(function(){ storageOk = false; }) : Promise.resolve();
       return save.then(function(){
-        if(!recs.length && !oldInv){
+        if(!recs.length && !oldInv && !statusFiles.length){
           showNote('');
           showError('ไม่รู้จักไฟล์ที่นำเข้า: ' + unknown.join(', ') + ' — ต้องเป็นไฟล์ที่ export จาก HIS ที่มีหัวคอลัมน์เดิม');
           return;
@@ -1263,10 +1271,20 @@
         rebuild();
         if(state.datasets.inventory){ kpiRecordStock(state.datasets.inventory); stockHistRecord(state.datasets.inventory); }
         if(oldInv){ kpiRecordStock(oldInv); stockHistRecord(oldInv); }
+        if(statusFiles.length){
+          statusFiles.sort(function(a, b){ return a.asof - b.asof; }).forEach(function(inv){ kpiRecordStock(inv); stockHistRecord(inv); });
+          var prevMeta = state.datasets.invstatus || {}, mset = {};
+          (prevMeta.months || []).concat(statusFiles.map(function(x){ return Math.floor(x.asof / 100); })).forEach(function(m){ mset[m] = 1; });
+          state.datasets.invstatus = { slot:'invstatus', fileName:statusFiles.map(function(x){ return x.fileName; }).join(', '), importedAt:new Date().toISOString(),
+            rowCount:statusFiles.reduce(function(s, x){ return s + x.rows.length; }, 0), rows:[], months:Object.keys(mset).map(Number).sort() };
+          dbPut([state.datasets.invstatus]).catch(function(){ storageOk = false; });
+          updateSourceUI(); renderKpi(); renderReport();
+        }
         var oa = oldInv ? invAsof(oldInv) : 0;
         resetFilters(); renderAll();
         showNote((recs.length ? 'นำเข้าแล้ว ' + recs.length + ' ไฟล์: ' + recs.map(function(r){ return slotLabel(r.slot); }).join(', ') : '') +
           (oldInv ? (recs.length ? ' · ' : '') + 'คลังยา ' + oldInv.fileName + ' เป็นยอดย้อนหลัง (ณ ' + (oa % 100) + ' ' + TH_MONTHS_ABBR[Math.floor(oa / 100) % 100 - 1] + '. ' + String(Math.floor(oa / 10000) + 543).slice(-2) + ') บันทึกเป็นประวัติคงคลังรายเดือน ไม่แทนข้อมูลล่าสุด' : '') +
+          (statusFiles.length ? (recs.length || oldInv ? ' · ' : '') + 'Inventory Status ' + statusFiles.map(function(x){ return monthLabel(Math.floor(x.asof / 100)); }).join(', ') + ' บันทึกเป็นคงคลัง ณ สิ้นเดือน (ประวัติ ไม่แทนข้อมูลล่าสุด)' : '') +
           (dup.length ? ' · มีไฟล์ซ้ำประเภทเดียวกัน ใช้ไฟล์ที่วางทีหลัง: ' + dup.join(', ') : '') +
           (keptLot ? ' · คลังยามี 2 ไฟล์ ใช้ไฟล์ที่มี lot / expdate' : '') +
           (storageOk ? '' : ' · บันทึกลงเครื่องไม่ได้ ข้อมูลจะหายเมื่อปิดหน้า'));
@@ -1293,7 +1311,7 @@
         '<span class="fs-name"><span class="fs-dot"></span>' + esc(s.label) + '</span>' +
         '<span class="fs-meta">' + esc(s.desc) + '</span>' +
         '<span class="fs-meta' + (r ? '' : ' fs-empty') + '" title="' + esc(r ? r.fileName : '') + '">' +
-          (r ? esc(fmtDate(r.importedAt)) + (s.slot === 'quoteTpl' ? ' · ' + esc(r.sheetName || '') : ' · ' + fmt(r.rowCount) + ' แถว') + (s.slot === 'plan' ? ' · ปีงบ ' + planYearsText(r.rows) : '') : 'ยังไม่มีข้อมูล') + '</span></div>';
+          (r ? esc(fmtDate(r.importedAt)) + (s.slot === 'quoteTpl' ? ' · ' + esc(r.sheetName || '') : s.slot === 'invstatus' ? ' · ' + (r.months || []).map(monthLabel).join(', ') : ' · ' + fmt(r.rowCount) + ' แถว') + (s.slot === 'plan' ? ' · ปีงบ ' + planYearsText(r.rows) : '') : 'ยังไม่มีข้อมูล') + '</span></div>';
     }).join('');
     var missingSlots = FILE_SLOTS.filter(function(s){ return !ds[s.slot]; });
     document.getElementById('fs-missing').textContent = missingSlots.length ? '· ยังไม่มี ' + missingSlots.length + ' ไฟล์' : '';
@@ -2819,13 +2837,14 @@
        ในเดือนเดียวกันใช้ไฟล์ที่วันที่ใกล้สิ้นเดือนที่สุด · ช่องที่พิมพ์เองไม่ถูกแทนที่ */
     var d = new Date(), asof = inv.rows.map(function(r){ return r.asof; }).filter(Boolean)[0] || (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate());
     var ym = Math.floor(asof / 100), cur = kpiStore.stock[ym];
-    if(cur && (cur.src !== 'import' || (cur.asof || 0) > asof)) return;
+    if(cur && (cur.src === 'manual' || (cur.src === 'import' && (cur.asof || 0) > asof))) return;
+    var slideV = cur ? (cur.src === 'slide' ? cur.v : cur.slideV) : null;
     /* นับเฉพาะยา (ทะเบียนยา) ในคลังยา — พี่โอมยืนยัน · ถ้ายังไม่มี Meditem / ทะเบียน จะยังแยกไม่ได้ */
     var L = state.lookups, canTell = !!(L && (Object.keys(L.med).length || Object.keys(L.reg).length));
     var v = inv.rows.reduce(function(s, r){ return s + (!canTell || regTypeOf(L, r.id) === 'ทะเบียนยา' ? (r.value || 0) : 0); }, 0);
     v = Math.round(v * 100) / 100;
     if(cur && cur.asof === asof && cur.v === v && cur.drugOnly === canTell) return;
-    kpiStore.stock[ym] = { v:v, src:'import', at:inv.importedAt, file:inv.fileName, asof:asof, drugOnly:canTell };
+    kpiStore.stock[ym] = { v:v, src:'import', at:inv.importedAt, file:inv.fileName, asof:asof, drugOnly:canTell, slideV:slideV || null };
     kpiSave();
   }
   function kpiPayFromFile(){
@@ -2840,7 +2859,7 @@
     if(e.src === 'slide') return 'จากตารางในสไลด์';
     if(e.src === 'file') return 'จาก dispen_inven (ตามประเภทการจ่ายที่เลือก)' + (e.slideV ? ' · สไลด์เดิม ' + fmt(e.slideV) : '');
     if(e.src === 'import') return 'จากไฟล์คลังยา ยอด ณ ' + (e.asof % 100) + ' ' + TH_MONTHS_ABBR[Math.floor(e.asof / 100) % 100 - 1] + '. ' + String(Math.floor(e.asof / 10000) + 543).slice(-2) +
-      (e.drugOnly === false ? ' (รวมทุกรายการ — นำเข้า Meditem เพื่อแยกเฉพาะยา)' : ' · เฉพาะยา');
+      (e.drugOnly === false ? ' (รวมทุกรายการ — นำเข้า Meditem เพื่อแยกเฉพาะยา)' : ' · เฉพาะยา') + (e.slideV ? ' · สไลด์เดิม ' + fmt(e.slideV) : '');
     return '';
   }
 
@@ -2948,6 +2967,29 @@
   function invAsof(inv){
     var a = inv.rows.map(function(r){ return r.asof; }).filter(Boolean)[0]; if(a) return a;
     var d = new Date(inv.importedAt || Date.now()); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  }
+  function invStatusAsof(name){
+    var m = /inventory[\s_-]*status[^0-9]*(\d{1,2})\s*[-_.\/]\s*(\d{2,4})/i.exec(String(name || '')); if(!m) return 0;
+    var mm = +m[1], y = +m[2]; if(!(mm >= 1 && mm <= 12)) return 0;
+    if(y < 100) y += 2500; if(y > 2400) y -= 543;                 /* 69 → 2569 → 2026 */
+    var last = new Date(y, mm, 0).getDate();
+    return y * 10000 + mm * 100 + last;                             /* ยอด ณ สิ้นเดือน */
+  }
+  function parseInvStatus(wb, asof){
+    var out = [];
+    wb.SheetNames.forEach(function(sn){
+      var t = readTable(wb.Sheets[sn]); if(!t) return;
+      function g(r, k){ return k in t.col ? r[t.col[k]] : ''; }
+      var a = has(t, ['รหัสเวชภัณฑ์','จำนวน','รวมมูลค่า']), b = has(t, ['meditem','stkqty','unitcost']);
+      if(!a && !b) return;
+      t.rows.forEach(function(r){
+        var idv = a ? g(r, 'รหัสเวชภัณฑ์') : g(r, 'meditem'); if(!isCode(idv)) return;   /* ข้ามแถวหัวกลุ่ม "ประเภท : …" */
+        var qty = num(a ? g(r, 'จำนวน') : g(r, 'stkqty'));
+        var value = a ? num(g(r, 'รวมมูลค่า')) : qty * num(g(r, 'unitcost'));          /* stkqty เป็นกล่อง × unitcost ราคาต่อกล่อง */
+        out.push({ id:idOf(idv), qty:qty, value:value, asof:asof });
+      });
+    });
+    return out;
   }
   function stockHistRecord(inv){
     if(!stockHist) stockHist = { slot:STOCKH_SLOT, months:{} };
