@@ -148,6 +148,15 @@
   /* ---- panels ---- */
   section.panel{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px 24px 24px; margin-bottom:22px; box-shadow:var(--shadow); }
   .panel > header{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:8px 20px; margin-bottom:4px; }
+  /* หัวข้อย่อ / ขยาย (พี่โอม: ย่อให้เห็นแต่หัวข้อ กดชื่อหัวข้อเพื่อดูข้อมูล) */
+  .panel.collapsed > :not(header){ display:none !important; }
+  .panel.collapsed{ padding-bottom:18px; }
+  .panel.collapsed > header{ margin-bottom:0; }
+  .collapse-btn{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; display:inline-flex; align-items:baseline; gap:8px; text-align:left; }
+  .collapse-btn::before{ content:'▾'; font-size:.8em; color:var(--ink-faint); transition:transform .15s; display:inline-block; }
+  .panel.collapsed .collapse-btn::before{ transform:rotate(-90deg); }
+  .collapse-btn:hover{ color:var(--accent); }
+  .collapse-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
   .panel h2{ font-size:19px; }
   .panel .hint{ font-size:12.5px; color:var(--ink-faint); }
   .panel .desc{ font-size:13.5px; color:var(--ink-muted); margin:4px 0 18px; max-width:72ch; }
@@ -403,7 +412,7 @@
 
 <section class="panel">
   <header>
-    <h2>สัดส่วนบัญชียา ED / NED</h2>
+    <h2 data-collapse="edned">สัดส่วนบัญชียา ED / NED</h2>
     <span class="hint">นับต่อ 100 รายการ · นับรายการละ 1 ครั้ง</span>
   </header>
   <p class="desc">นับเฉพาะรายการที่มีสต็อกรวม (คลังยา + ชั้น 1 + ชั้น G) มากกว่า 0 — ยาที่มีอยู่หลายห้อง เช่น NUOSIC นับเป็น 1 รายการ ไม่นับซ้ำตามจำนวนห้อง</p>
@@ -421,7 +430,7 @@
 
 <section class="panel">
   <header>
-    <h2>มูลค่าคงคลังพัสดุ</h2>
+    <h2 data-collapse="value">มูลค่าคงคลังพัสดุ</h2>
     <span class="hint">ตอบสนองตัวกรองด้านบน</span>
   </header>
   <p class="desc">คลังยา = "มูลค่ารวมคงคลัง" จาก inventory (รวมทุก lot) · ห้องจ่ายยา (ชั้น G, ชั้น 1 และห้องใหม่ในอนาคต) = จำนวน (unit) × ราคาทุน/หน่วย (costrate จาก Meditem)</p>
@@ -442,7 +451,7 @@
 
 <section class="panel">
   <header>
-    <h2>มูลค่ารวมตาม GPU</h2>
+    <h2 data-collapse="gpu">มูลค่ารวมตาม GPU</h2>
     <span class="hint">จากไฟล์ PO_inven · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
   <p class="desc">มูลค่าจัดซื้อ (รับจากการสั่งซื้อ) ตั้งแต่ต้นปีงบถึงปัจจุบัน รวมทุกยี่ห้อที่มี gpucode เดียวกัน (เช่น paracetamol: SARA + PATAR) · ท้ายแท่งแสดงยอด planfin ของ GPU นั้น (รวมจำนวนและมูลค่าทุกยี่ห้อ)</p>
@@ -551,7 +560,7 @@
 
 <section class="panel" id="disp-panel">
   <header>
-    <h2>การจ่ายยาจากคลัง</h2>
+    <h2 data-collapse="disp">การจ่ายยาจากคลัง</h2>
     <span class="hint" id="disp-hint">จากไฟล์ dispen_inven · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
   <p class="desc">มูลค่า = จำนวนจ่าย × ราคาทุน/หน่วยจัดหา (unitcost) · นับตามประเภทการจ่าย (คอลัมน์ name) — ค่าเริ่มต้นนับทุกประเภท ยกเว้น เบิกฉุกเฉิน (ใช้เคลียร์ยายืม), จ่ายทั่วไป, ปรับยอดคงคลัง และจำหน่ายออก ตามที่พี่โอมกำหนด · แลกเปลี่ยน (ส่งบริษัทเปลี่ยนยาที่มีปัญหา / ใกล้หมดอายุ) นับด้วย · กดเพื่อเลือก / ไม่เลือกประเภทได้ (ใช้กับกราฟเดือนสำรองคงคลังด้วย)</p>
@@ -3210,6 +3219,31 @@
     });
   }
   document.getElementById('rep-top').addEventListener('change', function(e){ repState.top = Number(e.target.value); renderReport(); });
+
+  /* ---------------- ย่อ / ขยายหัวข้อ ----------------
+     หัวข้อเดิม 4 ส่วน (สัดส่วน ED/NED, มูลค่าคงคลังพัสดุ, มูลค่ารวมตาม GPU, การจ่ายยาจากคลัง) ย่อไว้เป็นค่าเริ่มต้น
+     กดชื่อหัวข้อเพื่อเปิด / ปิด · จำสถานะไว้ในเบราว์เซอร์นี้ */
+  var COLLAPSE_KEY = 'rj2-open-panels';
+  function openPanels(){ try{ return JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '{}') || {}; }catch(e){ return {}; } }
+  (function setupCollapse(){
+    var open = openPanels();
+    Array.prototype.forEach.call(document.querySelectorAll('h2[data-collapse]'), function(h2){
+      var key = h2.getAttribute('data-collapse'), panel = h2.closest('section.panel');
+      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'collapse-btn';
+      btn.textContent = h2.textContent; h2.textContent = ''; h2.appendChild(btn);
+      function set(isOpen){
+        panel.classList.toggle('collapsed', !isOpen);
+        btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        btn.title = isOpen ? 'กดเพื่อย่อหัวข้อ' : 'กดเพื่อดูข้อมูลในหัวข้อนี้';
+      }
+      set(!!open[key]);
+      btn.addEventListener('click', function(){
+        var now = panel.classList.contains('collapsed'); set(now);
+        var o = openPanels(); if(now) o[key] = 1; else delete o[key];
+        try{ localStorage.setItem(COLLAPSE_KEY, JSON.stringify(o)); }catch(e){}
+      });
+    });
+  })();
 
   function renderAll(){
     var visible = state.items.filter(function(it){ return inStock(it) && matchReg(it) && matchAcct(it); });
