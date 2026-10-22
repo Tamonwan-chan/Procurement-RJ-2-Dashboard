@@ -34,6 +34,6 @@ Context for any Claude Code session that opens this repo (the owner works from m
 - Stock history: every inventory_exp import is stored per month (`_stockhist` in IndexedDB, 2 fiscal years) for the year-comparison report; a file dated older than the current one is kept as history only.
 - เดือนสำรองคงคลัง = drug-only stock value at month end ÷ dispensed value; KPI ≤ 1.33; line green ≤ 1.33, orange ≤ 2.00, red > 2.00, plus mean line.
 - GPU chart = PO_inven purchase value since fiscal-year start, ฿500,000 ceiling, planfin totals by GPU at the bar end.
-- planfin: latest year drives "ห้ามซื้อเกิน", quote prices (cost per box) and the GPU chart; up to 2 years kept for the ranking comparison.
+- planfin: latest year drives "ห้ามซื้อเกิน", quote prices (cost per box) and the GPU chart; up to 5 years kept; the ranking has a free year / compare-year picker.
 - Quotes: one sheet per distributor, max 8 items; numbers W (drugs) / WM (non-drug supplies, materials, others) / WC (pharmaceutical chemicals), format `W001-70`, rolling to the new fiscal year automatically; reopen-to-edit keeps the same number.
 - Fiscal year starts in October (พ.ศ.).
