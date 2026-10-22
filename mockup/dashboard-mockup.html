@@ -554,7 +554,7 @@
     <h2>การจ่ายยาจากคลัง</h2>
     <span class="hint" id="disp-hint">จากไฟล์ dispen_inven · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
-  <p class="desc">มูลค่า = จำนวนจ่าย × ราคาทุน/หน่วยจัดหา (unitcost) · นับตามประเภทการจ่าย (คอลัมน์ name) — ค่าเริ่มต้นนับทุกประเภท ยกเว้น เบิกฉุกเฉิน (ใช้เคลียร์ยายืม), จ่ายทั่วไป และปรับยอดคงคลัง ตามที่พี่โอมกำหนด · กดเพื่อเลือก / ไม่เลือกประเภทได้ (ใช้กับกราฟเดือนสำรองคงคลังด้วย)</p>
+  <p class="desc">มูลค่า = จำนวนจ่าย × ราคาทุน/หน่วยจัดหา (unitcost) · นับตามประเภทการจ่าย (คอลัมน์ name) — ค่าเริ่มต้นนับทุกประเภท ยกเว้น เบิกฉุกเฉิน (ใช้เคลียร์ยายืม), จ่ายทั่วไป, ปรับยอดคงคลัง และจำหน่ายออก ตามที่พี่โอมกำหนด · แลกเปลี่ยน (ส่งบริษัทเปลี่ยนยาที่มีปัญหา / ใกล้หมดอายุ) นับด้วย · กดเพื่อเลือก / ไม่เลือกประเภทได้ (ใช้กับกราฟเดือนสำรองคงคลังด้วย)</p>
   <div class="table-tools"><select class="search field-select" id="disp-fy" aria-label="ปีงบประมาณ"></select><div class="chips" id="disp-types"></div></div>
   <div class="table-note" id="disp-note" style="margin:-4px 0 12px"></div>
   <div class="subhead">มูลค่าการจ่ายต่อเดือน (ต้นปีงบ – ปัจจุบัน)</div>
@@ -2467,8 +2467,9 @@
     return hit ? hit.short : r.unitName;
   }
   /* ประเภทการจ่ายที่นับ (คอลัมน์ H name) — พี่โอม (14 ต.ค. 69): นับทุกประเภท ยกเว้น
-     จ่ายจากการเบิกฉุกเฉิน (115 ใช้เคลียร์ยายืม), จ่ายทั่วไป (101), จ่ายปรับยอดคงคลัง (120) · แถวที่ไม่ระบุประเภทไม่นับ */
-  var DISP_TYPES_EXCLUDED = /เบิกฉุกเฉิน|ทั่วไป|ปรับยอดคงคลัง/;
+     จ่ายจากการเบิกฉุกเฉิน (115 ใช้เคลียร์ยายืม), จ่ายทั่วไป (101), จ่ายปรับยอดคงคลัง (120)
+     + จ่ายจากการจำหน่ายออก (พี่โอม 22 ต.ค. 69) · แลกเปลี่ยนนับ (ส่งบริษัทเปลี่ยนยามีปัญหา / ใกล้หมดอายุ) · แถวที่ไม่ระบุประเภทไม่นับ */
+  var DISP_TYPES_EXCLUDED = /เบิกฉุกเฉิน|ทั่วไป|ปรับยอดคงคลัง|จำหน่ายออก/;
   function dispTypeOn(kind){
     var k = kind || 'ไม่ระบุประเภท';
     return k in dispState.types ? !!dispState.types[k] : !!kind && !DISP_TYPES_EXCLUDED.test(k);
@@ -2506,7 +2507,7 @@
     });
     if(Object.keys(typeStat).some(function(k){ return dispTypeOn(k) !== dispTypeDefault(k); })){
       var reset = document.createElement('button'); reset.type = 'button'; reset.className = 'btn-ghost'; reset.textContent = 'กลับค่าเริ่มต้น';
-      reset.title = 'นับทุกประเภท ยกเว้น เบิกฉุกเฉิน จ่ายทั่วไป และปรับยอดคงคลัง';
+      reset.title = 'นับทุกประเภท ยกเว้น เบิกฉุกเฉิน จ่ายทั่วไป ปรับยอดคงคลัง และจำหน่ายออก';
       reset.addEventListener('click', function(){ dispState.types = {}; renderDispense(); renderKpi(); renderReport(); });
       typeBox.appendChild(reset);
     }
