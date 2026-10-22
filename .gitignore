@@ -2,3 +2,7 @@
 *.xlsx
 *.xls
 !mockup/*.xlsx
+
+# Real hospital Word documents (memo templates with staff names) — never commit
+*.docx
+*.doc
