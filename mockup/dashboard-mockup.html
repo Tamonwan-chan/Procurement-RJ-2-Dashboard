@@ -26,7 +26,7 @@
     --good:#227A47; --warning:#A85F12; --critical:#9E3226;
     --good-soft:#DDF0E3; --warning-soft:#F6E4CB; --critical-soft:#F5DEDB;
     --cat-1:#0F8A6C; --cat-2:#3568B0; --cat-3:#C24A2E; --cat-4:#8A4A9E; --cat-5:#4F7A2E;
-    --ed:#FFC000; --ned:#2F62AB; --on-group:#FFFFFF; --on-ed:#2B2100;
+    --ed:#FFC000; --ned:#0099FF; --other:#008080; --on-group:#FFFFFF; --on-ed:#2B2100; --on-ned:#00233A;
     --shadow:0 1px 2px rgba(11,58,82,.08), 0 4px 16px rgba(11,58,82,.08);
     --radius:10px;
   }
@@ -39,7 +39,7 @@
       --good:#4FBE82; --warning:#E0973F; --critical:#E0665A;
       --good-soft:#1E3327; --warning-soft:#3A2C16; --critical-soft:#3A2320;
       --cat-1:#22A883; --cat-2:#5F87C9; --cat-3:#D06A50; --cat-4:#A66DC0; --cat-5:#6FA155;
-      --ed:#FFC000; --ned:#6A92D6; --on-group:#0E1D25; --on-ed:#2B2100;
+      --ed:#FFC000; --ned:#0099FF; --other:#1AA3A3; --on-group:#0E1D25; --on-ed:#2B2100; --on-ned:#00233A;
       --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 22px rgba(0,0,0,.4);
     }
   }
@@ -51,7 +51,7 @@
     --good:#4FBE82; --warning:#E0973F; --critical:#E0665A;
     --good-soft:#1E3327; --warning-soft:#3A2C16; --critical-soft:#3A2320;
     --cat-1:#22A883; --cat-2:#5F87C9; --cat-3:#D06A50; --cat-4:#A66DC0; --cat-5:#6FA155;
-    --ed:#FFC000; --ned:#6A92D6; --on-group:#0E1D25; --on-ed:#2B2100;
+    --ed:#FFC000; --ned:#0099FF; --other:#1AA3A3; --on-group:#0E1D25; --on-ed:#2B2100; --on-ned:#00233A;
     --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 22px rgba(0,0,0,.4);
   }
 
@@ -414,7 +414,7 @@
   <div class="legend">
     <span><i style="background:var(--ed)"></i>บัญชี ED (ก ข ค ง)</span>
     <span><i style="background:var(--ned)"></i>NED</span>
-    <span><i style="background:var(--ink-faint)"></i>อื่น ๆ</span>
+    <span><i style="background:var(--other)"></i>อื่น ๆ (เวชภัณฑ์มิใช่ยา และบัญชีอื่น)</span>
   </div>
   <div class="barlist" id="chart-acct"></div>
 </section>
@@ -431,7 +431,7 @@
   <div class="legend">
     <span><i style="background:var(--ed)"></i>บัญชี ED (ก ข ค ง)</span>
     <span><i style="background:var(--ned)"></i>NED</span>
-    <span><i style="background:var(--ink-faint)"></i>อื่น ๆ</span>
+    <span><i style="background:var(--other)"></i>อื่น ๆ (เวชภัณฑ์มิใช่ยา และบัญชีอื่น)</span>
   </div>
   <div class="barlist" id="chart-value-acct" style="margin-bottom:26px"></div>
   <div class="subhead">แยกตามกลุ่ม GPSC — เทียบกับการนำเข้าครั้งก่อน</div>
@@ -560,7 +560,7 @@
   <div class="subhead">มูลค่าการจ่ายต่อเดือน (ต้นปีงบ – ปัจจุบัน)</div>
   <div class="barlist" id="disp-months" style="margin-bottom:26px"></div>
   <div class="subhead">การรับเข้า – จ่ายยาออกจากคลัง (รายเดือน)</div>
-  <div class="kpi-legend"><span><i style="background:var(--ned)"></i>รับเข้าคลัง</span><span><i style="background:var(--disp)"></i>จ่ายออกจากคลัง</span><span>สุทธิ = รับเข้า − จ่ายออก</span></div>
+  <div class="kpi-legend"><span><i style="background:var(--cat-2)"></i>รับเข้าคลัง</span><span><i style="background:var(--disp)"></i>จ่ายออกจากคลัง</span><span>สุทธิ = รับเข้า − จ่ายออก</span></div>
   <div class="chips" id="disp-flow-types" style="margin-bottom:10px"></div>
   <div class="pt-chart" id="disp-flow"></div>
   <div class="subhead">ยาที่มีการใช้มากที่สุด</div>
@@ -733,10 +733,10 @@
     { key:'EDข',  label:'b:basic list (EDข)',          group:'ED' },
     { key:'EDค',  label:'s:supplemental list (EDค)',   group:'ED' },
     { key:'EDง',  label:'ex:exclusive list (EDง)',     group:'ED' },
-    { key:'NED',  label:'NED',                         group:'NED' },
-    { key:'nondrug', label:'เวชภัณฑ์มิใช่ยา',           group:'other' },
     { key:'EDจ1', label:'R1:restricted list (EDจ(1))', group:'other' },
     { key:'EDจ2', label:'R2:restricted list (EDจ(2))', group:'other' },
+    { key:'NED',  label:'NED',                         group:'NED' },
+    { key:'nondrug', label:'เวชภัณฑ์มิใช่ยา',           group:'other' },
     { key:'herb', label:'บัญชียาสมุนไพร',              group:'other' },
     { key:'covid',label:'ยา Covid 19',                 group:'other' },
     { key:'formula', label:'สูตรตำรับ รพ.',             group:'other' },
@@ -746,7 +746,7 @@
   ACCT_CATS.forEach(function(c){ if(c.key !== 'other') ACCT_BY_LABEL[squash(c.label)] = c.key; });
   var ACCT_BY_KEY = {};
   ACCT_CATS.forEach(function(c){ ACCT_BY_KEY[c.key] = c; });
-  var GROUP_COLOR = { ED:'var(--ed)', NED:'var(--ned)', other:'var(--ink-faint)' };
+  var GROUP_COLOR = { ED:'var(--ed)', NED:'var(--ned)', other:'var(--other)' };
 
   function squash(s){ return String(s == null ? '' : s).replace(/\s+/g,' ').trim(); }
   function acctKey(raw){ return ACCT_BY_LABEL[squash(raw)] || 'other'; }
@@ -1473,6 +1473,7 @@
         var seg = document.createElement('div'); seg.className = 'prop-seg';
         seg.style.width = (g[1] / both * 100) + '%'; seg.style.background = GROUP_COLOR[g[0]];
         if(g[0] === 'ED') seg.style.color = 'var(--on-ed)';
+        if(g[0] === 'NED') seg.style.color = 'var(--on-ned)';
         seg.textContent = g[2] >= 12 ? g[0] + ' ' + fmt(g[1]) + ' (' + g[2] + ')' : '';
         bindTooltip(seg, g[0] + ' · ' + fmt(g[1]) + ' รายการ · ' + g[2] + ' ต่อ 100');
         bar.appendChild(seg);
@@ -2563,7 +2564,7 @@
         var a = inM[ym] || 0, b = byMonth[ym] || 0, net = a - b; sumIn += a; sumOut += b;
         var row = document.createElement('div'); row.className = 'pt-row';
         row.innerHTML = '<div class="rlabel">' + monthLabel(ym) + '</div>' +
-          '<div class="pt-bars"><div class="pt-bar" style="background:var(--ned);width:' + (a / fMax * 100) + '%"></div>' +
+          '<div class="pt-bars"><div class="pt-bar" style="background:var(--cat-2);width:' + (a / fMax * 100) + '%"></div>' +
           '<div class="pt-bar" style="background:var(--disp);width:' + (b / fMax * 100) + '%"></div></div>' +
           '<div class="rvalue">' + (a || b ? 'สุทธิ ' + (net >= 0 ? '+' : '−') + '฿' + fmt(Math.abs(net)) : '<small>ไม่มีข้อมูล</small>') +
           (a || b ? '<small>รับ ฿' + fmt(a) + ' · จ่าย ฿' + fmt(b) + '</small>' : '') + '</div>';
@@ -3144,7 +3145,7 @@
         var row = document.createElement('div'); row.className = 'pt-row';
         row.innerHTML = '<div class="rlabel">ปีงบ ' + fy + '</div><div class="rep-split">' + (both ?
           '<div style="width:' + (e / both * 100) + '%;background:var(--ed);color:var(--on-ed)">' + (ep >= 12 ? 'ED ' + ep + '%' : '') + '</div>' +
-          '<div style="width:' + (n / both * 100) + '%;background:var(--ned);color:#FFFFFF;justify-content:flex-end">' + (100 - ep >= 12 ? 'NED ' + (100 - ep) + '%' : '') + '</div>' : '') + '</div>' +
+          '<div style="width:' + (n / both * 100) + '%;background:var(--ned);color:var(--on-ned);justify-content:flex-end">' + (100 - ep >= 12 ? 'NED ' + (100 - ep) + '%' : '') + '</div>' : '') + '</div>' +
           '<div class="rvalue">' + (both ? 'ED ' + ep + ' : NED ' + (100 - ep) : 'ไม่มีข้อมูล') + '<small>' + repShow(e) + ' : ' + repShow(n) + '</small></div>';
         bindTooltip(row.querySelector('.rep-split'), 'ปีงบ ' + fy + ' · ' + mea.label + ' · ED ' + repShow(e) + ' · NED ' + repShow(n) + ' (' + unit + ')');
         chart.appendChild(row);
