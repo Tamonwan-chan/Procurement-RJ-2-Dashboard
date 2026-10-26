@@ -955,7 +955,7 @@
         out.push({ id:id, ym:dt.ym, name:txt(g(r,'mednm')), unit:clean(g(r,'rqtlct')), unitName:txt(g(r,'rqtnm')), kind:txt(g(r,'name')),
           qty:num(g(r,'payqty')), pack:num(g(r,'packqty')), small:txt(g(r,'name2')), cost:num(g(r,'unitcost')), gpsc:txt(g(r,'gpscnm')) });
       }
-      else if(slot === 'plan') out.push({ id:id, year:num(g(r,'yearplan')), qty:num(g(r,'buytotalamount')), value:num(g(r,'buytotalvalue')),
+      else if(slot === 'plan') out.push({ id:id, year:num(g(r,'yearplan')), grp:planGrpOf(g(r,'medgroup'), g(r,'medtype')), qty:num(g(r,'buytotalamount')), value:num(g(r,'buytotalvalue')),
         name:txt(g(r,'medname')), gpucode:clean(g(r,'gpucode')), tpucode:clean(g(r,'tpucode')), pack:num(g(r,'packqty')), unit:txt(g(r,'unitname')), cost:num(g(r,'cost')) });
       else if(slot === 'po'){
         /* รับจากการสั่งซื้อ: มูลค่า = unitcost (= rcvqty × minpunitcost ราคาต่อกล่อง) */
@@ -1273,9 +1273,10 @@
       }
       recs.forEach(function(r){
         if(r.slot === 'plan'){
-          /* แทนที่เฉพาะปีงบที่อยู่ในไฟล์ใหม่ และเก็บไว้ไม่เกิน 2 ปีงบล่าสุด */
-          var yrs = {}; r.rows.forEach(function(x){ yrs[x.year] = 1; });
-          var all = (state.datasets.plan ? state.datasets.plan.rows.filter(function(x){ return !yrs[x.year]; }) : []).concat(r.rows);
+          /* แทนที่เฉพาะปีงบ + หมวดที่อยู่ในไฟล์ใหม่ (planfin ยา / planfin_M เวชภัณฑ์มิใช่ยา / planfin_C เภสัชเคมีภัณฑ์
+             HIS ดึงแยกหมวด — พี่โอมขอให้โปรแกรมรวมให้ 26 ต.ค. 69) และเก็บไว้ไม่เกิน PLAN_KEEP_YEARS ปีงบล่าสุด */
+          var yrs = {}; r.rows.forEach(function(x){ yrs[planKey(x)] = 1; });
+          var all = (state.datasets.plan ? state.datasets.plan.rows.filter(function(x){ return !yrs[planKey(x)]; }) : []).concat(r.rows);
           var keep = {}; all.map(function(x){ return x.year; }).filter(function(y, i, a){ return a.indexOf(y) === i; }).sort().slice(-PLAN_KEEP_YEARS).forEach(function(y){ keep[y] = 1; });
           r.rows = all.filter(function(x){ return keep[x.year]; }); r.rowCount = r.rows.length;
         }
@@ -1320,7 +1321,17 @@
     });
   }
 
-  function planYearsText(rows){ return rows.map(function(x){ return x.year; }).filter(function(y, i, a){ return y && a.indexOf(y) === i; }).sort().map(function(y){ return String(y).slice(-2); }).join(', '); }
+  /* หมวดของ planfin: medgroup/medtype 1/1 ยา · 2/1 เวชภัณฑ์มิใช่ยา · 2/2 เภสัชเคมีภัณฑ์ (ข้อมูลเก่าที่ไม่มีหมวด = ยา) */
+  var PLAN_GRP_LABEL = { '1/1':'ยา', '2/1':'มิใช่ยา', '2/2':'เคมีฯ' };
+  function planGrpOf(g, t){ g = clean(g); t = clean(t); return g ? g + '/' + (t || '1') : '1/1'; }
+  function planKey(x){ return x.year + '|' + (x.grp || '1/1'); }
+  function planYearsText(rows){
+    var by = {};
+    rows.forEach(function(x){ if(!x.year) return; var o = by[x.year] || (by[x.year] = {}); o[x.grp || '1/1'] = 1; });
+    return Object.keys(by).sort().map(function(y){
+      return String(y).slice(-2) + ' (' + Object.keys(by[y]).sort().map(function(k){ return PLAN_GRP_LABEL[k] || k; }).join(' + ') + ')';
+    }).join(', ');
+  }
   function updateSourceUI(){
     var badge = document.getElementById('mode-badge');
     var ds = state.datasets;
