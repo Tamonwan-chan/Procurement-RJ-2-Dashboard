@@ -229,6 +229,22 @@
   .pvp-card .k{ font-size:12px; color:var(--ink-muted); }
   .pvp-card .v{ font-family:'IBM Plex Mono', monospace; font-size:16px; font-weight:600; margin-top:2px; }
   .pvp-card .s{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
+  /* ซื้อจริงเทียบวงเงินแผนทั้งปีงบ */
+  .budget-flag{ font-size:12.5px; font-weight:600; padding:3px 10px; border-radius:999px; border:1px solid currentColor; white-space:nowrap; }
+  .budget-flag.over{ color:var(--critical); } .budget-flag.near{ color:var(--warning); } .budget-flag.ok{ color:var(--good); } .budget-flag.none{ color:var(--ink-faint); font-weight:400; }
+  .plan-head-right{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; }
+  .plan-budget{ display:grid; gap:9px; margin:6px 0 14px; }
+  .plan-budget:empty{ display:none; }
+  .pb-alert{ border:1px solid var(--critical); color:var(--critical); border-radius:10px; padding:8px 12px; font-size:13px; font-weight:600; }
+  .pb-row{ display:grid; grid-template-columns:minmax(150px,210px) 1fr minmax(220px,auto); gap:4px 14px; align-items:center; font-size:13px; }
+  .pb-row .pb-k{ color:var(--ink-muted); }
+  .pb-row .pb-v{ font-family:'IBM Plex Mono', monospace; font-size:12.5px; }
+  .pb-track{ position:relative; height:12px; border-radius:6px; background:var(--surface-2); border:1px solid var(--border); }
+  .pb-fill, .pb-over{ position:absolute; top:0; bottom:0; border-radius:5px; }
+  .pb-over{ background:repeating-linear-gradient(45deg, var(--critical) 0 4px, transparent 4px 7px); border:1px solid var(--critical); }
+  .pb-mark{ position:absolute; top:-4px; bottom:-4px; width:2px; margin-left:-1px; background:var(--ink); }
+  .pb-note{ font-size:11.5px; color:var(--ink-faint); }
+  @media (max-width:700px){ .pb-row{ grid-template-columns:1fr; } }
   .pvp-card.over .v{ color:var(--critical); } .pvp-card.within .v{ color:var(--good); } .pvp-card.noplan .v{ color:var(--warning); }
   /* ป้ายลำดับสีสด (พี่โอมขอเพิ่มความสดใส ตามตารางเดิม: แดง / เขียว) */
   .rank-badge{ display:inline-block; min-width:26px; padding:2px 7px; border-radius:6px; font-weight:700; text-align:center; }
@@ -258,7 +274,7 @@
   .pill.order{ background:var(--accent-soft); color:var(--accent); }
   .pill.status-normal{ background:var(--good-soft); color:var(--good); }
   .table-note{ font-size:12px; color:var(--ink-faint); margin-top:8px; }
-  .field-select{ width:auto; cursor:pointer; }
+  .field-select{ width:auto; max-width:100%; cursor:pointer; }
   .check{ display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--ink); cursor:pointer; user-select:none; }
   .check input{ width:16px; height:16px; accent-color:var(--accent); margin:0; cursor:pointer; }
   tr.grp td{ background:var(--surface-2); font-weight:600; font-size:12.5px; padding:8px 12px; border-top:2px solid var(--border-strong); }
@@ -479,9 +495,10 @@
 <section class="panel" id="plantop-panel">
   <header>
     <h2 id="plantop-title">10 อันดับมูลค่าแผนจัดซื้อสูงสุด</h2>
-    <span class="hint" id="plantop-hint">จากไฟล์ planfin · กรองตามทะเบียนและประเภทบัญชี</span>
+    <div class="plan-head-right"><span class="budget-flag" id="plantop-flag" hidden></span><span class="hint" id="plantop-hint">จากไฟล์ planfin · กรองตามทะเบียนและประเภทบัญชี</span></div>
   </header>
   <p class="desc">มูลค่า = buytotalvalue · จำนวน = buytotalamount (หน่วยจัดซื้อตามแผนของยาแต่ละตัว) รายการละแถว · GPU / TPU ใช้ตาม Meditem ก่อน ถ้าไม่มีจึงใช้จาก planfin · นำเข้า planfin ได้หลายปีงบ (สูงสุด 5 ปี) เลือกปีงบและปีที่ต้องการเทียบได้อิสระ เช่น ปี 68 เทียบ ปี 70</p>
+  <div class="plan-budget" id="plantop-budget"></div>
   <div class="table-tools">
     <div class="chips" id="plantop-view"></div>
     <select class="search field-select" id="plantop-year" aria-label="ปีงบประมาณ"></select>
@@ -1021,7 +1038,7 @@
     L.planByYear = {}; L.planYear = 0;
     rowsOf('plan').forEach(function(r){
       var by = L.planByYear[r.year] || (L.planByYear[r.year] = {});
-      var x = by[r.id] || (by[r.id] = { qty:0, value:0, year:r.year, name:r.name, gpucode:r.gpucode, tpucode:r.tpucode, pack:r.pack, unit:r.unit, cost:r.cost || 0 });
+      var x = by[r.id] || (by[r.id] = { qty:0, value:0, year:r.year, grp:r.grp || '1/1', name:r.name, gpucode:r.gpucode, tpucode:r.tpucode, pack:r.pack, unit:r.unit, cost:r.cost || 0 });
       x.qty += r.qty; x.value += r.value;
       if(r.year > L.planYear) L.planYear = r.year;
     });
@@ -2901,6 +2918,63 @@
       ' · สถานะ เกิน / ไม่เกินแผน คิดตาม' + (mv ? 'จำนวน' : 'มูลค่า') + ' · จำนวน = หน่วยจัดซื้อ (กล่อง / ขวด) ของยาแต่ละตัว';
   }
 
+  /* ---------------- ซื้อจริงเทียบวงเงินแผนทั้งปีงบ ----------------
+     แจ้งเมื่อยอดซื้อจริง (PO_inven รับจากการสั่งซื้อ 101) ของปีงบเกินยอด planfin ปีงบนั้น
+     แยก 2 กองตามที่ขออนุมัติแผน (พี่โอม 26 ต.ค. 69): ยา = planfin + planfin_C · เวชภัณฑ์มิใช่ยา = planfin_M
+     รายการที่ไม่มีในแผนแยกกองตามทะเบียน · นับทุกรายการ ไม่ขึ้นกับตัวกรองทะเบียน / ประเภทบัญชี */
+  var PLAN_POTS = [['drug', 'ยา', 'planfin + planfin_C'], ['nondrug', 'เวชภัณฑ์มิใช่ยา', 'planfin_M']];
+  var PLAN_NEAR_PCT = 90;
+  function planPotOf(L, id, plan){
+    var g = plan && plan[id] && plan[id].grp;
+    if(g) return g === '2/1' ? 'nondrug' : 'drug';
+    var t = regTypeOf(L, id);
+    return t === 'ทะเบียนยา' || t === 'ทะเบียนเภสัชเคมีภัณฑ์' ? 'drug' : 'nondrug';
+  }
+  function renderPlanBudget(cur){
+    var box = document.getElementById('plantop-budget'), flag = document.getElementById('plantop-flag'), L = state.lookups;
+    box.innerHTML = ''; flag.hidden = true;
+    var plan = L && cur ? L.planByYear[cur] : null; if(!plan) return;
+    var P = {}; PLAN_POTS.forEach(function(o){ P[o[0]] = { plan:0, buy:0 }; });
+    Object.keys(plan).forEach(function(id){ P[plan[id].grp === '2/1' ? 'nondrug' : 'drug'].plan += plan[id].value; });
+    var poN = 0, lastYm = 0;
+    (L.po || []).forEach(function(r){
+      if(fiscalOf(r.ym) !== cur) return; poN++; if(r.ym > lastYm) lastYm = r.ym;
+      P[planPotOf(L, r.id, plan)].buy += r.value;
+    });
+    /* PO_inven ที่ได้ (26 ต.ค. 69) มีแต่ยา / เภสัชเคมีภัณฑ์ — ถ้าไม่มีเวชภัณฑ์มิใช่ยาเลย อย่าแสดงว่า "ใช้ไป 0%" */
+    var hasPot = {}; (L.po || []).forEach(function(r){ hasPot[planPotOf(L, r.id, null)] = 1; });
+    var COLOR = { over:'var(--critical)', near:'var(--warning)', ok:'var(--good)', noplan:'var(--ink-faint)', nodata:'var(--ink-faint)' };
+    var over = [], near = 0, rows = '', tPlan = 0, tBuy = 0;
+    PLAN_POTS.forEach(function(o){
+      var x = P[o[0]]; if(!x.plan && !x.buy) return;
+      var pct = x.plan ? x.buy / x.plan * 100 : 0;
+      var st = !poN || !hasPot[o[0]] ? 'nodata' : !x.plan ? 'noplan' : pct > 100 ? 'over' : pct >= PLAN_NEAR_PCT ? 'near' : 'ok';
+      if(st !== 'nodata'){ tPlan += x.plan; tBuy += x.buy; }
+      if(st === 'over') over.push(o[1] + ' เกิน ฿' + fmt(x.buy - x.plan) + ' (' + fmt1(pct) + '% ของแผน)');
+      if(st === 'near') near++;
+      var scale = Math.max(x.plan, x.buy, 1), fillW = (st === 'noplan' ? x.buy : Math.min(x.buy, x.plan)) / scale * 100;
+      var txt = st === 'nodata' ? 'แผน ฿' + fmt(x.plan) + ' · ' + (poN ? 'ไฟล์ PO_inven ยังไม่มีรายการ' + o[1] : 'ยังไม่มี PO_inven ปีงบ ' + cur)
+        : st === 'noplan' ? 'ซื้อ ฿' + fmt(x.buy) + ' · ไม่มี ' + o[2] + ' ปีงบ ' + cur
+        : 'ซื้อ ฿' + fmt(x.buy) + ' / แผน ฿' + fmt(x.plan) + ' · <b style="color:' + COLOR[st] + '">' +
+          (st === 'over' ? 'เกินแผน ฿' + fmt(x.buy - x.plan) + ' (' + fmt1(pct) + '%)' : 'ใช้ไป ' + fmt1(pct) + '% · เหลือ ฿' + fmt(x.plan - x.buy)) + '</b>';
+      rows += '<div class="pb-row"><div class="pb-k">' + o[1] + ' <span class="pb-note">(' + o[2] + ')</span></div>' +
+        '<div class="pb-track" title="' + esc(o[1] + ' · ซื้อจริง ฿' + fmt2(x.buy) + (x.plan ? ' · แผน ฿' + fmt2(x.plan) + ' · ' + fmt1(pct) + '%' : '')) + '">' +
+        '<div class="pb-fill" style="left:0;width:' + fillW + '%;background:' + COLOR[st] + '"></div>' +
+        (st === 'over' ? '<div class="pb-over" style="left:' + (x.plan / scale * 100) + '%;width:' + ((x.buy - x.plan) / scale * 100) + '%"></div>' : '') +
+        (x.plan && st !== 'nodata' ? '<div class="pb-mark" style="left:' + (x.plan / scale * 100) + '%" title="แผน ฿' + fmt2(x.plan) + '"></div>' : '') + '</div>' +
+        '<div class="pb-v">' + txt + '</div></div>';
+    });
+    var flagCls, flagTxt;
+    if(!poN){ flagCls = 'none'; flagTxt = 'ยังไม่มี PO_inven ปีงบ ' + cur; }
+    else if(over.length){ flagCls = 'over'; flagTxt = 'ซื้อเกินแผนปีงบ ' + cur; }
+    else if(near){ flagCls = 'near'; flagTxt = 'ใกล้เกินแผนปีงบ ' + cur; }
+    else { flagCls = 'ok'; flagTxt = 'ซื้อแล้ว ' + fmt1(tPlan ? tBuy / tPlan * 100 : 0) + '% ของแผนปีงบ ' + cur; }
+    flag.className = 'budget-flag ' + flagCls; flag.textContent = flagTxt; flag.hidden = false;
+    box.innerHTML = (over.length ? '<div class="pb-alert" role="alert">ปีงบ ' + cur + ' ซื้อจริงเกินแผนแล้ว: ' + over.join(' · ') + '</div>' : '') + rows +
+      '<div class="pb-note">ซื้อจริง = PO_inven รับจากการสั่งซื้อ (101) ปีงบ ' + cur + (lastYm ? ' ถึง ' + monthLabel(lastYm) : '') +
+      ' · แผน = planfin ปีงบ ' + cur + ' · รวมทุกรายการ ไม่ขึ้นกับตัวกรอง · เส้นดำ = ยอดแผน ส่วนลายแดง = ส่วนที่เกินแผน</div>';
+  }
+
   function renderPlanTop(){
     dispAttr = {};
     var L = state.lookups, body = document.getElementById('plantop-table');
@@ -2926,6 +3000,7 @@
     [['plan', 'อันดับแผนจัดซื้อ'], ['po', 'แผนเทียบซื้อจริง']].forEach(function(o){
       vBox.appendChild(chip(o[1], planTopState.view === o[0], function(){ planTopState.view = o[0]; renderPlanTop(); }, { sm:true }));
     });
+    renderPlanBudget(cur);
     var isPo = planTopState.view === 'po';
     document.getElementById('plantop-cmp').hidden = isPo;
     document.getElementById('plantop-summary').hidden = !isPo;
