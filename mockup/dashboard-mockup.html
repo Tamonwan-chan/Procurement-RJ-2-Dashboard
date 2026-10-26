@@ -222,6 +222,14 @@
   .pt-row .rvalue{ font-size:12.5px; text-align:right; font-family:'IBM Plex Mono', monospace; }
   .pt-row .rvalue small{ display:block; font-size:11px; color:var(--ink-faint); }
   .pt-up{ color:var(--critical); } .pt-down{ color:var(--good); }
+  #plantop-chart .pt-row{ grid-template-columns:minmax(120px,230px) 1fr 260px; }
+  @media (max-width:700px){ #plantop-chart .pt-row{ grid-template-columns:minmax(90px,1fr) 1fr 150px; } }
+  .pvp-summary{ display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin:2px 0 14px; }
+  .pvp-card{ border:1px solid var(--border); border-radius:10px; padding:10px 12px; background:var(--surface-2); }
+  .pvp-card .k{ font-size:12px; color:var(--ink-muted); }
+  .pvp-card .v{ font-family:'IBM Plex Mono', monospace; font-size:16px; font-weight:600; margin-top:2px; }
+  .pvp-card .s{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
+  .pvp-card.over .v{ color:var(--critical); } .pvp-card.within .v{ color:var(--good); } .pvp-card.noplan .v{ color:var(--warning); }
   /* ป้ายลำดับสีสด (พี่โอมขอเพิ่มความสดใส ตามตารางเดิม: แดง / เขียว) */
   .rank-badge{ display:inline-block; min-width:26px; padding:2px 7px; border-radius:6px; font-weight:700; text-align:center; }
   .rank-badge.hot{ background:#D32A22; color:#FFFFFF; }
@@ -471,16 +479,19 @@
 <section class="panel" id="plantop-panel">
   <header>
     <h2 id="plantop-title">10 อันดับมูลค่าแผนจัดซื้อสูงสุด</h2>
-    <span class="hint">จากไฟล์ planfin · กรองตามทะเบียนและประเภทบัญชี</span>
+    <span class="hint" id="plantop-hint">จากไฟล์ planfin · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
   <p class="desc">มูลค่า = buytotalvalue · จำนวน = buytotalamount (หน่วยจัดซื้อตามแผนของยาแต่ละตัว) รายการละแถว · GPU / TPU ใช้ตาม Meditem ก่อน ถ้าไม่มีจึงใช้จาก planfin · นำเข้า planfin ได้หลายปีงบ (สูงสุด 5 ปี) เลือกปีงบและปีที่ต้องการเทียบได้อิสระ เช่น ปี 68 เทียบ ปี 70</p>
   <div class="table-tools">
+    <div class="chips" id="plantop-view"></div>
     <select class="search field-select" id="plantop-year" aria-label="ปีงบประมาณ"></select>
     <select class="search field-select" id="plantop-cmp" aria-label="เทียบกับปีงบ"></select>
     <select class="search field-select" id="plantop-top" aria-label="จำนวนอันดับ"><option value="10" selected>10 อันดับ</option><option value="20">20 อันดับ</option><option value="50">50 อันดับ</option><option value="0">ทั้งหมด</option></select>
     <input class="search" id="plantop-search" type="search" placeholder="ค้นหา hospcode / ชื่อยา / GPU / TPU" aria-label="ค้นหาในแผนจัดซื้อ">
     <div class="chips" id="plantop-metric"></div>
   </div>
+  <div class="pvp-summary" id="plantop-summary" hidden></div>
+  <div class="chips" id="plantop-status" style="margin-bottom:12px" hidden></div>
   <div class="kpi-legend" id="plantop-legend"></div>
   <div class="pt-chart" id="plantop-chart"></div>
   <div class="table-scroll" style="max-height:460px">
@@ -2784,9 +2795,101 @@
   });
 
   /* ---------------- 10 อันดับมูลค่าแผนจัดซื้อ (planfin) ---------------- */
-  var planTopState = { top:10, search:'', metric:'value', year:0, cmp:0, cmpAuto:true };
+  var planTopState = { top:10, search:'', metric:'value', year:0, cmp:0, cmpAuto:true, view:'plan', status:'all' };
   var PLAN_KEEP_YEARS = 5;
   var PLAN_CHART_MAX = 50;
+  /* ---------------- แผนเทียบซื้อจริง (planfin × PO_inven ของปีงบเดียวกัน) ----------------
+     พี่โอม: ดูว่าซื้อตามแผนหรือเกินแผนแต่ละปี ทั้งมูลค่าและจำนวน · กรอง เกินแผน / ไม่เกินแผน · รวมยอดที่เกินรายตัวและทั้งหมด
+     รวมยาที่ซื้อแต่ไม่มีในแผน และยาที่มีแผนแต่ยังไม่ซื้อ (เช่น เปลี่ยนยี่ห้อ) */
+  var PVP_STATUS = [
+    ['all', 'ทั้งหมด', ''],
+    ['over', 'เกินแผน', 'var(--critical)'],
+    ['within', 'ไม่เกินแผน', 'var(--good)'],
+    ['noplan', 'ซื้อแต่ไม่มีในแผน', 'var(--warning)'],
+    ['unbought', 'มีแผนแต่ยังไม่ซื้อ', 'var(--ink-faint)']
+  ];
+  function renderPlanVsPo(cur, plan){
+    var L = state.lookups, mv = planTopState.metric === 'qty', yy = String(cur || '').slice(-2);
+    var body = document.getElementById('plantop-table'), chartBox = document.getElementById('plantop-chart');
+    var count = document.getElementById('plantop-count'), legend = document.getElementById('plantop-legend');
+    var sumBox = document.getElementById('plantop-summary'), stBox = document.getElementById('plantop-status');
+    document.getElementById('plantop-title').textContent = 'แผนจัดซื้อเทียบซื้อจริง' + (cur ? ' ปีงบ ' + cur : '');
+    chartBox.innerHTML = ''; sumBox.innerHTML = ''; stBox.innerHTML = ''; legend.innerHTML = ''; count.textContent = '';
+    document.getElementById('plantop-head').innerHTML = '<th class="mono">ลำดับ</th><th>ชื่อสามัญ</th><th>NAME</th><th class="mono">แผน จำนวน</th><th class="mono">ซื้อจริง จำนวน</th><th class="mono">แผน มูลค่า</th><th class="mono">ซื้อจริง มูลค่า</th><th class="mono">ส่วนต่าง (' + (mv ? 'จำนวน' : 'บาท') + ')</th><th>สถานะ</th>';
+    if(!L || !cur){ body.innerHTML = '<tr><td colspan="9" class="table-note" style="padding:14px">ยังไม่มีข้อมูล — ลากไฟล์ planfin และ PO_inven มาวาง</td></tr>'; return; }
+    var bought = {}, poN = 0;
+    (L.po || []).forEach(function(r){
+      if(fiscalOf(r.ym) !== cur) return; poN++;
+      var b = bought[r.id] || (bought[r.id] = { qty:0, value:0, n:0, name:r.name }); b.qty += r.qty; b.value += r.value; b.n++;
+    });
+    var items = {}; state.items.forEach(function(it){ items[it.hospcode] = it; });
+    var ids = {}; Object.keys(plan || {}).forEach(function(id){ ids[id] = 1; }); Object.keys(bought).forEach(function(id){ ids[id] = 1; });
+    var rows = Object.keys(ids).filter(function(id){ return dispItemOk(id); }).map(function(id){
+      var x = (plan || {})[id] || { qty:0, value:0 }, b = bought[id] || { qty:0, value:0, n:0 }, it = items[id] || {}, dc = L.dc[id] || {};
+      var pm = mv ? x.qty : x.value, bm = mv ? b.qty : b.value, hasPlan = x.qty > 0 || x.value > 0, hasBuy = b.qty > 0 || b.value > 0;
+      var st = hasPlan ? (!hasBuy ? 'unbought' : bm > pm + 1e-6 ? 'over' : 'within') : 'noplan';
+      return { id:id, generic:dc.generic || it.generic || '', name:x.name || dc.tradename || it.tradename || b.name || L.names[id] || id,
+        pq:x.qty, pv:x.value, bq:b.qty, bv:b.value, n:b.n, pm:pm, bm:bm, diff:bm - pm, st:st };
+    }).filter(function(r){ return r.pq > 0 || r.pv > 0 || r.bq > 0 || r.bv > 0; });
+    /* สรุป: ยอดรวมแผน / ซื้อจริง / เกินแผน (รวมเฉพาะส่วนที่เกิน) / ไม่มีในแผน / ยังไม่ซื้อ */
+    var S = { all:{ n:0 }, over:{ n:0, ex:0 }, within:{ n:0 }, noplan:{ n:0, v:0 }, unbought:{ n:0, v:0 } }, planN = 0, planV = 0, planQ = 0, buyV = 0, buyQ = 0, buyN = 0;
+    rows.forEach(function(r){
+      S.all.n++; S[r.st].n++;
+      if(r.pq > 0 || r.pv > 0){ planN++; planV += r.pv; planQ += r.pq; }
+      if(r.bq > 0 || r.bv > 0){ buyN++; buyV += r.bv; buyQ += r.bq; }
+      if(r.st === 'over') S.over.ex += r.diff;
+      if(r.st === 'noplan') S.noplan.v += r.bm;
+      if(r.st === 'unbought') S.unbought.v += r.pm;
+    });
+    function show(v){ return mv ? fmt1(v) : '฿' + fmt2(v); }
+    function showC(v){ return mv ? fmt1(v) : '฿' + fmt(v); }   /* กราฟ: ปัดเป็นบาท ให้อ่านง่าย */
+    function card(cls, k, v, s){ return '<div class="pvp-card ' + cls + '"><div class="k">' + k + '</div><div class="v">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>'; }
+    sumBox.innerHTML =
+      card('', 'แผนปีงบ ' + cur, '฿' + fmt2(planV), fmt(planN) + ' รายการ · ' + fmt1(planQ) + ' หน่วยจัดซื้อ') +
+      card('', 'ซื้อจริงปีงบ ' + cur, '฿' + fmt2(buyV), fmt(buyN) + ' รายการ' + (planV ? ' · ' + fmt1(buyV / planV * 100) + '% ของแผน' : '')) +
+      card('over', 'เกินแผน (' + (mv ? 'จำนวน' : 'มูลค่า') + ')', show(S.over.ex), fmt(S.over.n) + ' รายการ · รวมเฉพาะส่วนที่เกิน') +
+      card('noplan', 'ซื้อแต่ไม่มีในแผน', show(S.noplan.v), fmt(S.noplan.n) + ' รายการ') +
+      card('', 'มีแผนแต่ยังไม่ซื้อ', show(S.unbought.v), fmt(S.unbought.n) + ' รายการ');
+    PVP_STATUS.forEach(function(o){
+      stBox.appendChild(chip(o[1], planTopState.status === o[0], function(){ planTopState.status = o[0]; renderPlanTop(); }, { sm:true, count:S[o[0]].n, color:o[2] || null, empty:!S[o[0]].n }));
+    });
+    if(!poN) legend.innerHTML = '<span class="pt-up">ยังไม่มีข้อมูล PO_inven ของปีงบ ' + cur + ' — นำเข้าไฟล์รับจากการสั่งซื้อของปีงบนี้ก่อน</span>';
+    else legend.innerHTML = '<span><i style="background:var(--cat-1);opacity:.38"></i>แผน (planfin)</span><span><i style="background:var(--critical)"></i>ซื้อจริง เกินแผน</span><span><i style="background:var(--good)"></i>ซื้อจริง ไม่เกินแผน</span><span><i style="background:var(--warning)"></i>ซื้อแต่ไม่มีในแผน</span>';
+    var q = planTopState.search.trim().toLowerCase();
+    var list = rows.filter(function(r){ return (planTopState.status === 'all' || r.st === planTopState.status) && (!q || [r.id, r.generic, r.name].join(' ').toLowerCase().indexOf(q) >= 0); });
+    list.sort(function(a, b){ return planTopState.status === 'over' ? b.diff - a.diff : Math.max(b.pm, b.bm) - Math.max(a.pm, a.bm); });
+    list.forEach(function(r, i){ r.rank = i + 1; });
+    var shown = !q && planTopState.top ? list.slice(0, planTopState.top) : list;
+    var COLOR = { over:'var(--critical)', within:'var(--good)', noplan:'var(--warning)', unbought:'var(--ink-faint)' };
+    var LABEL = { over:'เกินแผน', within:'ไม่เกินแผน', noplan:'ไม่มีในแผน', unbought:'ยังไม่ซื้อ' };
+    var inChart = shown.slice(0, PLAN_CHART_MAX);
+    var max = Math.max.apply(null, inChart.map(function(r){ return Math.max(r.pm, r.bm); }).concat([1]));
+    inChart.forEach(function(r){
+      var row = document.createElement('div'); row.className = 'pt-row';
+      var pct = r.pm ? ' (' + (r.diff >= 0 ? '+' : '−') + fmt1(Math.abs(r.diff / r.pm * 100)) + '%)' : '';
+      row.innerHTML = '<div class="rlabel" title="' + esc(r.name) + '">' + r.rank + '. ' + esc(r.name) + '</div>' +
+        '<div class="pt-bars"><div class="pt-bar" style="background:' + COLOR[r.st] + ';width:' + (r.bm / max * 100) + '%"></div>' +
+        '<div class="pt-bar prev" style="width:' + (r.pm / max * 100) + '%"></div></div>' +
+        '<div class="rvalue">ซื้อ ' + showC(r.bm) + '<small>แผน ' + (r.pm ? showC(r.pm) : '–') + ' · <span style="color:' + COLOR[r.st] + '">' + LABEL[r.st] +
+        (r.st === 'over' ? ' ' + showC(r.diff) + pct : '') + '</span></small></div>';
+      bindTooltip(row.querySelector('.pt-bars'), r.name + ' · ซื้อ ' + show(r.bm) + ' (' + r.n + ' ครั้ง) · แผน ' + show(r.pm) + ' · ' + LABEL[r.st]);
+      chartBox.appendChild(row);
+    });
+    if(shown.length > PLAN_CHART_MAX){ var more = document.createElement('div'); more.className = 'table-note'; more.textContent = 'กราฟแสดง ' + PLAN_CHART_MAX + ' อันดับแรก · ดูทั้งหมดในตารางด้านล่าง'; chartBox.appendChild(more); }
+    body.innerHTML = shown.length ? shown.map(function(r){
+      var badge = r.rank <= 3 ? 'hot' : r.rank <= 10 ? 'mid' : '';
+      return '<tr><td class="mono">' + (badge ? '<span class="rank-badge ' + badge + '">' + r.rank + '</span>' : r.rank) + '</td><td>' + esc(r.generic || '–') + '</td>' +
+        '<td title="hospcode ' + esc(r.id) + '">' + esc(r.name) + '</td>' +
+        '<td class="mono">' + (r.pq ? fmt1(r.pq) : '–') + '</td><td class="mono">' + (r.bq ? fmt1(r.bq) : '–') + '</td>' +
+        '<td class="mono">' + (r.pv ? fmt2(r.pv) : '–') + '</td><td class="mono">' + (r.bv ? fmt2(r.bv) : '–') + '</td>' +
+        '<td class="mono" style="color:' + (r.diff > 1e-6 ? 'var(--critical)' : 'inherit') + '">' + (r.diff > 0 ? '+' : r.diff < 0 ? '−' : '') + (mv ? fmt1(Math.abs(r.diff)) : fmt2(Math.abs(r.diff))) + '</td>' +
+        '<td><b style="color:' + COLOR[r.st] + '">' + LABEL[r.st] + '</b></td></tr>';
+    }).join('') : '<tr><td colspan="9" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง</td></tr>';
+    var subP = shown.reduce(function(s, r){ return s + r.pm; }, 0), subB = shown.reduce(function(s, r){ return s + r.bm; }, 0);
+    count.textContent = 'ปีงบ ' + cur + ' · แสดง ' + fmt(shown.length) + ' จาก ' + fmt(list.length) + ' รายการ · รวมที่แสดง: แผน ' + show(subP) + ' · ซื้อจริง ' + show(subB) +
+      ' · สถานะ เกิน / ไม่เกินแผน คิดตาม' + (mv ? 'จำนวน' : 'มูลค่า') + ' · จำนวน = หน่วยจัดซื้อ (กล่อง / ขวด) ของยาแต่ละตัว';
+  }
+
   function renderPlanTop(){
     dispAttr = {};
     var L = state.lookups, body = document.getElementById('plantop-table');
@@ -2808,6 +2911,16 @@
     [['value', 'มูลค่า'], ['qty', 'จำนวน']].forEach(function(o){
       mBox.appendChild(chip(o[1], planTopState.metric === o[0], function(){ planTopState.metric = o[0]; renderPlanTop(); }, { sm:true }));
     });
+    var vBox = document.getElementById('plantop-view'); vBox.innerHTML = '';
+    [['plan', 'อันดับแผนจัดซื้อ'], ['po', 'แผนเทียบซื้อจริง']].forEach(function(o){
+      vBox.appendChild(chip(o[1], planTopState.view === o[0], function(){ planTopState.view = o[0]; renderPlanTop(); }, { sm:true }));
+    });
+    var isPo = planTopState.view === 'po';
+    document.getElementById('plantop-cmp').hidden = isPo;
+    document.getElementById('plantop-summary').hidden = !isPo;
+    document.getElementById('plantop-status').hidden = !isPo;
+    document.getElementById('plantop-hint').textContent = isPo ? 'จากไฟล์ planfin + PO_inven (รับจากการสั่งซื้อ) · กรองตามทะเบียนและประเภทบัญชี' : 'จากไฟล์ planfin · กรองตามทะเบียนและประเภทบัญชี';
+    if(isPo){ renderPlanVsPo(cur, plan); return; }
     var prevY = planTopState.cmp || 0;
     var prev = prevY ? L.planByYear[prevY] : null, yy = function(y){ return String(y).slice(-2); };
     document.getElementById('plantop-head').innerHTML = '<th class="mono">ลำดับที่</th><th>ชื่อสามัญ</th><th>GPU</th><th>NAME</th><th>TPU</th><th class="mono">จำนวน' + (prev ? ' ปี ' + yy(cur) : '') + '</th><th>หน่วยนับ</th><th class="mono">มูลค่าจัดซื้อ' + (prev ? ' ปี ' + yy(cur) : '') + ' (บาท)</th>' +
