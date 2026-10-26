@@ -3148,8 +3148,9 @@
   /* ---------------- ประวัติคงคลังรายเดือน (สำหรับรายงานเทียบปีงบ) ----------------
      เก็บยอดคลังยาต่อรายการ เดือนละ 1 ชุด ตามวันที่ในไฟล์ (tdate) ใช้ไฟล์ที่ใกล้สิ้นเดือนที่สุด แบบเดียวกับเดือนสำรองคงคลัง
      ไฟล์คลังยาที่วันที่เก่ากว่าข้อมูลปัจจุบัน = ยอดย้อนหลัง บันทึกเป็นประวัติอย่างเดียว ไม่แทนข้อมูลล่าสุด
-     เก็บไว้ไม่เกิน 2 ปีงบล่าสุด (พี่โอม: import ข้อมูลไม่เกิน 2 ปี) */
-  var STOCKH_SLOT = '_stockhist', stockHist = null;
+     เก็บปีงบปัจจุบัน + 2 ปีงบก่อนหน้า (พี่โอม: import ข้อมูลไม่เกิน 2 ปี — ต้นปีงบใหม่ยังมีแค่ไม่กี่เดือน
+     จึงเก็บเพิ่มอีกปี ให้ยังเทียบ 2 ปีงบเต็มได้ เช่น ต.ค. 69 = ปีงบ 70 ยังเทียบ 68 กับ 69 ได้) */
+  var STOCKH_SLOT = '_stockhist', stockHist = null, STOCKH_KEEP_FY = 3;
   function invAsof(inv){
     var a = inv.rows.map(function(r){ return r.asof; }).filter(Boolean)[0]; if(a) return a;
     var d = new Date(inv.importedAt || Date.now()); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
@@ -3186,7 +3187,7 @@
     Object.keys(rows).forEach(function(id){ rows[id] = [Math.round(rows[id][0] * 100) / 100, Math.round(rows[id][1] * 100) / 100]; });
     stockHist.months[ym] = { asof:asof, at:inv.importedAt, file:inv.fileName, n:inv.rows.length, rows:rows };
     var fys = Object.keys(stockHist.months).map(function(k){ return fiscalOf(Number(k)); }), maxFy = Math.max.apply(null, fys);
-    Object.keys(stockHist.months).forEach(function(k){ if(fiscalOf(Number(k)) < maxFy - 1) delete stockHist.months[k]; });
+    Object.keys(stockHist.months).forEach(function(k){ if(fiscalOf(Number(k)) <= maxFy - STOCKH_KEEP_FY) delete stockHist.months[k]; });
     dbPut([stockHist]).catch(function(){ storageOk = false; });
   }
 
