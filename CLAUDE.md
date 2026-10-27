@@ -27,7 +27,7 @@ Context for any Claude Code session that opens this repo (the owner works from m
 4. Commit with a clear message, push to `master`, wait for the Pages build, then tell her to press Ctrl + F5.
 5. Update `ประเด็นที่รอยืนยันจากพี่โอม.md` (open questions, answers, changes) and `README.md` when rules change.
 6. Track work in **GitHub Issues** (`gh issue list`): one issue per feature / bug / open question, short neutral Thai title, labels `enhancement` / `bug` / `question` + `waiting` (blocked on พี่โอม's answer or files), milestone "Phase 2: บันทึก ภย. / ภว. / ขย. / ย.". The repo is public, so issues hold no real data, prices, figures or names; details stay in the Q&A file. พี่โอม never uses GitHub: she relays his messages and Claude opens / updates the issues. Close them from the commit (`Fixes #n`).
-7. Days worked on the project = distinct commit dates (weekend dates are hospital shifts and count): `git log --format=%ad --date=short | sort -u | wc -l`.
+7. Days worked on the project = distinct commit dates (weekend dates are hospital shifts and count): `git log --format=%ad --date=short | sort -u | wc -l`. After every push, rerun it; when it reaches **20**, tell her plainly in that reply (she asked to be notified, on whichever PC she is using).
 
 ## Key business rules (details in the .md and README)
 - Items join on meditem = hospcode = รหัสเวชภัณฑ์ = hospdrugid. Central stock (inventory_exp) is in boxes; dispensing rooms are in units ÷ packqty.
