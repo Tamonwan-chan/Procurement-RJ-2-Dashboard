@@ -404,12 +404,14 @@
 <section class="panel" id="rep-panel">
   <header>
     <h2>รายงานสถิติคลังยาและเวชภัณฑ์มิใช่ยา</h2>
-    <span class="hint">เทียบปีงบประมาณ · กรองตามทะเบียนและประเภทบัญชี</span>
+    <span class="hint">ภาพรวมทุกปีงบ หรือเลือกปีงบ · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
-  <p class="desc">สั่งซื้อเข้าคลัง = PO_inven · คงคลัง = ไฟล์คลังยา (inventory_exp) ยอด ณ สิ้นเดือน · จ่ายจากคลัง = dispen_inven ตามประเภทการจ่ายที่เลือกในส่วน "การจ่ายยาจากคลัง" · เทียบช่วงเดือนเดียวกันของทั้ง 2 ปีงบ (ต้นปีงบถึงเดือนล่าสุดที่นำเข้า)</p>
+  <p class="desc">สั่งซื้อเข้าคลัง = PO_inven · คงคลัง = ไฟล์คลังยา (inventory_exp) ยอด ณ สิ้นเดือน · จ่ายจากคลัง = dispen_inven ตามประเภทการจ่ายที่เลือกในส่วน "การจ่ายยาจากคลัง" · ดูภาพรวมเทียบทุกปีงบที่มีข้อมูล (สูงสุด 3 ปี) พร้อมค่าเฉลี่ยต่อเดือน หรือเลือกเฉพาะปีงบ · แสดงครบ ต.ค.–ก.ย. หรือเลือกเดือน (เดือนที่ไม่มีข้อมูลเว้นว่าง)</p>
   <div class="table-tools">
     <div class="chips" id="rep-by"></div>
     <div class="chips" id="rep-metric"></div>
+    <select class="search field-select" id="rep-fy" aria-label="ปีงบประมาณ"></select>
+    <select class="search field-select" id="rep-month" aria-label="เดือน"></select>
   </div>
   <div class="table-tools">
     <span class="f-label" style="margin:0">กราฟ</span>
@@ -3278,7 +3280,11 @@
   /* พี่โอมขีด "จำนวน (กล่อง)" ออก (ผลรวมกล่องของยาต่างขนาดกัน เทียบกันไม่ได้) — เหลือ มูลค่า / จำนวนรายการ */
   var REP_METRIC = [['value', 'มูลค่า (บาท)'], ['items', 'จำนวนรายการ']];
   var REP_ED = { ED:'ED (ก ข ค ง)', NED:'NED', other:'อื่น ๆ (ไม่นับใน ED : NED)' };
-  var repState = { by:'month', metric:'value', measure:'disp', top:15 };
+  /* fy: 'all' = ภาพรวมทุกปีงบ (เทียบกัน + ค่าเฉลี่ยต่อเดือน) หรือปีงบที่เลือก · month: -1 = ทุกเดือน ต.ค.–ก.ย. หรือลำดับเดือนในปีงบ (0 = ต.ค.)
+     พี่โอม 28 ต.ค. 69: ให้เห็นปีงบ 68 (PO_inven เริ่ม ม.ค. 68) แสดงครบทุกเดือน เดือนที่ไม่มีข้อมูลเว้นว่าง */
+  var repState = { by:'month', metric:'value', measure:'disp', top:15, fy:'all', month:-1 };
+  var REP_KEEP_FY = 3;   /* เท่ากับประวัติคงคลังรายเดือน (ปีงบปัจจุบัน + 2 ปีก่อนหน้า) */
+  var REP_MN = ['ต.ค.','พ.ย.','ธ.ค.','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.'];
   var REP_CHART_MAX = 50;
 
   function repCell(){ return { value:0, qty:0, ids:{} }; }
@@ -3295,17 +3301,16 @@
     var flows = { po:[], disp:[] }, snaps = stockHist ? stockHist.months : {};
     (L.po || []).forEach(function(r){ flows.po.push({ id:r.id, ym:r.ym, qty:r.qty, value:r.value }); });
     (L.disp || []).forEach(function(r){ if(dispTypeOn(r.kind)) flows.disp.push({ id:r.id, ym:r.ym, qty:r.qty, value:r.qty * r.cost, gpsc:r.gpsc }); });
-    var fys = {}, lastYm = 0;
+    var fys = {};
     flows.po.concat(flows.disp).forEach(function(r){ fys[fiscalOf(r.ym)] = 1; });
     Object.keys(snaps).forEach(function(k){ fys[fiscalOf(Number(k))] = 1; });
-    var fyList = Object.keys(fys).map(Number).sort().slice(-2);
-    if(!fyList.length) return null;
-    var cur = fyList[fyList.length - 1], prev = fyList.length > 1 ? fyList[0] : 0;
-    flows.po.concat(flows.disp).forEach(function(r){ if(fiscalOf(r.ym) === cur && r.ym > lastYm) lastYm = r.ym; });
-    Object.keys(snaps).forEach(function(k){ k = Number(k); if(fiscalOf(k) === cur && k > lastYm) lastYm = k; });
-    var n = kpiMonths(cur).indexOf(lastYm) + 1, months = {};
-    [cur, prev].forEach(function(fy){ if(fy) months[fy] = kpiMonths(fy).slice(0, n); });
-    return { L:L, flows:flows, snaps:snaps, cur:cur, prev:prev, fys:prev ? [prev, cur] : [cur], n:n, months:months };
+    var all = Object.keys(fys).map(Number).sort().slice(-REP_KEEP_FY);
+    if(!all.length) return null;
+    if(repState.fy !== 'all' && all.indexOf(repState.fy) < 0) repState.fy = 'all';
+    var shown = repState.fy === 'all' ? all : [repState.fy], months = {};
+    shown.forEach(function(fy){ months[fy] = kpiMonths(fy); });
+    var sel = repState.month >= 0 ? [repState.month] : REP_MN.map(function(x, i){ return i; });
+    return { L:L, flows:flows, snaps:snaps, all:all, fys:shown, cur:shown[shown.length - 1], prev:shown.length > 1 ? shown[shown.length - 2] : 0, months:months, sel:sel };
   }
 
   function repKey(d, id, gpscName){
@@ -3317,7 +3322,8 @@
     return code || 'ไม่มี gpucode';
   }
 
-  /* agg[key][measure][fy] = { value, qty, ids } · key = ลำดับเดือนในปีงบ (รวมรายเดือน) หรือชื่อกลุ่ม */
+  /* agg[key][measure][fy] = { value, qty, ids } · key = ลำดับเดือนในปีงบ (รวมรายเดือน) หรือชื่อกลุ่ม
+     นับเฉพาะเดือนที่เลือก (ทุกเดือน หรือเดือนเดียว) · ช่องที่ไม่มีข้อมูล = ไม่มี cell (แสดงว่าง) */
   function repAggregate(d){
     var agg = {}, total = {}, byMonth = repState.by === 'month';
     d.labels = {}; d.stockAt = {}; d.stockFallback = {};
@@ -3329,18 +3335,18 @@
     ['po', 'disp'].forEach(function(m){
       d.flows[m].forEach(function(r){
         var fy = fiscalOf(r.ym); if(!d.months[fy]) return;
-        var idx = d.months[fy].indexOf(r.ym); if(idx < 0 || !dispItemOk(r.id)) return;
+        var idx = d.months[fy].indexOf(r.ym); if(idx < 0 || d.sel.indexOf(idx) < 0 || !dispItemOk(r.id)) return;
         var key = byMonth ? idx : repKey(d, r.id, r.gpsc);
         repAdd(cell(key, m, fy), r.id, r.qty, r.value);
         repAdd(tcell(m, fy), r.id, r.qty, r.value);
       });
     });
-    /* คงคลัง: รายเดือน = ยอด ณ สิ้นเดือนนั้น · แยกกลุ่ม = ยอด ณ เดือนล่าสุดในช่วงที่มีประวัติ */
+    /* คงคลัง: รายเดือน = ยอด ณ สิ้นเดือนนั้น · แยกกลุ่ม = ยอด ณ เดือนล่าสุดที่มีประวัติในช่วงที่เลือก */
     var kpiOk = (state.reg === 'all' || state.reg === 'ทะเบียนยา') && state.acct === 'all';
     d.fys.forEach(function(fy){
       var months = d.months[fy], lastIdx = -1;
-      months.forEach(function(ym, idx){
-        var snap = d.snaps[ym];
+      d.sel.forEach(function(idx){
+        var ym = months[idx], snap = d.snaps[ym];
         if(!snap){
           /* ยังไม่มีประวัติรายรายการ — ใช้มูลค่ารวมเฉพาะยาจากตารางเดือนสำรองคงคลัง (ถ้ามี) เฉพาะมุมมองรายเดือน */
           var k = kpiStore && kpiStore.stock[ym];
@@ -3380,26 +3386,29 @@
     var legend = document.getElementById('rep-legend'), count = document.getElementById('rep-count');
     chart.innerHTML = ''; legend.innerHTML = ''; count.textContent = '';
     var d = repCollect();
+    fillSelect('rep-fy', [['all', 'ทุกปีงบ (ภาพรวม)']].concat((d ? d.all : []).slice().reverse().map(function(y){ return [y, 'ปีงบ ' + y]; })), repState.fy);
+    fillSelect('rep-month', [[-1, 'ทุกเดือน (ALL)']].concat(REP_MN.map(function(m, i){ return [i, m]; })), repState.month);
     if(!d){
       note.textContent = 'ยังไม่มีข้อมูล — นำเข้า PO_inven (สั่งซื้อ), dispen_inven (จ่ายจากคลัง) และไฟล์คลังยา (inventory_exp) เพื่อดูรายงาน';
       table.innerHTML = ''; return;
     }
     var res = repAggregate(d), agg = res.agg, total = res.total, yy = function(y){ return String(y).slice(-2); };
-    var range = repShortMonth(d.months[d.cur][0]) + '–' + repShortMonth(d.months[d.cur][d.n - 1]);
+    var multi = d.fys.length > 1, oneMonth = repState.month >= 0, byMonth = repState.by === 'month';
+    var range = oneMonth ? 'เดือน ' + REP_MN[repState.month] : 'ต.ค.–ก.ย.';
     var types = Object.keys((state.lookups.disp || []).reduce(function(o, r){ if(dispTypeOn(r.kind)) o[(r.kind || 'ไม่ระบุประเภท').replace(/^จ่ายจากการ/, '')] = 1; return o; }, {}));
-    var notes = [d.prev ? 'เทียบ ' + range + ' ของปีงบ ' + d.prev + ' และ ' + d.cur : 'มีข้อมูลปีงบเดียว (' + d.cur + ' ' + range + ') — นำเข้าไฟล์ของปีงบก่อนเพื่อเทียบ'];
+    var notes = [(multi ? 'ภาพรวมปีงบ ' + d.fys.join(', ') : 'ปีงบ ' + d.cur) + ' · ' + range + (oneMonth ? '' : ' (เดือนที่ยังไม่มีข้อมูลเว้นว่าง)')];
     if(!d.flows.po.length) notes.push('ยังไม่มี PO_inven');
     if(!d.flows.disp.length) notes.push('ยังไม่มี dispen_inven');
     else notes.push('จ่ายจากคลังนับ: ' + (types.join(', ') || '–'));
     d.fys.forEach(function(fy){
-      if(d.stockAt[fy]) notes.push('คงคลังปีงบ ' + yy(fy) + (repState.by === 'month' ? '' : ' ณ ' + monthLabel(d.stockAt[fy])) + (d.stockFallback[fy] ? ' (บางเดือนใช้มูลค่าเฉพาะยาจากตารางเดือนสำรองคงคลัง)' : ''));
-      else notes.push('ยังไม่มีประวัติคงคลังปีงบ ' + yy(fy) + ' — นำเข้าไฟล์คลังยาย้อนหลังได้ (บันทึกเป็นประวัติ ไม่แทนข้อมูลล่าสุด)');
+      if(d.stockAt[fy]) notes.push('คงคลังปีงบ ' + yy(fy) + (byMonth ? '' : ' ณ ' + monthLabel(d.stockAt[fy])) + (d.stockFallback[fy] ? ' (บางเดือนใช้มูลค่าเฉพาะยาจากตารางเดือนสำรองคงคลัง)' : ''));
+      else notes.push('ยังไม่มีคงคลังปีงบ ' + yy(fy) + (oneMonth ? ' เดือนนี้' : ''));
     });
     note.textContent = notes.join(' · ');
 
     /* แถว */
     var keys;
-    if(repState.by === 'month') keys = d.months[d.cur].map(function(ym, i){ return i; });
+    if(byMonth) keys = d.sel.slice();
     else if(repState.by === 'ed') keys = ['ED', 'NED', 'other'];
     else keys = Object.keys(agg).sort(function(a, b){
       function v(k){ var c = agg[k][repState.measure]; return c && c[d.cur] ? repMetric(c[d.cur]) : 0; }
@@ -3408,31 +3417,41 @@
       return (none(a) ? 1 : 0) - (none(b) ? 1 : 0) || v(b) - v(a) || vp(b) - vp(a) || String(a).localeCompare(String(b), 'th');
     });
     var allCount = keys.length;
-    if(repState.by !== 'month' && repState.by !== 'ed' && repState.top) keys = keys.slice(0, repState.top);
+    if(!byMonth && repState.by !== 'ed' && repState.top) keys = keys.slice(0, repState.top);
     function label(k){
-      if(repState.by === 'month') return repShortMonth(d.months[d.cur][k]);
+      if(byMonth) return REP_MN[k];
       if(repState.by === 'ed') return REP_ED[k];
       if(repState.by === 'gpu') return d.labels[k] ? d.labels[k] + ' (GPU ' + k + ')' : k;
       return k;
     }
     function val(src, m, fy){ var c = src && src[m] && src[m][fy]; return c ? repMetric(c) : null; }
+    function blank(v){ return v == null ? '' : repShow(v); }   /* ไม่มีข้อมูล = เว้นว่าง (พี่โอมขอ) */
     function change(c, p){ if(c == null || !p) return ''; var x = (c - p) / p * 100; return Math.abs(x) < 0.05 ? '0%' : (x > 0 ? '▲ ' : '▼ ') + fmt1(Math.abs(x)) + '%'; }
+    /* ค่าเฉลี่ยต่อเดือน: เฉลี่ยเฉพาะเดือนที่มีข้อมูลของปีงบนั้น (สั่งซื้อ / จ่าย / คงคลัง ณ สิ้นเดือน) */
+    var mean = {};
+    if(byMonth && !oneMonth) REP_MEASURES.forEach(function(m){
+      mean[m.k] = {};
+      d.fys.forEach(function(fy){
+        var s = 0, c = 0; d.sel.forEach(function(idx){ var v = val(agg[idx], m.k, fy); if(v != null){ s += v; c++; } });
+        if(c) mean[m.k][fy] = { mean:s / c, n:c };
+      });
+    });
 
-    /* ตาราง: หัว 2 ชั้น หัวข้อ × ปีงบ */
-    var span = d.prev ? 3 : 1, unit = REP_METRIC.filter(function(o){ return o[0] === repState.metric; })[0][1];
+    /* ตาราง: หัว 2 ชั้น หัวข้อ × ปีงบ (+ เปลี่ยนแปลง ปีล่าสุดเทียบปีก่อน เมื่อดูหลายปี) */
+    var span = d.fys.length + (multi ? 1 : 0), unit = REP_METRIC.filter(function(o){ return o[0] === repState.metric; })[0][1];
     var head1 = '<tr><th rowspan="2" style="text-align:left">' + esc(REP_BY.filter(function(o){ return o[0] === repState.by; })[0][1]) + '<br><small>' + esc(unit) + '</small></th>' +
       REP_MEASURES.map(function(m){ return '<th colspan="' + span + '" class="grp">' + esc(m.label) + '</th>'; }).join('') + '</tr>';
     var head2 = '<tr>' + REP_MEASURES.map(function(){
-      return d.prev ? '<th class="mono grp">ปีงบ ' + d.prev + '</th><th class="mono">ปีงบ ' + d.cur + '</th><th class="mono">เปลี่ยนแปลง</th>' : '<th class="mono grp">ปีงบ ' + d.cur + '</th>';
+      return d.fys.map(function(fy, i){ return '<th class="mono' + (i ? '' : ' grp') + '">ปีงบ ' + fy + '</th>'; }).join('') +
+        (multi ? '<th class="mono">เปลี่ยนแปลง<br><small>' + yy(d.cur) + ' เทียบ ' + yy(d.prev) + '</small></th>' : '');
     }).join('') + '</tr>';
-    function cells(src){
+    function cellsFrom(get){
       return REP_MEASURES.map(function(m){
-        var c = val(src, m.k, d.cur);
-        if(!d.prev) return '<td class="mono grp">' + repShow(c) + '</td>';
-        var p = val(src, m.k, d.prev);
-        return '<td class="mono grp">' + repShow(p) + '</td><td class="mono">' + repShow(c) + '</td><td class="mono">' + change(c, p) + '</td>';
+        return d.fys.map(function(fy, i){ return '<td class="mono' + (i ? '' : ' grp') + '">' + blank(get(m.k, fy)) + '</td>'; }).join('') +
+          (multi ? '<td class="mono">' + change(get(m.k, d.cur), get(m.k, d.prev)) + '</td>' : '');
       }).join('');
     }
+    function cells(src){ return cellsFrom(function(m, fy){ return val(src, m, fy); }); }
     /* ชี้ที่ชื่อกลุ่ม (GPU / GPSC) → ยี่ห้อที่อยู่ในกลุ่ม ผูกกับ meditem (พี่โอม: อยากรู้ว่าซื้อยี่ห้ออะไรบ้าง) */
     function brands(k){
       if(repState.by !== 'gpu' && repState.by !== 'gpsc') return '';
@@ -3448,10 +3467,14 @@
       var b = brands(k);
       return '<tr><td' + (b ? ' class="has-brands" title="' + esc(b) + '"' : '') + '>' + esc(label(k)) + '</td>' + cells(agg[k]) + '</tr>';
     }).join('');
-    var totLabel = repState.by === 'month' ? 'รวม ' + range + ' (คงคลัง = ยอดเดือนล่าสุด)' : 'รวมทุกกลุ่ม';
-    body += '<tr class="total"><td>' + esc(totLabel) + '</td>' + cells(total) + '</tr>';
+    if(!(byMonth && oneMonth)){
+      var totLabel = byMonth ? 'รวม ' + range + ' (คงคลัง = ยอดเดือนล่าสุด)' : 'รวมทุกกลุ่ม';
+      body += '<tr class="total"><td>' + esc(totLabel) + '</td>' + cells(total) + '</tr>';
+    }
+    if(byMonth && !oneMonth) body += '<tr class="total"><td>เฉลี่ยต่อเดือน<br><small>เฉพาะเดือนที่มีข้อมูล</small></td>' +
+      cellsFrom(function(m, fy){ var x = mean[m] && mean[m][fy]; return x ? x.mean : null; }) + '</tr>';
     table.innerHTML = '<thead>' + head1 + head2 + '</thead><tbody>' + body + '</tbody>';
-    if(repState.by !== 'month' && repState.by !== 'ed') count.textContent = 'แสดง ' + fmt(keys.length) + ' จาก ' + fmt(allCount) + ' กลุ่ม เรียงตาม' + REP_MEASURES.filter(function(m){ return m.k === repState.measure; })[0].label + ' ปีงบ ' + d.cur;
+    if(!byMonth && repState.by !== 'ed') count.textContent = 'แสดง ' + fmt(keys.length) + ' จาก ' + fmt(allCount) + ' กลุ่ม เรียงตาม' + REP_MEASURES.filter(function(m){ return m.k === repState.measure; })[0].label + ' ปีงบ ' + d.cur;
 
     /* กราฟ: หัวข้อที่เลือก */
     var mea = REP_MEASURES.filter(function(m){ return m.k === repState.measure; })[0];
@@ -3470,21 +3493,31 @@
       });
       return;
     }
-    legend.innerHTML = '<span><i style="background:' + mea.color + '"></i>' + esc(mea.label) + ' ปีงบ ' + d.cur + '</span>' +
-      (d.prev ? '<span><i style="background:' + mea.color + ';opacity:.38"></i>ปีงบ ' + d.prev + '</span>' : '') + '<span>' + esc(unit) + '</span>';
+    /* แท่งต่อปีงบ: ปีล่าสุดเข้มและหนา ปีก่อนหน้าจางลง */
+    var order = d.fys.slice().reverse(), OP = [1, .55, .3];
+    legend.innerHTML = order.map(function(fy, i){ return '<span><i style="background:' + mea.color + ';opacity:' + OP[i] + '"></i>' + esc(mea.label) + ' ปีงบ ' + fy + '</span>'; }).join('') + '<span>' + esc(unit) + '</span>';
     var inChart = keys.slice(0, REP_CHART_MAX);
-    var max = Math.max.apply(null, inChart.map(function(k){ return Math.max(val(agg[k], mea.k, d.cur) || 0, d.prev ? val(agg[k], mea.k, d.prev) || 0 : 0); }).concat([1]));
+    var max = Math.max.apply(null, inChart.map(function(k){ return Math.max.apply(null, d.fys.map(function(fy){ return val(agg[k], mea.k, fy) || 0; })); }).concat([1]));
     inChart.forEach(function(k){
-      var c = val(agg[k], mea.k, d.cur), p = d.prev ? val(agg[k], mea.k, d.prev) : null, ch = change(c, p);
+      var c = val(agg[k], mea.k, d.cur);
       var row = document.createElement('div'); row.className = 'pt-row';
       row.innerHTML = '<div class="rlabel" title="' + esc(label(k)) + '">' + esc(label(k)) + '</div>' +
-        '<div class="pt-bars"><div class="pt-bar" style="width:' + ((c || 0) / max * 100) + '%;background:' + mea.color + '"></div>' +
-        (d.prev ? '<div class="pt-bar prev" style="width:' + ((p || 0) / max * 100) + '%;background:' + mea.color + '"></div>' : '') + '</div>' +
-        '<div class="rvalue">' + repShow(c) + (d.prev ? '<small>ปี ' + yy(d.prev) + ' ' + repShow(p) + (ch ? ' · ' + ch : '') + '</small>' : '') + '</div>';
-      bindTooltip(row.querySelector('.pt-bar'), label(k) + ' · ' + mea.label + ' ปีงบ ' + d.cur + ' ' + repShow(c) + (d.prev ? ' · ปีงบ ' + d.prev + ' ' + repShow(p) : '') + ' (' + unit + ')');
+        '<div class="pt-bars">' + order.map(function(fy, i){
+          var v = val(agg[k], mea.k, fy) || 0;
+          return '<div class="pt-bar' + (i ? ' prev' : '') + '" style="width:' + (v / max * 100) + '%;background:' + mea.color + ';opacity:' + OP[i] + (v ? '' : ';min-width:0') + '"></div>';
+        }).join('') + '</div>' +
+        '<div class="rvalue">' + (multi ? 'ปี ' + yy(d.cur) + ' ' : '') + (c == null ? '–' : repShow(c)) + (multi ? '<small>' + order.slice(1).map(function(fy){ var v = val(agg[k], mea.k, fy); return 'ปี ' + yy(fy) + ' ' + (v == null ? '–' : repShow(v)); }).join(' · ') + '</small>' : '') + '</div>';
+      bindTooltip(row.querySelector('.pt-bars'), label(k) + ' · ' + mea.label + ' · ' + order.map(function(fy){ var v = val(agg[k], mea.k, fy); return 'ปีงบ ' + fy + ' ' + (v == null ? 'ไม่มีข้อมูล' : repShow(v)); }).join(' · ') + ' (' + unit + ')');
       chart.appendChild(row);
     });
   }
+  ['rep-fy', 'rep-month'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', function(e){
+      if(id === 'rep-fy') repState.fy = e.target.value === 'all' ? 'all' : Number(e.target.value);
+      else repState.month = Number(e.target.value);
+      renderReport();
+    });
+  });
   document.getElementById('rep-top').addEventListener('change', function(e){ repState.top = Number(e.target.value); renderReport(); });
 
   /* ---------------- ย่อ / ขยายหัวข้อ ----------------
