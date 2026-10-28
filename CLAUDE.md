@@ -38,4 +38,5 @@ Context for any Claude Code session that opens this repo (the owner works from m
 - GPU chart = PO_inven purchase value since fiscal-year start, ฿500,000 ceiling, planfin totals by GPU at the bar end.
 - planfin: latest year drives "ห้ามซื้อเกิน", quote prices (cost per box) and the GPU chart; up to 5 years kept; the ranking has a free year / compare-year picker.
 - Quotes: one sheet per distributor, max 8 items; numbers W (drugs) / WM (non-drug supplies, materials, others) / WC (pharmaceutical chemicals), format `W001-70`, rolling to the new fiscal year automatically; reopen-to-edit keeps the same number.
+- Purchase memos (Word): from a quote in the history, ภย./ภว. → ขย./ขว. → ย./ยว. (W → ย-series, WM/WC → ว-series); committee and signers are picked per memo from a people list kept only in IndexedDB (`_memoset`) — never put staff names in code or the repo; the Garuda comes from an old memo .docx dropped once. Details and the .docx gotchas (Thai line breaking) are in README.
 - Fiscal year starts in October (พ.ศ.).

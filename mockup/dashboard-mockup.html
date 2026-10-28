@@ -299,6 +299,9 @@
   .quote-box .q-in.num{ width:84px; text-align:right; font-family:'IBM Plex Mono', monospace; }
   .quote-box .q-in.unit{ width:76px; }
   .quote-box tr.on td{ background:var(--accent-soft); }
+  /* ออกบันทึก ภย. / ขย. / ย. (Word) */
+  .quote-box .memo-step{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:14px 0 6px; font-size:13px; font-weight:600; color:var(--ink); }
+  .quote-box .memo-set{ border:1px dashed var(--border-strong); border-radius:8px; padding:10px 12px; margin:4px 0 8px; background:var(--surface-2); }
   .quote-box label.q-field{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); }
   .btn-solid{ font-family:inherit; font-size:12.5px; background:var(--accent); color:var(--accent-ink); border:1px solid var(--accent); border-radius:99px; padding:6px 14px; cursor:pointer; font-weight:600; }
   .btn-solid:disabled{ opacity:.5; cursor:not-allowed; }
@@ -358,7 +361,7 @@
 <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือกไฟล์">
   <div class="dz-title">ลากไฟล์ Excel ที่ export จาก HIS มาวางที่นี่ (เลือกได้หลายไฟล์พร้อมกัน) หรือคลิกเพื่อเลือกไฟล์</div>
   <div class="dz-hint">Meditem · DrugCatNow · gpsc · inventory · ห้องจ่ายยา ชั้น G · ห้องจ่ายยา ชั้น 1 · list — โปรแกรมดูจากหัวคอลัมน์ ไม่ต้องตั้งชื่อไฟล์ให้ตรง ไฟล์ที่ไม่ได้นำเข้าใหม่จะใช้ข้อมูลครั้งล่าสุดที่บันทึกไว้</div>
-  <input type="file" id="file-input" accept=".xlsx,.xls" multiple>
+  <input type="file" id="file-input" accept=".xlsx,.xls,.docx" multiple>
 </div>
 <div class="errorbar" id="errorbar"></div>
 <div class="importnote" id="importnote" hidden></div>
@@ -560,8 +563,10 @@
       <label class="q-field">ใบที่ส่งออกแล้ว <select class="search field-select" id="quote-hist" aria-label="ใบที่ส่งออกแล้ว"></select></label>
       <button type="button" class="btn-ghost" id="quote-reopen">เปิดมาแก้ไข (ใช้เลขเดิม)</button>
       <button type="button" class="btn-ghost" id="quote-cancel-edit" hidden>ยกเลิกการแก้ไข</button>
+      <button type="button" class="btn-solid" id="quote-memo">ออกบันทึก ภย. / ขย. / ย. (Word)</button>
     </div>
   </div>
+  <div class="quote-box" id="memo-box" hidden></div>
   <div class="rate-detail" id="rate-detail" hidden></div>
   <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
   <div class="table-scroll" style="max-height:460px">
@@ -1237,10 +1242,17 @@
     if(!files.length) return;
     hideError();
     showNote('กำลังอ่านไฟล์ ' + files.length + ' ไฟล์…');
-    var found = {}, unknown = [], dup = [], keptLot = false, statusFiles = [];
+    var found = {}, unknown = [], dup = [], keptLot = false, statusFiles = [], docxHit = [];
     var chain = Promise.resolve();
     files.forEach(function(f){
       chain = chain.then(function(){ return readFile(f); }).then(function(buf){
+        /* ไฟล์ Word (.docx) = บันทึกข้อความเดิม ใช้เฉพาะรูปตราครุฑสำหรับบันทึกที่ออกจากโปรแกรม (เก็บในเครื่องนี้) */
+        if(/\.docx$/i.test(f.name)){
+          var gimg = garudaFromDocx(buf, f.name);
+          if(gimg){ if(!memoSet) memoSet = memoSeed(); memoSet.garuda = gimg; memoSaveSet(); docxHit.push(f.name); }
+          else unknown.push(f.name + ' (ไม่พบรูปตราครุฑในไฟล์ Word)');
+          return;
+        }
         var wb = XLSX.read(buf, { type:'array' });
         var hit = false;
         /* Inventory Status (คงคลัง ณ สิ้นเดือน ย้อนหลัง): ในไฟล์ไม่มีวันที่ ใช้เดือนจากชื่อไฟล์ เช่น "Inventory_status 01-69" = ม.ค.69
@@ -1309,7 +1321,7 @@
       state.fresh = Object.keys(found);
       var save = recs.length ? dbPut(recs).catch(function(){ storageOk = false; }) : Promise.resolve();
       return save.then(function(){
-        if(!recs.length && !oldInv && !statusFiles.length){
+        if(!recs.length && !oldInv && !statusFiles.length && !docxHit.length){
           showNote('');
           showError('ไม่รู้จักไฟล์ที่นำเข้า: ' + unknown.join(', ') + ' — ต้องเป็นไฟล์ที่ export จาก HIS ที่มีหัวคอลัมน์เดิม');
           return;
@@ -1328,12 +1340,13 @@
           updateSourceUI(); renderKpi(); renderReport();
         }
         var oa = oldInv ? invAsof(oldInv) : 0;
-        resetFilters(); renderAll();
+        resetFilters(); renderAll(); if(memoState.no) renderMemo();
         showNote((recs.length ? 'นำเข้าแล้ว ' + recs.length + ' ไฟล์: ' + recs.map(function(r){ return slotLabel(r.slot); }).join(', ') : '') +
           (oldInv ? (recs.length ? ' · ' : '') + 'คลังยา ' + oldInv.fileName + ' เป็นยอดย้อนหลัง (ณ ' + (oa % 100) + ' ' + TH_MONTHS_ABBR[Math.floor(oa / 100) % 100 - 1] + '. ' + String(Math.floor(oa / 10000) + 543).slice(-2) + ') บันทึกเป็นประวัติคงคลังรายเดือน ไม่แทนข้อมูลล่าสุด' : '') +
           (statusFiles.length ? (recs.length || oldInv ? ' · ' : '') + 'Inventory Status ' + statusFiles.map(function(x){ return monthLabel(Math.floor(x.asof / 100)); }).join(', ') + ' บันทึกเป็นคงคลัง ณ สิ้นเดือน (ประวัติ ไม่แทนข้อมูลล่าสุด)' : '') +
           (dup.length ? ' · มีไฟล์ซ้ำประเภทเดียวกัน ใช้ไฟล์ที่วางทีหลัง: ' + dup.join(', ') : '') +
           (keptLot ? ' · คลังยามี 2 ไฟล์ ใช้ไฟล์ที่มี lot / expdate' : '') +
+          (docxHit.length ? ' · ตราครุฑสำหรับบันทึก (Word) จาก ' + docxHit.join(', ') + ' เก็บไว้ในเครื่องนี้แล้ว' : '') +
           (storageOk ? '' : ' · บันทึกลงเครื่องไม่ได้ ข้อมูลจะหายเมื่อปิดหน้า'));
         if(unknown.length) showError('ไม่รู้จักไฟล์: ' + unknown.join(', ') + ' — ไฟล์นี้ไม่ได้ถูกนำเข้า');
       });
@@ -1393,7 +1406,7 @@
   document.getElementById('btn-clear').addEventListener('click', function(){
     if(!window.confirm('ล้างข้อมูลที่นำเข้าไว้ทั้งหมดในเบราว์เซอร์นี้? (ไฟล์ Excel ในเครื่องไม่ถูกลบ · ตารางเดือนสำรองคงคลัง ประวัติคงคลังรายเดือน และประวัติใบเสนอราคายังเก็บไว้)')) return;
     var done = function(){ state.datasets = {}; state.prev = null; state.fresh = []; showNote(''); hideError(); rebuild(); resetFilters(); renderAll(); };
-    dbClear().then(function(){ return dbPut([kpiStore, quoteHist, stockHist].filter(Boolean)); }).then(done, done);
+    dbClear().then(function(){ return dbPut([kpiStore, quoteHist, stockHist, memoSet].filter(Boolean)); }).then(done, done);
   });
 
   var dz = document.getElementById('dropzone');
@@ -2251,6 +2264,476 @@
     quoteState.note = gone.length ? 'ไม่พบในข้อมูลที่นำเข้าตอนนี้: ' + gone.join(', ') : '';
     renderQuote();
   }
+
+  /* ---------------- บันทึก ภย. / ภว. → ขย. / ขว. → ย. / ยว. (Word) ----------------
+     พี่โอม 26–28 ต.ค. 69: ออกต่อจากใบขอใบเสนอราคาในประวัติ · ทุกช่องที่ไฮไลต์แก้ได้ก่อนส่งออก · เลือกกรรมการก่อนสร้าง
+     ภย. / ขย. / ย. = ใบ W (ยา) · ภว. / ขว. / ยว. = ใบ WM, WC · ไม่แปะลายเซ็นในบันทึก (ลงนามจริงบนกระดาษ)
+     รายชื่อ / ตำแหน่ง / ตราครุฑ เก็บใน IndexedDB ของเครื่องนี้เท่านั้น — เว็บเปิดสาธารณะ ห้ามใส่ชื่อคนในโค้ด
+     ไฟล์ .docx สร้างเองด้วยตัวเขียน zip ของ SheetJS (ไม่ต้องโหลดไลบรารีเพิ่ม) */
+  var MEMO_SLOT = '_memoset', memoSet = null;
+  var MEMO_ROLES = [['committee', 'กรรมการตรวจรับ'], ['officer', 'เจ้าหน้าที่พัสดุ'], ['head', 'หัวหน้าเจ้าหน้าที่พัสดุ'], ['exec', 'ผู้บริหารเสนอความเห็น'], ['director', 'ผู้อำนวยการ']];
+  var MEMO_KIND = {
+    drug:{ p:'ภย', k:'ขย', y:'ย', what:'ยา', col:'รายการยา', need:'เพื่อใช้รักษาผู้ป่วย',
+      subjP:'ขออนุมัติหลักการซื้อยาโดยวิธีเฉพาะเจาะจง', subjK:'ขออนุมัติซื้อยา โดยวิธีเฉพาะเจาะจง' },
+    non:{ p:'ภว', k:'ขว', y:'ยว', what:'วัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช)', col:'รายการเวชภัณฑ์ที่มิใช่ยา', need:'เพื่อใช้ในทางการแพทย์',
+      subjP:'ขออนุมัติหลักการซื้อวัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช) โดยวิธีเฉพาะเจาะจง', subjK:'ขออนุมัติซื้อวัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช) โดยวิธีเฉพาะเจาะจง' }
+  };
+  /* WC (เภสัชเคมีภัณฑ์) ไปชุด ภว. / ขว. / ยว. ตามคำตอบ 26 ต.ค. 69 (รอยืนยันอีกครั้งเรื่องกองเงิน) */
+  function memoKindOf(doc){ return doc.series === 'W' || doc.series === 'WB' ? MEMO_KIND.drug : MEMO_KIND.non; }
+  function memoSeed(){
+    return { slot:MEMO_SLOT, people:[], planRef:{}, next:{}, pick:{}, garuda:null,
+      org:{ hosp:'โรงพยาบาลราชวิถี 2 (รังสิต)', dept:'กลุ่มงานเภสัชกรรม',
+        lineP:'กลุ่มงานเภสัชกรรม โรงพยาบาลราชวิถี 2 (รังสิต)  รหัส 5020000  โทร 70006',
+        lineK:'โรงพยาบาลราชวิถี 2 (รังสิต)  กลุ่มงานเภสัชกรรม  รหัส 5020000  โทร. 70006' } };
+  }
+  function memoSaveSet(){ if(memoSet) dbPut([memoSet]).catch(function(){ storageOk = false; }); }
+  function memoDateTh(iso){ var p = String(iso || '').split('-'); return p.length === 3 ? Number(p[2]) + ' ' + TH_MONTHS[Number(p[1]) - 1] + ' ' + (Number(p[0]) + 543) : ''; }
+  function memoBE(iso){ return Number(String(iso || todayIso()).slice(0, 4)) + 543; }
+  function memoFY(iso){ var p = String(iso || todayIso()).split('-'); return Number(p[0]) + 543 + (Number(p[1]) >= 10 ? 1 : 0); }
+  /* เลขที่: ภย. / ภว. รันตาม พ.ศ. (เริ่มใหม่ ม.ค.) · ขย. / ขว. รันตามปีงบ (เริ่มใหม่ ต.ค.) · ย. ใช้เลขเดียวกับ ขย. — พี่โอม 26 ต.ค. 69 */
+  function memoNextNo(series, year){
+    var v = memoSet && memoSet.next[series], m = /^(\d+)\/(\d{4})$/.exec(v || '');
+    return m && Number(m[2]) === year ? v : '0001/' + year;
+  }
+  function memoBump(series, used){
+    var m = /^(\d+)\/(\d{4})$/.exec(String(used || '').trim()); if(!m) return;
+    var n = String(Number(m[1]) + 1); while(n.length < m[1].length) n = '0' + n;
+    var c = /^(\d+)\/(\d{4})$/.exec(memoSet.next[series] || '');
+    if(c && (Number(c[2]) > Number(m[2]) || (Number(c[2]) === Number(m[2]) && Number(c[1]) >= Number(n)))) return;   /* ไม่ย้อนกลับ */
+    memoSet.next[series] = n + '/' + m[2];
+  }
+  function memoPerson(id){ return (memoSet && memoSet.people || []).filter(function(p){ return p.id === id; })[0] || null; }
+  function memoSign(p){ return p ? p.sign || p.pos || '' : ''; }
+
+  /* ตราครุฑ: ลากไฟล์บันทึกข้อความ (.docx) เดิมมาวาง 1 ครั้ง ใช้รูปแรกในไฟล์และขนาดเดิม */
+  function garudaFromDocx(buf, name){
+    try{
+      var cfb = XLSX.CFB.read(new Uint8Array(buf), { type:'array' }), img = null, doc = '';
+      cfb.FullPaths.forEach(function(p, i){
+        var f = cfb.FileIndex[i]; if(!f || !f.content || !f.content.length) return;
+        if(/word\/document\.xml$/.test(p)) doc = new TextDecoder('utf-8').decode(new Uint8Array(f.content));
+        var m = /word\/media\/[^\/]+\.(jpe?g|png)$/i.exec(p);
+        if(m && !img) img = { ext:/png/i.test(m[1]) ? 'png' : 'jpeg', bytes:new Uint8Array(f.content).buffer };
+      });
+      if(!img) return null;
+      var ex = /<wp:extent cx="(\d+)" cy="(\d+)"/.exec(doc);
+      img.cx = ex ? Number(ex[1]) : 563880; img.cy = ex ? Number(ex[2]) : 563880; img.file = name;
+      return img;
+    }catch(e){ return null; }
+  }
+
+  /* ---- ตัวเขียน .docx (WordprocessingML) ---- */
+  var DOCX_FONT = 'TH SarabunIT๙';
+  function xe(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function wRun(text, o){
+    o = o || {}; var sz = o.sz || 32;
+    var rp = '<w:rPr><w:rFonts w:ascii="' + DOCX_FONT + '" w:hAnsi="' + DOCX_FONT + '" w:cs="' + DOCX_FONT + '"/>' + (o.b ? '<w:b/><w:bCs/>' : '') +
+      '<w:sz w:val="' + sz + '"/><w:szCs w:val="' + sz + '"/>';
+    return String(text == null ? '' : text).split('\n').map(function(line, li){
+      return (li ? '<w:r>' + rp + '</w:rPr><w:br/></w:r>' : '') + line.split('\t').map(function(seg, si){
+        return (si ? '<w:r>' + rp + '</w:rPr><w:tab/></w:r>' : '') + (seg ? '<w:r>' + rp + (/[฀-๿]/.test(seg) ? '<w:cs/>' : '') + '</w:rPr><w:t xml:space="preserve">' + xe(seg) + '</w:t></w:r>' : '');
+      }).join('');
+    }).join('');
+  }
+  function wPara(runs, o){
+    o = o || {}; var pp = '';
+    if(o.keep) pp += '<w:keepNext/>';
+    if(o.pageBreak) pp += '<w:pageBreakBefore/>';
+    if(o.tabs) pp += '<w:tabs>' + o.tabs.map(function(t){ return '<w:tab w:val="' + t[0] + '" w:pos="' + t[1] + '"/>'; }).join('') + '</w:tabs>';
+    pp += '<w:spacing w:before="' + (o.before || 0) + '" w:after="' + (o.after || 0) + '"/>';
+    if(o.left || o.first || o.hang) pp += '<w:ind' + (o.left ? ' w:left="' + o.left + '"' : '') + (o.first ? ' w:firstLine="' + o.first + '"' : '') + (o.hang ? ' w:hanging="' + o.hang + '"' : '') + '/>';
+    if(o.jc) pp += '<w:jc w:val="' + o.jc + '"/>';
+    return '<w:p><w:pPr>' + pp + '</w:pPr>' + runs + '</w:p>';
+  }
+  /* rows: [{ head, cells:[{ t, span, jc, b, tabs }] }] · ช่องที่ไม่ระบุ jc ใช้ตามคอลัมน์ */
+  function wTable(rows, cols, o){
+    o = o || {}; var sz = o.sz || 32, bd = o.noBorder ? 'nil' : 'single';
+    var b = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(function(s){ return '<w:' + s + ' w:val="' + bd + '"' + (o.noBorder ? '' : ' w:sz="4" w:space="0" w:color="000000"') + '/>'; }).join('');
+    var tw = cols.reduce(function(a, c){ return a + c.w; }, 0);
+    return '<w:tbl><w:tblPr><w:tblW w:w="' + tw + '" w:type="dxa"/><w:tblBorders>' + b + '</w:tblBorders><w:tblLayout w:type="fixed"/>' +
+      '<w:tblCellMar><w:left w:w="57" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar></w:tblPr>' +
+      '<w:tblGrid>' + cols.map(function(c){ return '<w:gridCol w:w="' + c.w + '"/>'; }).join('') + '</w:tblGrid>' +
+      rows.map(function(r){
+        var ci = 0;
+        return '<w:tr>' + (r.head ? '<w:trPr><w:cantSplit/><w:tblHeader/></w:trPr>' : '<w:trPr><w:cantSplit/></w:trPr>') + r.cells.map(function(c){
+          var span = c.span || 1, w = 0; for(var k = 0; k < span; k++) w += cols[ci + k].w;
+          var jc = c.jc || (r.head ? 'center' : cols[ci].jc || 'left'); ci += span;
+          return '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/>' + (span > 1 ? '<w:gridSpan w:val="' + span + '"/>' : '') + '<w:vAlign w:val="' + (o.top ? 'top' : 'center') + '"/></w:tcPr>' +
+            wPara(wRun(c.t, { b:c.b || r.head, sz:r.head && o.headSz ? o.headSz : sz }), { jc:jc, tabs:c.tabs }) + '</w:tc>';
+        }).join('') + '</w:tr>';
+      }).join('') + '</w:tbl>';
+  }
+  function wGaruda(g){
+    return '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' + g.cx + '" cy="' + g.cy + '"/><wp:docPr id="1" name="Garuda"/>' +
+      '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="garuda.' + g.ext + '"/><pic:cNvPicPr/></pic:nvPicPr>' +
+      '<pic:blipFill><a:blip r:embed="rIdImg"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + g.cx + '" cy="' + g.cy + '"/></a:xfrm>' +
+      '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
+  }
+  function docxBlob(body, img, mar){
+    var X = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    var NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
+      'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+    var m = mar || { top:1247, right:1440, bottom:1440, left:1440 };
+    var doc = X + '<w:document ' + NS + '><w:body>' + body + '<w:p/><w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="' + m.top + '" w:right="' + m.right + '" w:bottom="' + m.bottom + '" w:left="' + m.left + '" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>';
+    var styles = X + '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="' + DOCX_FONT + '" w:eastAsia="' + DOCX_FONT + '" w:hAnsi="' + DOCX_FONT + '" w:cs="' + DOCX_FONT + '"/>' +
+      '<w:sz w:val="32"/><w:szCs w:val="32"/><w:lang w:val="en-US" w:bidi="th-TH"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>' +
+      '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>';
+    var ct = X + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+      '<Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/>' +
+      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+      '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
+      '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>';
+    var R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
+    var rels = X + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="' + R + 'officeDocument" Target="word/document.xml"/></Relationships>';
+    var drels = X + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="' + R + 'styles" Target="styles.xml"/>' +
+      '<Relationship Id="rIdSettings" Type="' + R + 'settings" Target="settings.xml"/>' +
+      (img ? '<Relationship Id="rIdImg" Type="' + R + 'image" Target="media/garuda.' + img.ext + '"/>' : '') + '</Relationships>';
+    var enc = new TextEncoder(), cfb = XLSX.CFB.utils.cfb_new();
+    function add(p, s){ XLSX.CFB.utils.cfb_add(cfb, p, typeof s === 'string' ? enc.encode(s) : s); }
+    add('/[Content_Types].xml', ct); add('/_rels/.rels', rels); add('/word/document.xml', doc); add('/word/styles.xml', styles); add('/word/_rels/document.xml.rels', drels);
+    add('/word/settings.xml', X + '<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:defaultTabStop w:val="720"/>' +
+      '<w:characterSpacingControl w:val="doNotCompress"/>' +
+      /* โหมด Word 2013+ และกฎตัดบรรทัดภาษาไทย (เหมือนไฟล์ของพี่โอม) — ไม่มีแล้ว Word จะตัดบรรทัดเฉพาะที่ช่องว่าง ตัวอักษรถูกยืด */
+      '<w:compat><w:applyBreakingRules/><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat><w:themeFontLang w:val="en-US" w:bidi="th-TH"/></w:settings>');
+    if(img) add('/word/media/garuda.' + img.ext, new Uint8Array(img.bytes));
+    return new Blob([new Uint8Array(XLSX.CFB.write(cfb, { fileType:'zip', type:'array' }))], { type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  }
+  function saveBlob(blob, name){
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+  }
+
+  /* ---- ข้อมูลในบันทึก ---- */
+  function memoLastPrice(id){
+    var best = null;
+    (state.lookups && state.lookups.po || []).forEach(function(r){ if(r.id === id && r.price > 0 && (!best || (r.date || r.ym * 100) >= (best.date || best.ym * 100))) best = r; });
+    return best ? best.price : '';
+  }
+  function memoLinesFrom(doc){
+    var L = state.lookups || { med:{} }, byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
+    return doc.lines.map(function(l){
+      var it = byId[l.id] || {}, m = L.med[l.id] || {}, r = refPick(l.id), pack = l.pack || 1, unit = l.unitP || 'กล่อง';
+      var st = it.stock && it.stock.central ? it.stock.central.qty : null, rate = it.proc ? it.proc.userate : null, gps = String(m.gpscode || '');
+      return { id:l.id, name:l.name, unit:unit,
+        stock:st == null ? '' : Math.round(st * 10) / 10,                        /* ยอดคงเหลือจากคลังยา (พี่โอม 28 ต.ค.: ดึงจากคงคลังแล้วแก้ได้) */
+        rate:rate == null ? '' : Math.round(rate),                                   /* userate จากไฟล์ list (แก้ได้) */
+        pack:pack > 1 ? '1 ' + unit + ' (' + fmt1(pack) + ' ' + (l.unitS || '') + ')' : '1 ' + unit,
+        qty:l.qty, price:l.price, ref:r ? Math.round(r.r.price * pack * 100) / 100 : '', last:memoLastPrice(l.id),
+        gpu:m.gpucode || it.gpucode || '', tpu:m.tpucode || '',
+        unspsc:/^99/.test(gps) && gps.length > 8 ? gps.slice(-8) : gps };           /* เลข GPSC ไม่มี 990000 นำหน้า (พี่โอม 28 ต.ค.) */
+    });
+  }
+  function memoTotals(d){
+    var total = 0, refSum = 0;
+    d.lines.forEach(function(l){
+      var q = +l.qty || 0, v = Math.round(q * (+l.price || 0) * 100) / 100; total += v;
+      /* ขย. ข้อ 3: ราคากลาง × จำนวน ถ้าไม่มีราคากลางใช้ราคาซื้อครั้งสุดท้าย × จำนวน (พี่โอม 28 ต.ค.) */
+      refSum += q * (+l.ref > 0 ? +l.ref : +l.last > 0 ? +l.last : +l.price || 0);
+    });
+    total = Math.round(total * 100) / 100;
+    var ex = Math.round(total / 1.07 * 100) / 100;
+    return { total:total, ex:ex, vat:Math.round((total - ex) * 100) / 100, ref:Math.round(refSum * 100) / 100 };
+  }
+  function memoQty(v, unit){ return v === '' || v == null ? '' : fmt1(+v) + (unit ? ' ' + unit : ''); }
+  function memoMoney(v){ return +v > 0 ? fmt2(+v) : '-'; }
+
+  /* ตารางรายการ (ภย. / ภว. / ขย. / ขว. ใช้ตารางเดียวกัน — "ดึงข้อมูลมาจาก ภย. เหมือนเดิมทั้งหมด")
+     คอลัมน์ราคาซื้อครั้งสุดท้ายแสดงเมื่อมีรายการที่ไม่มีราคากลาง (พี่โอมยืนยัน 28 ต.ค.) */
+  function memoItemTable(d, k, t){
+    var last = d.lines.some(function(l){ return !(+l.ref > 0); });
+    var cols = [{ h:'ลำดับ\nที่', w:520, jc:'center' }, { h:k.col, w:last ? 1900 : 2750 }, { h:'ยอด\nคงเหลือ', w:700, jc:'center' }, { h:'อัตรา\nการใช้\nต่อเดือน', w:720, jc:'center' },
+      { h:'ขนาด\nบรรจุ', w:820, jc:'center' }, { h:'จำนวน', w:780, jc:'center' }, { h:'ราคา\nกลาง', w:700, jc:'right' }]
+      .concat(last ? [{ h:'ราคาซื้อ\nครั้งสุดท้าย\n(รวม VAT)', w:850, jc:'right' }] : [])
+      .concat([{ h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:830, jc:'right' }, { h:'วงเงิน\n(รวม VAT)', w:1206, jc:'right' }]);
+    var n = cols.length, rows = [{ head:true, cells:cols.map(function(c){ return { t:c.h }; }) }];
+    d.lines.forEach(function(l, i){
+      rows.push({ cells:[{ t:(i + 1) + '.' }, { t:l.name }, { t:memoQty(l.stock, l.unit) }, { t:memoQty(l.rate, l.unit) }, { t:l.pack }, { t:memoQty(l.qty, l.unit) }, { t:memoMoney(l.ref) }]
+        .concat(last ? [{ t:memoMoney(l.last) }] : []).concat([{ t:fmt2(+l.price || 0) }, { t:fmt2(Math.round((+l.qty || 0) * (+l.price || 0) * 100) / 100) }]) });
+    });
+    rows.push({ cells:[{ t:'มูลค่าที่ไม่รวมภาษี', span:n - 1, jc:'right' }, { t:fmt2(t.ex) }] });
+    rows.push({ cells:[{ t:'ภาษีมูลค่าเพิ่ม 7%', span:n - 1, jc:'right' }, { t:fmt2(t.vat) }] });
+    rows.push({ cells:[{ t:'รวมจำนวนเงินทั้งสิ้น', span:n - 1, jc:'right', b:1 }, { t:fmt2(t.total), b:1 }] });
+    rows.push({ cells:[{ t:'จำนวนรวม ' + d.lines.length + ' รายการ รวมเป็นเงินทั้งสิ้น\t(' + bahtText(t.total) + ')', span:n, jc:'left', tabs:[['right', 8900]] }] });
+    return wTable(rows, cols, { sz:26, headSz:24 });
+  }
+  function memoHead(lineOrg, no, date, subj, right){
+    var g = memoSet.garuda, L18 = { b:1, sz:40 };
+    return wPara((g ? wGaruda(g) : '') + wRun('\tบันทึกข้อความ', { b:1, sz:58 }), { tabs:[['center', 4513]] }) +
+      wPara(wRun('ส่วนราชการ', L18) + wRun('  ' + lineOrg), { before:60 }) +
+      wPara(wRun('ที่', L18) + wRun('  ' + no + '\t') + wRun('วันที่', L18) + wRun('  ' + date), { tabs:[['left', 4536]] }) +
+      wPara(wRun('เรื่อง', L18) + wRun('  ' + subj + (right ? '\t' + right : '')), { tabs:[['right', 9026]] }) +
+      wPara(wRun('เรียน    ผู้อำนวยการ' + memoSet.org.hosp), { before:120 });
+  }
+  function memoCommittee(d){
+    var ROLE = ['ประธานกรรมการ', 'กรรมการ', 'กรรมการ'];
+    return [0, 1, 2].map(function(i){
+      var p = memoPerson(d.committee[i]);
+      return wPara(wRun((i + 1) + '. ' + (p ? p.name : '..............................') + '\tตำแหน่ง' + (p ? p.pos : '..............................') + '\t' + ROLE[i]), { left:1418, tabs:[['left', 4300], ['left', 7300]] });
+    }).join('');
+  }
+  function memoSignBlock(p, label){
+    return (label ? 'ลงชื่อ.................................(' + label + ')\n' : '\n\n') + '(' + (p ? p.name : '...............................................') + ')\n' + memoSign(p);
+  }
+
+  function buildMemoP(doc, d){
+    var k = memoKindOf(doc), t = memoTotals(d), head = memoPerson(d.head), fy = memoFY(d.pDate), I = { first:1418, jc:'thaiDistribute' };
+    var body = memoHead(memoSet.org.lineP, k.p + '.' + d.pNo, memoDateTh(d.pDate), k.subjP) +
+      wPara(wRun('ตามหนังสือ' + memoSet.org.hosp + ' ' + (d.planRef || '…………………………') + ' โดยกลุ่มงานเภสัชกรรมได้รับการอนุมัติจัดสรรตามแผนการใช้จ่ายเงินบำรุงฯ ประจำปีงบประมาณ ' + fy +
+        ' กลุ่มงานเภสัชกรรมมีความประสงค์ขอซื้อ' + k.what + ' จำนวน ' + d.lines.length + ' รายการ วงเงิน ' + fmt2(t.total) + ' บาท (' + bahtText(t.total) + ') เพื่อใช้ในการรักษาผู้ป่วยของ ' + doc.company +
+        ' ดังมีรายการต่อไปนี้ ตามขอใบเสนอราคาเลขที่ ' + String(doc.no).toLowerCase()), { first:1418, jc:'thaiDistribute', after:120 }) +
+      memoItemTable(d, k, t) +
+      wPara(wRun('รายละเอียดตามเอกสารที่แนบมา ทั้งนี้ขอเสนอแต่งตั้งคณะกรรมการ ดังต่อไปนี้'), { first:1418, before:120 }) +
+      wPara(wRun('คณะกรรมการตรวจรับพัสดุ (ภายใน ' + (d.days || 5) + ' วันทำการ) ประกอบด้วย'), I) +
+      memoCommittee(d) +
+      wPara(wRun('จึงเรียนมาเพื่อโปรดพิจารณา และดำเนินการต่อไปด้วย จะเป็นพระคุณ'), { first:1418, before:120 }) +
+      wPara(wRun('\t(' + (head ? head.name : '...............................................') + ')'), { tabs:[['center', 6400]], before:720 }) +
+      wPara(wRun('\t' + memoSign(head)), { tabs:[['center', 6400]] });
+    return docxBlob(body, memoSet.garuda);
+  }
+  function buildMemoK(doc, d){
+    var k = memoKindOf(doc), t = memoTotals(d), fy = memoFY(d.kDate || d.pDate), n = d.lines.length, I = { left:0, first:1418, jc:'thaiDistribute' };
+    var off = memoPerson(d.officer), head = memoPerson(d.head), ex = memoPerson(d.exec), dir = memoPerson(d.director);
+    var NUM = { left:1418, hang:360, jc:'thaiDistribute' };
+    var body = memoHead(memoSet.org.lineK, k.k + '.' + d.kNo, memoDateTh(d.kDate), k.subjK, 'หมวดค่าวัสดุ') +
+      wPara(wRun('ด้วยได้รับแจ้งจาก กลุ่มงานเภสัชกรรมเพื่อให้ดำเนินการซื้อ' + k.what + ' จำนวน ' + n + ' รายการ กลุ่มงานเภสัชกรรมได้พิจารณาแล้วความตามพระราชบัญญัติการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ' +
+        'และระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 รายงานขอซื้อขอจ้าง ข้อ ๒๒ กำหนดให้การซื้อหรือจ้างแต่ละวิธี นอกจากการซื้อที่ดินหรือสิ่งปลูกสร้าง ' +
+        'ให้เจ้าหน้าที่จัดทำรายงานขอซื้อหรือขอจ้างเสนอหัวหน้าหน่วยงานของรัฐเพื่อความเห็นชอบ โดยเสนอผ่านหัวหน้าเจ้าหน้าที่โดยมีรายการดังต่อไปนี้'), I) +
+      wPara(wRun('1. เหตุผลและความจำเป็นที่ต้องจัดซื้อ' + k.what + ' ' + k.need), NUM) +
+      wPara(wRun('2. รายละเอียดหรือคุณลักษณะของพัสดุที่จะซื้อ' + k.what + ' จำนวน ' + n + ' รายการ'), NUM) +
+      wPara(wRun('ซื้อจาก ' + doc.company), { left:1418, after:120 }) +
+      memoItemTable(d, k, t) +
+      /* ข้อ 3–4 อยู่คนละหน้ากับตาราง (หมายเหตุพี่โอมใน ขย.0450) */
+      wPara(wRun('3. ราคากลางของพัสดุที่จะซื้อ จำนวน ' + fmt2(t.ref) + ' บาท (' + bahtText(t.ref) + ')'), { left:1418, hang:360, jc:'thaiDistribute', pageBreak:true }) +
+      wPara(wRun('4. วงเงิน จำนวน ' + fmt2(t.total) + ' บาท (' + bahtText(t.total) + ') เงินบำรุง' + memoSet.org.hosp + ' ปีงบประมาณ ' + fy), NUM) +
+      wPara(wRun('5. กำหนดเวลาที่ต้องการใช้พัสดุ ' + (d.days || 5) + ' วันทำการ โดยนับถัดจากวันที่ผู้ขายได้รับหนังสือสั่งซื้อ'), NUM) +
+      wPara(wRun('6. วิธีจะซื้อโดยเฉพาะเจาะจง ตามความในมาตรา ๕๖(๒)(ข) แห่งพระราชบัญญัติการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. ๒๕๖๐ และกฎกระทรวงกำหนดวงเงินการจัดซื้อจัดจ้างพัสดุโดยวิธีเฉพาะเจาะจง ' +
+        'วงเงินการจัดซื้อจัดจ้างที่ไม่ทำข้อตกลงเป็นหนังสือ และวงเงินการจัดซื้อจัดจ้างในการแต่งตั้งผู้ตรวจรับพัสดุ พ.ศ.2560 เมื่อวันที่ 23 สิงหาคม 2560 ข้อ 1 การจัดซื้อจัดจ้างสินค้า งานบริการ หรืองานก่อสร้างที่มีการผลิต ' +
+        'จำหน่าย ก่อสร้าง หรือให้บริการทั่วไป และมีวงเงินในการจัดซื้อจัดจ้างครั้งหนึ่งไม่เกิน 500,000 บาท ให้ใช้วิธีเฉพาะเจาะจง'), NUM) +
+      wPara(wRun('7. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอใช้เกณฑ์ราคาในการคัดเลือก'), NUM) +
+      wPara(wRun('8. ขออนุมัติแต่งตั้งคณะกรรมการตรวจรับพัสดุ ดังต่อไปนี้'), NUM) +
+      wPara(wRun('คณะกรรมการตรวจรับพัสดุ ประกอบด้วย'), { left:1418 }) +
+      memoCommittee(d) +
+      wPara(wRun('จึงเรียนมาเพื่อโปรดพิจารณา หากเห็นชอบขอได้โปรดอนุมัติให้ดำเนินการจัดซื้อตามรายละเอียดในรายงานขอซื้อดังกล่าวข้างต้นพร้อมลงนามในหนังสือสั่งซื้อตามที่แนบมาพร้อมนี้ด้วย จะเป็นพระคุณ'), { first:1418, before:120, jc:'thaiDistribute' }) +
+      wPara('', { before:240 }) +
+      wTable([{ cells:[{ t:memoSignBlock(off, 'เจ้าหน้าที่พัสดุ') }, { t:memoSignBlock(head, 'หัวหน้าเจ้าหน้าที่พัสดุ') }] }],
+        [{ w:4513, jc:'center' }, { w:4513, jc:'center' }], { noBorder:true }) +
+      wPara('', { before:240 }) +
+      wTable([{ cells:[
+        { t:'เรียน ผู้อำนวยการ' + memoSet.org.hosp + '\nเพื่อโปรดพิจารณาอนุมัติ และลงนามในหนังสือสั่งซื้อ\nที่แนบมาพร้อมนี้ด้วย จะเป็นพระคุณ\n\n\n(' + (ex ? ex.name : '...............................................') + ')\n' + memoSign(ex), jc:'left' },
+        { t:'อนุมัติลงนามแล้ว\n\n\nลงนาม.................................................\n(' + (dir ? dir.name : '...............................................') + ')\n' + (memoSign(dir) || 'ผู้อำนวยการ' + memoSet.org.hosp) }] }],
+        [{ w:4513 }, { w:4513, jc:'center' }], { noBorder:true, top:true });
+    return docxBlob(body, memoSet.garuda);
+  }
+  function buildMemoY(doc, d){
+    var k = memoKindOf(doc), t = memoTotals(d), n = d.lines.length, S = 28, drug = k === MEMO_KIND.drug;
+    var off = memoPerson(d.officer), head = memoPerson(d.head), dir = memoPerson(d.director);
+    function P(text, o){ o = o || {}; return wPara(wRun(text, { sz:S, b:o.b }), o); }
+    var cols = drug
+      ? [{ h:'ลำดับ\nที่', w:520, jc:'center' }, { h:k.col, w:2600 }, { h:'รหัส GPU', w:900, jc:'center' }, { h:'รหัส TPU', w:900, jc:'center' }, { h:'รหัส\nUNSPSC', w:1100, jc:'center' },
+         { h:'จำนวน', w:1300, jc:'center' }, { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1150, jc:'right' }, { h:'วงเงิน\n(รวม VAT)', w:1147, jc:'right' }]
+      : [{ h:'ลำดับ\nที่', w:520, jc:'center' }, { h:k.col, w:3500 }, { h:'จำนวน', w:900, jc:'center' }, { h:'หน่วย', w:800, jc:'center' }, { h:'รหัส\nUNSPSC', w:1300, jc:'center' },
+         { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1250, jc:'right' }, { h:'ราคารวม\n(รวม VAT)', w:1347, jc:'right' }];
+    var rows = [{ head:true, cells:cols.map(function(c){ return { t:c.h }; }) }];
+    d.lines.forEach(function(l, i){
+      var v = fmt2(Math.round((+l.qty || 0) * (+l.price || 0) * 100) / 100);
+      rows.push({ cells:drug
+        ? [{ t:(i + 1) + '.' }, { t:l.name }, { t:l.gpu }, { t:l.tpu }, { t:l.unspsc }, { t:memoQty(l.qty, l.unit) + (l.pack && String(l.pack).trim() !== '1 ' + l.unit ? '\n(' + l.pack + ')' : '') }, { t:fmt2(+l.price || 0) }, { t:v }]
+        : [{ t:(i + 1) + '.' }, { t:l.name }, { t:memoQty(l.qty, '') }, { t:l.unit }, { t:l.unspsc }, { t:fmt2(+l.price || 0) }, { t:v }] });
+    });
+    var nc = cols.length;
+    rows.push({ cells:[{ t:'มูลค่าที่ไม่รวมภาษี', span:nc - 1, jc:'right' }, { t:fmt2(t.ex) }] });
+    rows.push({ cells:[{ t:'ภาษีมูลค่าเพิ่ม 7%', span:nc - 1, jc:'right' }, { t:fmt2(t.vat) }] });
+    rows.push({ cells:[{ t:'รวมจำนวนเงินทั้งสิ้น', span:nc - 1, jc:'right', b:1 }, { t:fmt2(t.total), b:1 }] });
+    rows.push({ cells:[{ t:'จำนวนรวม ' + n + ' รายการ รวมเป็นเงินทั้งสิ้น\t(' + bahtText(t.total) + ')', span:nc, jc:'left', tabs:[['right', 9500]] }] });
+    var hosp = memoSet.org.hosp;
+    var body = wPara(wRun('หนังสือสั่งซื้อ', { b:1, sz:44 }), { jc:'center', after:120 }) +
+      P('เลขที่  ' + k.y + '.' + d.kNo, { left:5670 }) +
+      P('วันที่  ' + memoDateTh(d.yDate), { left:5670, after:120 }) +
+      P('ถึง  ' + doc.company + ' ตามใบของ ' + doc.company) +
+      P('เลขที่  ' + (d.bill || '…………………') + '   ลงวันที่  ' + (memoDateTh(d.billDate) || '…………………') + '   ' + hosp + ' ได้รับราคาและตกลงซื้อของ', { jc:'thaiDistribute' }) +
+      P('จำนวน ' + n + ' รายการ จึงให้ผู้ขายส่งของ ณ ' + memoSet.org.dept + ' ' + hosp + ' ภายใน ' + (d.days || 5) + ' วันทำการ โดยนับถัดจากวันที่ผู้ขายได้รับหนังสือสั่งซื้อนี้ ดังรายการต่อไปนี้', { jc:'thaiDistribute', after:120 }) +
+      wTable(rows, cols, { sz:26, headSz:24 }) +
+      P('สิ่งของตามรายการข้างต้นนี้ สำหรับใช้ในราชการ' + hosp, { before:120 }) +
+      P('ตามบันทึกเลขที่  ' + k.k + '.' + d.kNo + '   วันที่  ' + memoDateTh(d.kDate)) +
+      P('เงื่อนไขการสั่งซื้อ', { b:1, before:120 }) +
+      P('ถ้าผู้ขายส่งมอบสิ่งของให้ผู้ซื้อไม่ได้ตามหนังสือสั่งซื้อ ผู้ขายยอมให้ผู้ซื้อมีสิทธิ ดังต่อไปนี้', { first:720 }) +
+      P('1. ปรับเป็นรายวันเป็นจำนวนร้อยละ ศูนย์จุดสอง (0.2) ของราคาสิ่งของที่ยังไม่ได้รับมอบ หรือส่งมอบไม่ถูกต้อง นับถัดจากวันครบกำหนดตามหนังสือสั่งซื้อนี้ จนถึงวันที่ผู้ขายได้นำสิ่งของมาส่งให้ผู้ซื้อจนถูกต้องครบถ้วน', { left:1080, hang:360, jc:'thaiDistribute' }) +
+      P('2. บอกเลิกหนังสือสั่งซื้อทั้งหมดหรือแค่บางส่วนและปรับดังต่อไปนี้', { left:1080, hang:360 }) +
+      P('2.1 กรณีที่มีการบอกเลิกภายในกำหนดส่งมอบตามหนังสือสั่งซื้อ ผู้ขายยอมให้ผู้ซื้อปรับเป็นจำนวนร้อยละ 5 ของราคาสิ่งของที่บอกเลิก', { left:1620, hang:540, jc:'thaiDistribute' }) +
+      P('2.2 หรือกรณีที่มีการบอกเลิกเมื่อพ้นกำหนดส่งมอบตามหนังสือสั่งซื้อ นอกจากผู้ขายให้ผู้ซื้อปรับตามข้อ 2.1 แล้ว ยังยอมให้ผู้ซื้อเรียกเบี้ยปรับเพิ่มอีก ร้อยละศูนย์จุดสอง (0.2) ของราคาสิ่งของที่บอกเลิกโดยคิดเบี้ยปรับเป็นรายวัน นับถัดจากวันที่ครบกำหนดหนังสือสั่งซื้อจนถึงวันบอกเลิกหนังสือสั่งซื้ออีกโสดหนึ่งด้วย', { left:1620, hang:540, jc:'thaiDistribute' }) +
+      P('3. เรียกร้องค่าสินไหมทดแทนความเสียหาย อันเนื่องมาจากผู้ขายไม่ปฏิบัติตามหนังสือสั่งซื้อนี้', { left:1080, hang:360, jc:'thaiDistribute' }) +
+      wPara('', { before:240 }) +
+      wTable([
+        { cells:[{ t:memoSignBlock(off, 'เจ้าหน้าที่พัสดุ') }, { t:memoSignBlock(head, 'หัวหน้าเจ้าหน้าที่พัสดุ') }] },
+        { cells:[{ t:'\nลงชื่อ.................................................\n(' + (dir ? dir.name : '...............................................') + ')\n' + (memoSign(dir) || 'ผู้อำนวยการ' + hosp) },
+                 { t:'\nลงชื่อ................................................ ผู้รับใบสั่งซื้อ\n(.............................................)\n................./............................/............................' }] }],
+        [{ w:4808, jc:'center' }, { w:4809, jc:'center' }], { noBorder:true, sz:S, top:true });
+    return docxBlob(body, null, { top:568, right:849, bottom:1440, left:1440 });
+  }
+
+  /* ---- หน้าต่างออกบันทึก ---- */
+  var memoState = { no:'', d:null, setOpen:false, msg:'' }, memoTimer;
+  function memoDoc(){ return (quoteHist && quoteHist.docs || []).filter(function(x){ return x.no === memoState.no; })[0] || null; }
+  function memoOpen(no){
+    var doc = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.no === no; })[0]; if(!doc) return;
+    if(!memoSet) memoSet = memoSeed();
+    var k = memoKindOf(doc), s = doc.memo || {}, pick = memoSet.pick || {}, today = todayIso();
+    memoState.no = no; memoState.msg = '';
+    memoState.d = {
+      pNo:s.pNo || memoNextNo(k.p, memoBE(today)), pDate:s.pDate || today,
+      planRef:s.planRef != null ? s.planRef : memoSet.planRef[memoFY(s.pDate || today)] || '',
+      kNo:s.kNo || memoNextNo(k.k, memoFY(today)), kDate:s.kDate || '', yDate:s.yDate || '',
+      bill:s.bill || '', billDate:s.billDate || '', days:s.days || 5,
+      committee:(s.committee || pick.committee || ['', '', '']).slice(), officer:s.officer || pick.officer || '', head:s.head || pick.head || '',
+      exec:s.exec || pick.exec || '', director:s.director || pick.director || '',
+      lines:s.lines ? s.lines.map(function(l){ var o = {}; Object.keys(l).forEach(function(x){ o[x] = l[x]; }); return o; }) : memoLinesFrom(doc) };
+    renderMemo();
+    document.getElementById('memo-box').scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+  function memoKeep(){
+    var doc = memoDoc(); if(!doc || !memoState.d) return;
+    doc.memo = JSON.parse(JSON.stringify(memoState.d));
+    clearTimeout(memoTimer);
+    memoTimer = setTimeout(function(){ dbPut([quoteHist]).catch(function(){ storageOk = false; }); }, 400);
+  }
+  function memoOpts(role, cur){
+    var list = (memoSet.people || []).filter(function(p){ return p.roles && p.roles[role]; });
+    return '<option value="">' + (list.length ? '— เลือก —' : '— ยังไม่มีรายชื่อ (ตั้งค่ารายชื่อ) —') + '</option>' +
+      list.map(function(p){ return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + esc(p.name + (p.pos ? ' · ' + p.pos : '')) + '</option>'; }).join('');
+  }
+  function memoWarn(d){
+    var w = [];
+    if(d.committee.filter(Boolean).length < 3) w.push('ยังเลือกคณะกรรมการตรวจรับไม่ครบ 3 คน');
+    else if(d.committee[0] === d.committee[1] || d.committee[0] === d.committee[2] || d.committee[1] === d.committee[2]) w.push('คณะกรรมการตรวจรับซ้ำกัน');
+    if(!d.head) w.push('ยังไม่ได้เลือกหัวหน้าเจ้าหน้าที่พัสดุ');
+    if(d.kDate && d.pDate && d.kDate <= d.pDate) w.push('วันที่ ขย. / ขว. ควรอยู่หลังวันที่ ภย. / ภว.');
+    if(!memoSet.garuda) w.push('ยังไม่มีตราครุฑ — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าด้านบน');
+    if(!d.planRef) w.push('ยังไม่ได้ใส่หนังสืออ้างอิงแผน');
+    return w;
+  }
+  function memoSumHtml(){
+    var d = memoState.d, t = memoTotals(d), w = memoWarn(d);
+    return 'รวม ' + d.lines.length + ' รายการ · วงเงิน ฿' + fmt2(t.total) + ' (ไม่รวมภาษี ฿' + fmt2(t.ex) + ' · VAT ฿' + fmt2(t.vat) + ') · ขย. ข้อ 3 ราคากลางของพัสดุ ฿' + fmt2(t.ref) +
+      (w.length ? '<br><b class="pt-up">' + w.map(esc).join(' · ') + '</b>' : '') + (memoState.msg ? '<br>' + esc(memoState.msg) : '');
+  }
+  function renderMemo(){
+    var box = document.getElementById('memo-box'), doc = memoDoc(), d = memoState.d;
+    box.hidden = !doc;
+    if(!doc) return;
+    var k = memoKindOf(doc), set = memoSet;
+    function F(label, key, attrs){ return '<label class="q-field">' + label + ' <input class="q-in" data-f="' + key + '" value="' + esc(d[key] == null ? '' : d[key]) + '"' + (attrs || '') + '></label>'; }
+    var who = '<label class="q-field">ประธานกรรมการ <select class="search field-select" data-who="c0">' + memoOpts('committee', d.committee[0]) + '</select></label>' +
+      '<label class="q-field">กรรมการ <select class="search field-select" data-who="c1">' + memoOpts('committee', d.committee[1]) + '</select></label>' +
+      '<label class="q-field">กรรมการ <select class="search field-select" data-who="c2">' + memoOpts('committee', d.committee[2]) + '</select></label>' +
+      '<label class="q-field">เจ้าหน้าที่พัสดุ <select class="search field-select" data-who="officer">' + memoOpts('officer', d.officer) + '</select></label>' +
+      '<label class="q-field">หัวหน้าเจ้าหน้าที่พัสดุ <select class="search field-select" data-who="head">' + memoOpts('head', d.head) + '</select></label>' +
+      '<label class="q-field">ผู้บริหารเสนอความเห็น (ขย.) <select class="search field-select" data-who="exec">' + memoOpts('exec', d.exec) + '</select></label>' +
+      '<label class="q-field">ผู้อำนวยการ <select class="search field-select" data-who="director">' + memoOpts('director', d.director) + '</select></label>';
+    var NUMK = { stock:1, rate:1, qty:1, ref:1, last:1, price:1 };
+    var lineCols = [['name', 'รายการ', 260], ['stock', 'ยอดคงเหลือ', 70], ['rate', 'อัตราการใช้/เดือน', 70], ['unit', 'หน่วย', 60], ['pack', 'ขนาดบรรจุ', 140], ['qty', 'จำนวน', 70],
+      ['ref', 'ราคากลาง', 80], ['last', 'ราคาซื้อครั้งสุดท้าย', 80], ['price', 'ราคาต่อหน่วย', 80], ['gpu', 'GPU', 80], ['tpu', 'TPU', 80], ['unspsc', 'UNSPSC', 90]];
+    var table = '<table style="min-width:1400px"><thead><tr><th>#</th>' + lineCols.map(function(c){ return '<th>' + c[1] + '</th>'; }).join('') + '<th class="mono">วงเงิน</th></tr></thead><tbody>' +
+      d.lines.map(function(l, i){
+        return '<tr><td class="mono">' + (i + 1) + '</td>' + lineCols.map(function(c){
+          return '<td><input class="q-in' + (NUMK[c[0]] ? ' num' : '') + '" data-l="' + c[0] + '" data-i="' + i + '" value="' + esc(l[c[0]] == null ? '' : l[c[0]]) + '" style="width:' + c[2] + 'px"' + (NUMK[c[0]] ? ' inputmode="decimal"' : '') + '></td>';
+        }).join('') + '<td class="mono" data-v="' + i + '">' + fmt2((+l.qty || 0) * (+l.price || 0)) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    var people = (set.people || []).map(function(p, i){
+      return '<tr><td><input class="q-in" data-p="name" data-i="' + i + '" value="' + esc(p.name) + '" style="width:220px" placeholder="นาง / นางสาว / นาย ชื่อ  นามสกุล"></td>' +
+        '<td><input class="q-in" data-p="pos" data-i="' + i + '" value="' + esc(p.pos || '') + '" style="width:200px" placeholder="เภสัชกรชำนาญการ"></td>' +
+        '<td><input class="q-in" data-p="sign" data-i="' + i + '" value="' + esc(p.sign || '') + '" style="width:240px" placeholder="(ถ้าต่างจากตำแหน่ง) เช่น หัวหน้ากลุ่มงานเภสัชกรรม"></td>' +
+        MEMO_ROLES.map(function(r){ return '<td style="text-align:center"><input type="checkbox" data-role="' + r[0] + '" data-i="' + i + '"' + (p.roles && p.roles[r[0]] ? ' checked' : '') + ' aria-label="' + r[1] + '"></td>'; }).join('') +
+        '<td><button type="button" class="btn-ghost" data-act="del-person" data-i="' + i + '">ลบ</button></td></tr>';
+    }).join('');
+    box.innerHTML =
+      '<div class="rd-top"><div><div class="rd-name">ออกบันทึก ' + k.p + '. / ' + k.k + '. / ' + k.y + '. (Word) — ใบเสนอราคา ' + esc(doc.no) + '</div>' +
+      '<div class="table-note" style="margin:2px 0 0">' + esc(doc.company) + ' · ' + doc.lines.length + ' รายการ · ทุกช่องแก้ได้ก่อนส่งออก แล้วเปิดแก้ต่อใน Word ได้ · จำค่าที่แก้ไว้กับใบเสนอราคานี้</div></div>' +
+      '<button type="button" class="btn-ghost" data-act="close">ปิด</button></div>' +
+      '<div class="memo-step">1. เลือกคณะกรรมการและผู้ลงนาม <button type="button" class="btn-ghost" data-act="set">' + (memoState.setOpen ? 'ซ่อนตั้งค่ารายชื่อ' : 'ตั้งค่ารายชื่อ / หัวกระดาษ') + '</button></div>' +
+      (memoState.setOpen ?
+        '<div class="memo-set"><div class="table-note" style="margin:0 0 8px">รายชื่อเก็บไว้ในเครื่องนี้เท่านั้น (ไม่อยู่ในโปรแกรมบนเว็บ) · ติ๊กว่าแต่ละคนอยู่ในหน้าที่ไหนได้หลายช่อง · ช่อง "ใช้ลงนาม" = บรรทัดใต้ชื่อตอนลงนาม (ว่างไว้ = ใช้ตำแหน่ง)</div>' +
+        '<div class="table-scroll" style="max-height:300px"><table style="min-width:1100px"><thead><tr><th>ชื่อ – นามสกุล</th><th>ตำแหน่ง</th><th>ใช้ลงนาม</th>' + MEMO_ROLES.map(function(r){ return '<th>' + r[1] + '</th>'; }).join('') + '<th></th></tr></thead><tbody>' +
+        (people || '<tr><td colspan="9" class="table-note" style="padding:10px">ยังไม่มีรายชื่อ — กด "เพิ่มรายชื่อ"</td></tr>') + '</tbody></table></div>' +
+        '<div class="table-tools" style="margin:8px 0 0"><button type="button" class="btn-ghost" data-act="add-person">เพิ่มรายชื่อ</button></div>' +
+        '<div class="table-tools" style="margin:10px 0 0">' +
+          '<label class="q-field">ส่วนราชการ (ภย. / ภว.) <input class="q-in" data-org="lineP" value="' + esc(set.org.lineP) + '" style="width:420px"></label>' +
+          '<label class="q-field">ส่วนราชการ (ขย. / ขว.) <input class="q-in" data-org="lineK" value="' + esc(set.org.lineK) + '" style="width:420px"></label>' +
+          '<label class="q-field">ชื่อโรงพยาบาล <input class="q-in" data-org="hosp" value="' + esc(set.org.hosp) + '" style="width:220px"></label>' +
+          '<label class="q-field">กลุ่มงาน <input class="q-in" data-org="dept" value="' + esc(set.org.dept) + '" style="width:160px"></label></div>' +
+        '<div class="table-note" style="margin:8px 0 0">ตราครุฑ: ' + (set.garuda ? 'มีแล้ว (จาก ' + esc(set.garuda.file || 'ไฟล์ Word') + ')' : 'ยังไม่มี — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าไฟล์ด้านบน') + '</div></div>' : '') +
+      '<div class="table-tools" style="margin:8px 0 0">' + who + '</div>' +
+      '<div class="memo-step">2. ' + k.p + '. / ' + k.k + '. / ' + k.y + '. — เลขที่ วันที่ และหนังสืออ้างอิง</div>' +
+      '<div class="table-tools">' + F(k.p + '. เลขที่', 'pNo', ' style="width:100px"') + F('วันที่', 'pDate', ' type="date"') +
+        '<label class="q-field">หนังสืออ้างอิงแผน (ต่อจาก "ตามหนังสือ' + esc(set.org.hosp) + '") <input class="q-in" data-f="planRef" value="' + esc(d.planRef) + '" style="width:520px" placeholder="เช่น แจ้งร่างแผน… ที่ ว.52/2569 ลงวันที่ 6 ตุลาคม 2569"></label></div>' +
+      '<div class="table-tools">' + F(k.k + '. / ' + k.y + '. เลขที่', 'kNo', ' style="width:100px"') + F(k.k + '. วันที่', 'kDate', ' type="date"') + F(k.y + '. (หนังสือสั่งซื้อ) วันที่', 'yDate', ' type="date"') +
+        F('เลขที่ใบเสนอราคา / บิลของบริษัท', 'bill', ' style="width:140px"') + F('ลงวันที่', 'billDate', ' type="date"') + F('กำหนดส่ง (วันทำการ)', 'days', ' style="width:50px" inputmode="numeric"') + '</div>' +
+      '<div class="memo-step">3. รายการ (ยอดคงเหลือจากคลังยา · อัตราการใช้จาก userate · ราคากลางจาก DATA Template · ราคาซื้อครั้งสุดท้ายจาก PO_inven — แก้ได้ทุกช่อง)</div>' +
+      '<div class="table-scroll" style="max-height:360px">' + table + '</div>' +
+      '<div class="table-note" id="memo-sum" style="margin:8px 0 0">' + memoSumHtml() + '</div>' +
+      '<div class="table-tools" style="margin:10px 0 0">' +
+        '<button type="button" class="btn-solid" data-act="exp-p">ส่งออก ' + k.p + '. (.docx)</button>' +
+        '<button type="button" class="btn-solid" data-act="exp-k">ส่งออก ' + k.k + '. (.docx)</button>' +
+        '<button type="button" class="btn-solid" data-act="exp-y">ส่งออก ' + k.y + '. หนังสือสั่งซื้อ (.docx)</button>' +
+        '<button type="button" class="btn-ghost" data-act="reset-lines">ดึงรายการจากใบเสนอราคาใหม่</button></div>';
+  }
+  function memoExport(which){
+    var doc = memoDoc(), d = memoState.d; if(!doc || !d) return;
+    var k = memoKindOf(doc), blob, name, safe = String(doc.company || '').replace(/[\\\/:*?"<>|]/g, '').slice(0, 40);
+    try{
+      if(which === 'p'){ blob = buildMemoP(doc, d); name = k.p + d.pNo.replace('/', '-') + ' ' + safe + '.docx'; memoBump(k.p, d.pNo); }
+      else if(which === 'k'){ blob = buildMemoK(doc, d); name = k.k + d.kNo.replace('/', '-') + ' ' + safe + '.docx'; memoBump(k.k, d.kNo); }
+      else { blob = buildMemoY(doc, d); name = 'ใบสั่งซื้อ ' + k.y + d.kNo.replace('/', '-') + ' ' + safe + '.docx'; memoBump(k.k, d.kNo); }
+    }catch(err){ memoState.msg = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err); document.getElementById('memo-sum').innerHTML = memoSumHtml(); return; }
+    saveBlob(blob, name);
+    /* จำค่าที่เลือกไว้เป็นค่าเริ่มต้นของใบถัดไป และหนังสืออ้างอิงแผนของปีงบนั้น */
+    memoSet.pick = { committee:d.committee.slice(), officer:d.officer, head:d.head, exec:d.exec, director:d.director };
+    if(d.planRef) memoSet.planRef[memoFY(d.pDate)] = d.planRef;
+    memoSaveSet(); memoKeep();
+    memoState.msg = 'ส่งออกแล้ว: ' + name + ' · เลขถัดไป ' + k.p + '. ' + memoNextNo(k.p, memoBE(todayIso())) + ' / ' + k.k + '. ' + memoNextNo(k.k, memoFY(todayIso()));
+    document.getElementById('memo-sum').innerHTML = memoSumHtml();
+  }
+  (function wireMemo(){
+    var box = document.getElementById('memo-box');
+    box.addEventListener('input', function(e){
+      var t = e.target, d = memoState.d; if(!d) return;
+      if(t.hasAttribute('data-f')){ d[t.getAttribute('data-f')] = t.getAttribute('data-f') === 'days' ? (Number(t.value) || '') : t.value; }
+      else if(t.hasAttribute('data-l')){
+        var l = d.lines[Number(t.getAttribute('data-i'))], key = t.getAttribute('data-l');
+        l[key] = /^(stock|rate|qty|ref|last|price)$/.test(key) ? (t.value.trim() === '' ? '' : num(t.value)) : t.value;
+        var cell = box.querySelector('[data-v="' + t.getAttribute('data-i') + '"]'); if(cell) cell.textContent = fmt2((+l.qty || 0) * (+l.price || 0));
+      }
+      else if(t.hasAttribute('data-org')){ memoSet.org[t.getAttribute('data-org')] = t.value; memoSaveSet(); return; }
+      else if(t.hasAttribute('data-p')){ memoSet.people[Number(t.getAttribute('data-i'))][t.getAttribute('data-p')] = t.value; memoSaveSet(); return; }
+      else return;
+      memoKeep();
+      document.getElementById('memo-sum').innerHTML = memoSumHtml();
+    });
+    box.addEventListener('change', function(e){
+      var t = e.target, d = memoState.d; if(!d) return;
+      if(t.hasAttribute('data-who')){
+        var w = t.getAttribute('data-who');
+        if(/^c\d$/.test(w)) d.committee[Number(w.slice(1))] = t.value; else d[w] = t.value;
+        memoKeep(); document.getElementById('memo-sum').innerHTML = memoSumHtml();
+      } else if(t.hasAttribute('data-role')){
+        var p = memoSet.people[Number(t.getAttribute('data-i'))]; p.roles = p.roles || {}; p.roles[t.getAttribute('data-role')] = t.checked;
+        memoSaveSet(); renderMemo();
+      } else if(t.hasAttribute('data-p')){ renderMemo(); }
+    });
+    box.addEventListener('click', function(e){
+      var b = e.target.closest('[data-act]'); if(!b) return;
+      var act = b.getAttribute('data-act');
+      if(act === 'close'){ memoState.no = ''; renderMemo(); }
+      else if(act === 'set'){ memoState.setOpen = !memoState.setOpen; renderMemo(); }
+      else if(act === 'add-person'){ memoSet.people.push({ id:'p' + Date.now().toString(36), name:'', pos:'', sign:'', roles:{} }); memoSaveSet(); renderMemo(); }
+      else if(act === 'del-person'){ memoSet.people.splice(Number(b.getAttribute('data-i')), 1); memoSaveSet(); renderMemo(); }
+      else if(act === 'reset-lines'){ var doc = memoDoc(); if(doc){ memoState.d.lines = memoLinesFrom(doc); memoKeep(); renderMemo(); } }
+      else if(/^exp-/.test(act)) memoExport(act.slice(4));
+    });
+    document.getElementById('quote-memo').addEventListener('click', function(){
+      var no = document.getElementById('quote-hist').value;
+      if(no) memoOpen(no);
+    });
+  })();
 
   /* ---------------- ราคากลาง (ใบ "ราคากลาง …" ใน DATA Template) ----------------
      พี่โอม: ช่อง H = ราคากลาง ไว้ดูว่าห้ามซื้อเกินราคานี้ · ราคาในใบเป็นต่อหน่วย (เม็ด / ซอง / ขวด) จึงคูณจำนวนต่อกล่อง
@@ -3615,7 +4098,7 @@
   renderAll();
   dbAll().then(function(recs){
     var savedKpi = null;
-    recs.forEach(function(r){ if(r.slot === PREV_SLOT) state.prev = r; else if(r.slot === KPI_SLOT) savedKpi = r; else if(r.slot === QUOTE_HIST_SLOT) quoteHist = r; else if(r.slot === STOCKH_SLOT) stockHist = r; else state.datasets[r.slot] = r; });
+    recs.forEach(function(r){ if(r.slot === PREV_SLOT) state.prev = r; else if(r.slot === KPI_SLOT) savedKpi = r; else if(r.slot === QUOTE_HIST_SLOT) quoteHist = r; else if(r.slot === STOCKH_SLOT) stockHist = r; else if(r.slot === MEMO_SLOT) memoSet = r; else state.datasets[r.slot] = r; });
     if(savedKpi) kpiStore = savedKpi; else { kpiStore = kpiSeed(); dbPut([kpiStore]).catch(function(){}); }
     rebuild();
     if(state.datasets.inventory) stockHistRecord(state.datasets.inventory);
