@@ -2626,14 +2626,14 @@
     fitCols(cols, rows, 24);
     var hosp = memoSet.org.hosp;
     var body = wPara(wRun('หนังสือสั่งซื้อ', { b:1, sz:44 }), { jc:'center', after:120 }) +
-      P('เลขที่  ' + k.y + '.' + d.kNo, { left:5670 }) +
-      P('วันที่  ' + memoDateTh(d.yDate), { left:5670, after:120 }) +
+      P('เลขที่  ' + k.y + '.' + d.kNo) +
+      P('วันที่  ' + memoDateTh(d.yDate), { after:120 }) +
       P('ถึง  ' + doc.company + ' ตามใบของ ' + doc.company) +
       P('เลขที่  ' + (d.bill || '…………………') + '   ลงวันที่  ' + (memoDateTh(d.billDate) || '…………………') + '   ' + hosp + ' ได้รับราคาและตกลงซื้อของ', { jc:'thaiDistribute' }) +
       P('จำนวน ' + n + ' รายการ จึงให้ผู้ขายส่งของ ณ ' + memoSet.org.dept + ' ' + hosp + ' ภายใน ' + (d.days || 5) + ' วันทำการ โดยนับถัดจากวันที่ผู้ขายได้รับหนังสือสั่งซื้อนี้ ดังรายการต่อไปนี้', { jc:'thaiDistribute', after:120 }) +
       wTable(rows, cols, { sz:24, headSz:24, ind:MEMO_TBL.ind }) +
       P('สิ่งของตามรายการข้างต้นนี้ สำหรับใช้ในราชการ' + hosp, { before:120 }) +
-      P('ตามบันทึกเลขที่  ' + k.k + '.' + d.kNo + '   วันที่  ' + memoDateTh(d.kDate)) +
+      wPara(wRun('ตามบันทึกเลขที่  ', { sz:S }) + wRun(k.k + '.' + d.kNo + '   วันที่  ' + memoDateTh(d.kDate), { sz:S, b:1 })) +
       P('เงื่อนไขการสั่งซื้อ', { b:1, before:120 }) +
       P('ถ้าผู้ขายส่งมอบสิ่งของให้ผู้ซื้อไม่ได้ตามหนังสือสั่งซื้อ ผู้ขายยอมให้ผู้ซื้อมีสิทธิ ดังต่อไปนี้', { first:720 }) +
       P('1. ปรับเป็นรายวันเป็นจำนวนร้อยละ ศูนย์จุดสอง (0.2) ของราคาสิ่งของที่ยังไม่ได้รับมอบ หรือส่งมอบไม่ถูกต้อง นับถัดจากวันครบกำหนดตามหนังสือสั่งซื้อนี้ จนถึงวันที่ผู้ขายได้นำสิ่งของมาส่งให้ผู้ซื้อจนถูกต้องครบถ้วน', { left:1080, hang:360, jc:'thaiDistribute' }) +
@@ -2645,7 +2645,7 @@
       wTable([
         { cells:[{ t:memoSignBlock(off, 'เจ้าหน้าที่พัสดุ') }, { t:memoSignBlock(head, 'หัวหน้าเจ้าหน้าที่พัสดุ') }] },
         { cells:[{ t:'\nลงชื่อ.................................................\n(' + (dir ? dir.name : '...............................................') + ')\n' + (memoSign(dir) || 'ผู้อำนวยการ' + hosp) },
-                 { t:'\nลงชื่อ................................................ ผู้รับใบสั่งซื้อ\n(.............................................)\n................./............................/............................' }] }],
+                 { t:'\n\n\nลงชื่อ................................................ ผู้รับใบสั่งซื้อ\n(.............................................)\n................./............................/............................' }] }],
         [{ w:4808, jc:'center' }, { w:4809, jc:'center' }], { noBorder:true, sz:S, top:true });
     return docxBlob(body, null, { top:568, right:849, bottom:1440, left:1440 });
   }
@@ -2757,7 +2757,8 @@
   }
   function memoExport(which){
     var doc = memoDoc(), d = memoState.d; if(!doc || !d) return;
-    var k = memoKindOf(doc), blob, name, safe = String(doc.company || '').replace(/[\\\/:*?"<>|]/g, '').slice(0, 40);
+    var k = memoKindOf(doc), blob, name, first = d.lines[0] ? String(d.lines[0].name || '') : '';
+    var safe = (first.replace(/^[_\s]+/, '').split(/[\s(]/)[0] || String(doc.company || '')).replace(/[\\\/:*?"<>|]/g, '').slice(0, 40);
     try{
       if(which === 'p'){ blob = buildMemoP(doc, d); name = k.p + d.pNo.replace('/', '-') + ' ' + safe + '.docx'; memoBump(k.p, d.pNo); }
       else if(which === 'k'){ blob = buildMemoK(doc, d); name = k.k + d.kNo.replace('/', '-') + ' ' + safe + '.docx'; memoBump(k.k, d.kNo); }
