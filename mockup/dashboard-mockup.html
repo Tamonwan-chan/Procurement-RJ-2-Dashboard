@@ -2342,7 +2342,7 @@
   function wRun(text, o){
     o = o || {}; var sz = o.sz || 32;
     var rp = '<w:rPr><w:rFonts w:ascii="' + DOCX_FONT + '" w:hAnsi="' + DOCX_FONT + '" w:cs="' + DOCX_FONT + '"/>' + (o.b ? '<w:b/><w:bCs/>' : '') +
-      '<w:sz w:val="' + sz + '"/><w:szCs w:val="' + sz + '"/>';
+      '<w:sz w:val="' + sz + '"/><w:szCs w:val="' + sz + '"/>' + (o.u ? '<w:u w:val="dotted"/>' : '');
     return String(text == null ? '' : text).split('\n').map(function(line, li){
       return (li ? '<w:r>' + rp + '</w:rPr><w:br/></w:r>' : '') + line.split('\t').map(function(seg, si){
         return (si ? '<w:r>' + rp + '</w:rPr><w:tab/></w:r>' : '') + (seg ? '<w:r>' + rp + (/[฀-๿]/.test(seg) ? '<w:cs/>' : '') + '</w:rPr><w:t xml:space="preserve">' + xe(seg) + '</w:t></w:r>' : '');
@@ -2364,15 +2364,15 @@
     o = o || {}; var sz = o.sz || 32, bd = o.noBorder ? 'nil' : 'single';
     var b = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(function(s){ return '<w:' + s + ' w:val="' + bd + '"' + (o.noBorder ? '' : ' w:sz="4" w:space="0" w:color="000000"') + '/>'; }).join('');
     var tw = cols.reduce(function(a, c){ return a + c.w; }, 0);
-    return '<w:tbl><w:tblPr><w:tblW w:w="' + tw + '" w:type="dxa"/><w:tblBorders>' + b + '</w:tblBorders><w:tblLayout w:type="fixed"/>' +
+    return '<w:tbl><w:tblPr><w:tblW w:w="' + tw + '" w:type="dxa"/>' + (o.ind ? '<w:tblInd w:w="' + o.ind + '" w:type="dxa"/>' : '') + '<w:tblBorders>' + b + '</w:tblBorders><w:tblLayout w:type="fixed"/>' +
       '<w:tblCellMar><w:left w:w="57" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar></w:tblPr>' +
       '<w:tblGrid>' + cols.map(function(c){ return '<w:gridCol w:w="' + c.w + '"/>'; }).join('') + '</w:tblGrid>' +
       rows.map(function(r){
         var ci = 0;
-        return '<w:tr>' + (r.head ? '<w:trPr><w:cantSplit/><w:tblHeader/></w:trPr>' : '<w:trPr><w:cantSplit/></w:trPr>') + r.cells.map(function(c){
+        return '<w:tr><w:trPr><w:cantSplit/>' + (r.h ? '<w:trHeight w:val="' + Math.round(r.h) + '" w:hRule="exact"/>' : '') + (r.head ? '<w:tblHeader/>' : '') + '</w:trPr>' + r.cells.map(function(c){
           var span = c.span || 1, w = 0; for(var k = 0; k < span; k++) w += cols[ci + k].w;
-          var jc = c.jc || (r.head ? 'center' : cols[ci].jc || 'left'); ci += span;
-          return '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/>' + (span > 1 ? '<w:gridSpan w:val="' + span + '"/>' : '') + '<w:vAlign w:val="' + (o.top ? 'top' : 'center') + '"/></w:tcPr>' +
+          var jc = c.jc || (r.head ? 'center' : cols[ci].jc || 'left'), nw = !r.head && (c.nw || (span === 1 && cols[ci].num)); ci += span;
+          return '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/>' + (span > 1 ? '<w:gridSpan w:val="' + span + '"/>' : '') + (nw ? '<w:noWrap/>' : '') + '<w:vAlign w:val="' + (o.top ? 'top' : 'center') + '"/></w:tcPr>' +
             wPara(wRun(c.t, { b:c.b || r.head, sz:r.head && o.headSz ? o.headSz : sz }), { jc:jc, tabs:c.tabs }) + '</w:tc>';
         }).join('') + '</w:tr>';
       }).join('') + '</w:tbl>';
@@ -2451,38 +2451,96 @@
   function memoQty(v, unit){ return v === '' || v == null ? '' : fmt1(+v) + (unit ? ' ' + unit : ''); }
   function memoMoney(v){ return +v > 0 ? fmt2(+v) : '-'; }
 
+  /* ความกว้างข้อความโดยประมาณ (twips) ของ TH SarabunIT๙ — สระบน-ล่าง / วรรณยุกต์ไม่กินที่ · ค่าเผื่อไว้ ให้ตัวเลขไม่ตกบรรทัด
+     (พี่โอม 30 ต.ค. 69: ตัวเลขห้ามตกลงมาอีกบรรทัด ตัวหนังสือตกได้แต่ต้องครบคำ) */
+  var TH_ZERO = /[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/;
+  function textTw(s, sz, safe){
+    var w = 0;
+    String(s == null ? '' : s).split('').forEach(function(ch){
+      if(TH_ZERO.test(ch)) return;
+      w += /[0-9\u0E50-\u0E59]/.test(ch) ? (safe ? .52 : .45) : /[.,]/.test(ch) ? .26 : ch === ' ' ? .25 : /[\u0E00-\u0E7F]/.test(ch) ? (safe ? .48 : .45) :
+        /[A-Z]/.test(ch) ? (safe ? .62 : .42) : /[()\[\]\/-]/.test(ch) ? .3 : (safe ? .5 : .4);
+    });
+    return w * sz * 10;                                   /* sz = half-points → 1 em = sz × 10 twips */
+  }
+  function linesTw(text, w, sz){
+    return String(text == null ? '' : text).split('\n').reduce(function(a, part){ return a + Math.max(1, Math.ceil(textTw(part, sz) / Math.max(200, w - 114))); }, 0);
+  }
+  /* คอลัมน์ตัวเลข (num) กว้างพอให้ค่าที่ยาวที่สุดอยู่บรรทัดเดียว โดยยืมความกว้างจากคอลัมน์รายการ (flex) */
+  function fitCols(cols, rows, sz){
+    var flex = cols.filter(function(c){ return c.flex; })[0];
+    cols.forEach(function(c, i){
+      if(!c.num) return;
+      var need = 0;
+      rows.forEach(function(r){
+        if(r.head) return;
+        var ci = 0;
+        r.cells.forEach(function(cell){
+          var span = cell.span || 1;
+          if(span === 1 && ci === i) String(cell.t).split('\n').forEach(function(part){ need = Math.max(need, textTw(part, sz, 1) * (cell.b ? 1.08 : 1) + 170); });
+          ci += span;
+        });
+      });
+      var add = Math.ceil(need - c.w);
+      if(add > 0 && flex && flex.w - add >= 1500){ c.w += add; flex.w -= add; }
+    });
+  }
+  function tableTw(rows, cols, sz){
+    return rows.reduce(function(a, r){
+      if(r.h) return a + r.h;
+      var ci = 0, ln = 1;
+      r.cells.forEach(function(cell){
+        var span = cell.span || 1, w = 0; for(var k = 0; k < span; k++) w += cols[ci + k].w;
+        ln = Math.max(ln, linesTw(cell.t, w, r.head && cols.headSz ? cols.headSz : sz)); ci += span;
+      });
+      return a + ln * MEMO_LINE[sz] + MEMO_ROW_PAD;
+    }, 0);
+  }
+  /* ความสูงบรรทัด (twips) ของ TH SarabunIT๙ ตามขนาดตัวอักษร และพื้นที่ก่อนตาราง ขย. — วัดจาก Word (30 ต.ค. 69) */
+  var MEMO_LINE = { 24:272, 26:295, 28:318, 32:363 }, MEMO_ROW_PAD = 13, MEMO_K_TOP = 6330, MEMO_FILL_SAFETY = 300;
+  var MEMO_TBL = { w:10226, ind:-600 };              /* ตารางยื่นเลยขอบซ้าย–ขวาข้างละ ~1 ซม. (พี่โอม: ยืดซ้ายขวาได้ จะได้ไม่บีบ) */
+
   /* ตารางรายการ (ภย. / ภว. / ขย. / ขว. ใช้ตารางเดียวกัน — "ดึงข้อมูลมาจาก ภย. เหมือนเดิมทั้งหมด")
-     คอลัมน์ราคาซื้อครั้งสุดท้ายแสดงเมื่อมีรายการที่ไม่มีราคากลาง (พี่โอมยืนยัน 28 ต.ค.) */
-  function memoItemTable(d, k, t){
-    var last = d.lines.some(function(l){ return !(+l.ref > 0); });
-    var cols = [{ h:'ลำดับ\nที่', w:520, jc:'center' }, { h:k.col, w:last ? 1900 : 2750 }, { h:'ยอด\nคงเหลือ', w:700, jc:'center' }, { h:'อัตรา\nการใช้\nต่อเดือน', w:720, jc:'center' },
-      { h:'ขนาด\nบรรจุ', w:820, jc:'center' }, { h:'จำนวน', w:780, jc:'center' }, { h:'ราคา\nกลาง', w:700, jc:'right' }]
-      .concat(last ? [{ h:'ราคาซื้อ\nครั้งสุดท้าย\n(รวม VAT)', w:850, jc:'right' }] : [])
-      .concat([{ h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:830, jc:'right' }, { h:'วงเงิน\n(รวม VAT)', w:1206, jc:'right' }]);
-    var n = cols.length, rows = [{ head:true, cells:cols.map(function(c){ return { t:c.h }; }) }];
+     คอลัมน์ราคาซื้อครั้งสุดท้ายแสดงเมื่อมีรายการที่ไม่มีราคากลาง (พี่โอมยืนยัน 28 ต.ค.)
+     fillTop: ความสูงก่อนตาราง → เติมแถวว่างให้ตารางยาวถึงท้ายหน้า (ขย. / ขว. — "ตารางยาต้องเคาะให้สุด") */
+  function memoItemTable(d, k, t, fillTop){
+    var last = d.lines.some(function(l){ return !(+l.ref > 0); }), SZ = 24;
+    var cols = [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:last ? 2000 : 3000, flex:1 }, { h:'ยอด\nคงเหลือ', w:740, jc:'center' }, { h:'อัตรา\nการใช้\nต่อเดือน', w:740, jc:'center' },
+      { h:'ขนาด\nบรรจุ', w:880, jc:'center' }, { h:'จำนวน', w:820, jc:'center' }, { h:'ราคา\nกลาง', w:1000, jc:'right', num:1 }]
+      .concat(last ? [{ h:'ราคาซื้อ\nครั้งสุดท้าย\n(รวม VAT)', w:1000, jc:'right', num:1 }] : [])
+      .concat([{ h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1000, jc:'right', num:1 }, { h:'วงเงิน\n(รวม VAT)', w:1466, jc:'right', num:1 }]);
+    var n = cols.length, head = [{ head:true, cells:cols.map(function(c){ return { t:c.h }; }) }], items = [], foot = [];
     d.lines.forEach(function(l, i){
-      rows.push({ cells:[{ t:(i + 1) + '.' }, { t:l.name }, { t:memoQty(l.stock, l.unit) }, { t:memoQty(l.rate, l.unit) }, { t:l.pack }, { t:memoQty(l.qty, l.unit) }, { t:memoMoney(l.ref) }]
+      items.push({ cells:[{ t:(i + 1) + '.' }, { t:l.name }, { t:memoQty(l.stock, l.unit) }, { t:memoQty(l.rate, l.unit) }, { t:l.pack }, { t:memoQty(l.qty, l.unit) }, { t:memoMoney(l.ref) }]
         .concat(last ? [{ t:memoMoney(l.last) }] : []).concat([{ t:fmt2(+l.price || 0) }, { t:fmt2(Math.round((+l.qty || 0) * (+l.price || 0) * 100) / 100) }]) });
     });
-    rows.push({ cells:[{ t:'มูลค่าที่ไม่รวมภาษี', span:n - 1, jc:'right' }, { t:fmt2(t.ex) }] });
-    rows.push({ cells:[{ t:'ภาษีมูลค่าเพิ่ม 7%', span:n - 1, jc:'right' }, { t:fmt2(t.vat) }] });
-    rows.push({ cells:[{ t:'รวมจำนวนเงินทั้งสิ้น', span:n - 1, jc:'right', b:1 }, { t:fmt2(t.total), b:1 }] });
-    rows.push({ cells:[{ t:'จำนวนรวม ' + d.lines.length + ' รายการ รวมเป็นเงินทั้งสิ้น\t(' + bahtText(t.total) + ')', span:n, jc:'left', tabs:[['right', 8900]] }] });
-    return wTable(rows, cols, { sz:26, headSz:24 });
+    foot.push({ cells:[{ t:'มูลค่าที่ไม่รวมภาษี', span:n - 1, jc:'right' }, { t:fmt2(t.ex), nw:1 }] });
+    foot.push({ cells:[{ t:'ภาษีมูลค่าเพิ่ม 7%', span:n - 1, jc:'right' }, { t:fmt2(t.vat), nw:1 }] });
+    foot.push({ cells:[{ t:'รวมจำนวนเงินทั้งสิ้น', span:n - 1, jc:'right', b:1 }, { t:fmt2(t.total), b:1, nw:1 }] });
+    foot.push({ cells:[{ t:'จำนวนรวม ' + d.lines.length + ' รายการ รวมเป็นเงินทั้งสิ้น\t(' + bahtText(t.total) + ')', span:n, jc:'left', tabs:[['right', MEMO_TBL.w - 160]] }] });
+    cols.headSz = SZ;
+    fitCols(cols, items.concat(foot), SZ);
+    if(fillTop != null){
+      var room = 16838 - 1440 - 1247 - fillTop - tableTw(head.concat(items, foot), cols, SZ) - MEMO_FILL_SAFETY;
+      if(room > 250) items.push({ h:room, cells:cols.map(function(){ return { t:'' }; }) });
+    }
+    return wTable(head.concat(items, foot), cols, { sz:SZ, headSz:SZ, ind:MEMO_TBL.ind });
   }
+  /* หัวบันทึก: ส่วนราชการ / ที่ / วันที่ / เรื่อง มีเส้นประถึงขอบขวา (พี่โอม 30 ต.ค. 69) */
   function memoHead(lineOrg, no, date, subj, right){
-    var g = memoSet.garuda, L18 = { b:1, sz:40 };
+    var g = memoSet.garuda, L20 = { b:1, sz:40 }, U = { u:1 };
     return wPara((g ? wGaruda(g) : '') + wRun('\tบันทึกข้อความ', { b:1, sz:58 }), { tabs:[['center', 4513]] }) +
-      wPara(wRun('ส่วนราชการ', L18) + wRun('  ' + lineOrg), { before:60 }) +
-      wPara(wRun('ที่', L18) + wRun('  ' + no + '\t') + wRun('วันที่', L18) + wRun('  ' + date), { tabs:[['left', 4536]] }) +
-      wPara(wRun('เรื่อง', L18) + wRun('  ' + subj + (right ? '\t' + right : '')), { tabs:[['right', 9026]] }) +
+      wPara(wRun('ส่วนราชการ', L20) + wRun('  ' + lineOrg + '\t', U), { before:60, tabs:[['right', 9026]] }) +
+      wPara(wRun('ที่', L20) + wRun('  ' + no + '\t', U) + wRun('วันที่', L20) + wRun('  ' + date + '\t', U), { tabs:[['left', 4536], ['right', 9026]] }) +
+      wPara(wRun('เรื่อง', L20) + wRun('  ' + subj + (right ? '\t' + right : '\t'), U), { tabs:[['right', 9026]] }) +
       wPara(wRun('เรียน    ผู้อำนวยการ' + memoSet.org.hosp), { before:120 });
   }
+  /* "ตำแหน่ง" ต่อท้ายชื่อเลย แล้วแท็บไปหน้าที่ (พี่โอม 30 ต.ค. 69: เลื่อนตำแหน่งเข้ามาชิดชื่อ) */
   function memoCommittee(d){
     var ROLE = ['ประธานกรรมการ', 'กรรมการ', 'กรรมการ'];
     return [0, 1, 2].map(function(i){
       var p = memoPerson(d.committee[i]);
-      return wPara(wRun((i + 1) + '. ' + (p ? p.name : '..............................') + '\tตำแหน่ง' + (p ? p.pos : '..............................') + '\t' + ROLE[i]), { left:1418, tabs:[['left', 4300], ['left', 7300]] });
+      return wPara(wRun((i + 1) + '. ' + (p ? p.name : '..............................') + '  ตำแหน่ง' + (p ? p.pos : '..............................') + '\t' + ROLE[i]), { left:1418, tabs:[['left', 7400]] });
     }).join('');
   }
   function memoSignBlock(p, label){
@@ -2515,7 +2573,7 @@
       wPara(wRun('1. เหตุผลและความจำเป็นที่ต้องจัดซื้อ' + k.what + ' ' + k.need), NUM) +
       wPara(wRun('2. รายละเอียดหรือคุณลักษณะของพัสดุที่จะซื้อ' + k.what + ' จำนวน ' + n + ' รายการ'), NUM) +
       wPara(wRun('ซื้อจาก ' + doc.company), { left:1418, after:120 }) +
-      memoItemTable(d, k, t) +
+      memoItemTable(d, k, t, MEMO_K_TOP) +
       /* ข้อ 3–4 อยู่คนละหน้ากับตาราง (หมายเหตุพี่โอมใน ขย.0450) */
       wPara(wRun('3. ราคากลางของพัสดุที่จะซื้อ จำนวน ' + fmt2(t.ref) + ' บาท (' + bahtText(t.ref) + ')'), { left:1418, hang:360, jc:'thaiDistribute', pageBreak:true }) +
       wPara(wRun('4. วงเงิน จำนวน ' + fmt2(t.total) + ' บาท (' + bahtText(t.total) + ') เงินบำรุง' + memoSet.org.hosp + ' ปีงบประมาณ ' + fy), NUM) +
@@ -2534,31 +2592,38 @@
       wPara('', { before:240 }) +
       wTable([{ cells:[
         { t:'เรียน ผู้อำนวยการ' + memoSet.org.hosp + '\nเพื่อโปรดพิจารณาอนุมัติ และลงนามในหนังสือสั่งซื้อ\nที่แนบมาพร้อมนี้ด้วย จะเป็นพระคุณ\n\n\n(' + (ex ? ex.name : '...............................................') + ')\n' + memoSign(ex), jc:'left' },
-        { t:'อนุมัติลงนามแล้ว\n\n\nลงนาม.................................................\n(' + (dir ? dir.name : '...............................................') + ')\n' + (memoSign(dir) || 'ผู้อำนวยการ' + memoSet.org.hosp) }] }],
+        /* บรรทัด "ลงนาม…" ตรงกับบรรทัดตำแหน่งผู้บริหาร (บรรทัดที่ 7 ของช่องซ้าย) — พี่โอม 30 ต.ค. 69 */
+        { t:'อนุมัติลงนามแล้ว\n\n\n\n\n\nลงนาม.................................................\n(' + (dir ? dir.name : '...............................................') + ')\n' + (memoSign(dir) || 'ผู้อำนวยการ' + memoSet.org.hosp) }] }],
         [{ w:4513 }, { w:4513, jc:'center' }], { noBorder:true, top:true });
     return docxBlob(body, memoSet.garuda);
+  }
+  function memoPackShort(l){
+    var s = String(l.pack || '').trim(), m = /^1\s+(\S+)\s*\((.+)\)$/.exec(s);
+    if(m) return '\n(' + m[2] + '/' + m[1] + ')';
+    return s && s !== '1 ' + l.unit ? '\n(' + s + ')' : '';
   }
   function buildMemoY(doc, d){
     var k = memoKindOf(doc), t = memoTotals(d), n = d.lines.length, S = 28, drug = k === MEMO_KIND.drug;
     var off = memoPerson(d.officer), head = memoPerson(d.head), dir = memoPerson(d.director);
     function P(text, o){ o = o || {}; return wPara(wRun(text, { sz:S, b:o.b }), o); }
     var cols = drug
-      ? [{ h:'ลำดับ\nที่', w:520, jc:'center' }, { h:k.col, w:2600 }, { h:'รหัส GPU', w:900, jc:'center' }, { h:'รหัส TPU', w:900, jc:'center' }, { h:'รหัส\nUNSPSC', w:1100, jc:'center' },
-         { h:'จำนวน', w:1300, jc:'center' }, { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1150, jc:'right' }, { h:'วงเงิน\n(รวม VAT)', w:1147, jc:'right' }]
-      : [{ h:'ลำดับ\nที่', w:520, jc:'center' }, { h:k.col, w:3500 }, { h:'จำนวน', w:900, jc:'center' }, { h:'หน่วย', w:800, jc:'center' }, { h:'รหัส\nUNSPSC', w:1300, jc:'center' },
-         { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1250, jc:'right' }, { h:'ราคารวม\n(รวม VAT)', w:1347, jc:'right' }];
+      ? [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:2650, flex:1 }, { h:'รหัส GPU', w:900, jc:'center', num:1 }, { h:'รหัส TPU', w:900, jc:'center', num:1 }, { h:'รหัส\nUNSPSC', w:1100, jc:'center', num:1 },
+         { h:'จำนวน', w:1300, jc:'center' }, { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1300, jc:'right', num:1 }, { h:'วงเงิน\n(รวม VAT)', w:1496, jc:'right', num:1 }]
+      : [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:3600, flex:1 }, { h:'จำนวน', w:1000, jc:'center', num:1 }, { h:'หน่วย', w:900, jc:'center' }, { h:'รหัส\nUNSPSC', w:1300, jc:'center', num:1 },
+         { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1300, jc:'right', num:1 }, { h:'ราคารวม\n(รวม VAT)', w:1546, jc:'right', num:1 }];
     var rows = [{ head:true, cells:cols.map(function(c){ return { t:c.h }; }) }];
     d.lines.forEach(function(l, i){
       var v = fmt2(Math.round((+l.qty || 0) * (+l.price || 0) * 100) / 100);
       rows.push({ cells:drug
-        ? [{ t:(i + 1) + '.' }, { t:l.name }, { t:l.gpu }, { t:l.tpu }, { t:l.unspsc }, { t:memoQty(l.qty, l.unit) + (l.pack && String(l.pack).trim() !== '1 ' + l.unit ? '\n(' + l.pack + ')' : '') }, { t:fmt2(+l.price || 0) }, { t:v }]
+        ? [{ t:(i + 1) + '.' }, { t:l.name }, { t:l.gpu }, { t:l.tpu }, { t:l.unspsc }, { t:memoQty(l.qty, l.unit) + memoPackShort(l) }, { t:fmt2(+l.price || 0) }, { t:v }]
         : [{ t:(i + 1) + '.' }, { t:l.name }, { t:memoQty(l.qty, '') }, { t:l.unit }, { t:l.unspsc }, { t:fmt2(+l.price || 0) }, { t:v }] });
     });
     var nc = cols.length;
     rows.push({ cells:[{ t:'มูลค่าที่ไม่รวมภาษี', span:nc - 1, jc:'right' }, { t:fmt2(t.ex) }] });
     rows.push({ cells:[{ t:'ภาษีมูลค่าเพิ่ม 7%', span:nc - 1, jc:'right' }, { t:fmt2(t.vat) }] });
     rows.push({ cells:[{ t:'รวมจำนวนเงินทั้งสิ้น', span:nc - 1, jc:'right', b:1 }, { t:fmt2(t.total), b:1 }] });
-    rows.push({ cells:[{ t:'จำนวนรวม ' + n + ' รายการ รวมเป็นเงินทั้งสิ้น\t(' + bahtText(t.total) + ')', span:nc, jc:'left', tabs:[['right', 9500]] }] });
+    rows.push({ cells:[{ t:'จำนวนรวม ' + n + ' รายการ รวมเป็นเงินทั้งสิ้น\t(' + bahtText(t.total) + ')', span:nc, jc:'left', tabs:[['right', MEMO_TBL.w - 160]] }] });
+    fitCols(cols, rows, 24);
     var hosp = memoSet.org.hosp;
     var body = wPara(wRun('หนังสือสั่งซื้อ', { b:1, sz:44 }), { jc:'center', after:120 }) +
       P('เลขที่  ' + k.y + '.' + d.kNo, { left:5670 }) +
@@ -2566,7 +2631,7 @@
       P('ถึง  ' + doc.company + ' ตามใบของ ' + doc.company) +
       P('เลขที่  ' + (d.bill || '…………………') + '   ลงวันที่  ' + (memoDateTh(d.billDate) || '…………………') + '   ' + hosp + ' ได้รับราคาและตกลงซื้อของ', { jc:'thaiDistribute' }) +
       P('จำนวน ' + n + ' รายการ จึงให้ผู้ขายส่งของ ณ ' + memoSet.org.dept + ' ' + hosp + ' ภายใน ' + (d.days || 5) + ' วันทำการ โดยนับถัดจากวันที่ผู้ขายได้รับหนังสือสั่งซื้อนี้ ดังรายการต่อไปนี้', { jc:'thaiDistribute', after:120 }) +
-      wTable(rows, cols, { sz:26, headSz:24 }) +
+      wTable(rows, cols, { sz:24, headSz:24, ind:MEMO_TBL.ind }) +
       P('สิ่งของตามรายการข้างต้นนี้ สำหรับใช้ในราชการ' + hosp, { before:120 }) +
       P('ตามบันทึกเลขที่  ' + k.k + '.' + d.kNo + '   วันที่  ' + memoDateTh(d.kDate)) +
       P('เงื่อนไขการสั่งซื้อ', { b:1, before:120 }) +
