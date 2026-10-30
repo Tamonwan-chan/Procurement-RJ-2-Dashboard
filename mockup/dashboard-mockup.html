@@ -532,6 +532,8 @@
   <div class="table-tools">
     <input class="search" id="rate-search" type="search" list="rate-options" placeholder="เลือกหรือค้นหารายการยา (hospcode / ชื่อยา)" aria-label="เลือกรายการยา">
     <datalist id="rate-options"></datalist>
+    <select class="search field-select" id="rate-dist" aria-label="ผู้แทนจำหน่าย (distribute)"></select>
+    <select class="search field-select" id="rate-mfr" aria-label="ผู้ผลิต (manufact)"></select>
     <div class="chips" id="rate-status"></div>
     <button type="button" class="btn-solid" id="btn-quote">ทำใบเสนอราคา</button>
   </div>
@@ -542,6 +544,7 @@
     </div><button type="button" class="btn-ghost" id="quote-close">ปิด</button></div>
     <div class="table-tools" style="margin-top:12px">
       <select class="search field-select" id="quote-company" aria-label="บริษัท (distribute)"></select>
+      <select class="search field-select" id="quote-mfr" aria-label="ผู้ผลิต (manufact)"></select>
       <label class="q-field"><input type="checkbox" id="quote-only-out"> เฉพาะรายการที่ขึ้น "สั่งซื้อ"</label>
       <input class="search" id="quote-search" type="search" placeholder="ค้นหา hospcode / ชื่อยา" aria-label="ค้นหารายการในใบเสนอราคา">
     </div>
@@ -848,7 +851,7 @@
     return items;
   })();
 
-  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', searchField:'all', stockFilter:'pos', groupByCompany:false, rateSearch:'', rateStatus:'all', rateSel:null, datasets:{}, prev:null, openLots:{}, gpsAll:false, gpuAll:false, meta:null, regList:REG_TYPES.slice() };
+  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', searchField:'all', stockFilter:'pos', groupByCompany:false, rateSearch:'', rateStatus:'all', rateDist:'all', rateMfr:'all', rateSel:null, datasets:{}, prev:null, openLots:{}, gpsAll:false, gpuAll:false, meta:null, regList:REG_TYPES.slice() };
 
   /* ---------------- Excel import (ไฟล์ HIS หลายไฟล์) ---------------- */
   function norm(h){ return String(h == null ? '' : h).replace(/\s+/g,' ').trim().toLowerCase(); }
@@ -1210,7 +1213,7 @@
 
   function resetFilters(){
     state.room = 'all'; state.reg = 'all'; state.acct = 'all'; state.search = '';
-    state.rateSearch = ''; state.rateStatus = 'all'; state.rateSel = null;
+    state.rateSearch = ''; state.rateStatus = 'all'; state.rateSel = null; state.rateDist = 'all'; state.rateMfr = 'all';
     document.getElementById('item-search').value = '';
     document.getElementById('rate-search').value = '';
   }
@@ -1784,9 +1787,32 @@
   }
   function rateOptionLabel(it){ return it.hospcode + ' · ' + (it.tradename || it.generic); }
 
+  /* ตัวเลือกผู้แทนจำหน่าย / ผู้ผลิต (ใช้ทั้งอัตราการใช้ยาและหน้าทำใบเสนอราคา) · distId = null คือไม่มีช่องผู้แทนจำหน่ายของตัวเอง */
+  var NO_MFR = 'ไม่ระบุผู้ผลิต';
+  function mfrMatch(it, dist, mfr){
+    return (dist === 'all' || (it.distribute || NO_COMPANY) === dist) && (mfr === 'all' || (it.manufact || NO_MFR) === mfr);
+  }
+  function mfrSelects(distId, mfrId, items, st, dKey, mKey){
+    function counts(list, f){ var o = {}; list.forEach(function(it){ var k = f(it); o[k] = (o[k] || 0) + 1; }); return o; }
+    function opts(o){ return Object.keys(o).sort(function(a, b){ return a.localeCompare(b, 'th'); }).map(function(k){ return [k, k + ' (' + fmt(o[k]) + ')']; }); }
+    if(distId){
+      var dc = counts(items, function(it){ return it.distribute || NO_COMPANY; });
+      if(st[dKey] !== 'all' && !dc[st[dKey]]) st[dKey] = 'all';
+      fillSelect(distId, [['all', 'ทุกผู้แทนจำหน่าย (' + fmt(items.length) + ')']].concat(opts(dc)), st[dKey]);
+    }
+    var inDist = items.filter(function(it){ return st[dKey] === 'all' || (it.distribute || NO_COMPANY) === st[dKey]; });
+    var mc = counts(inDist, function(it){ return it.manufact || NO_MFR; });
+    if(st[mKey] !== 'all' && !mc[st[mKey]]) st[mKey] = 'all';
+    fillSelect(mfrId, [['all', 'ทุกผู้ผลิต (' + fmt(Object.keys(mc).length) + ' ราย)']].concat(opts(mc)), st[mKey]);
+  }
+
   function renderRates(){
     var order = { high:0, low:1, normal:2 };
-    var pool = state.items.filter(function(it){ return it.proc && matchReg(it) && matchAcct(it); }).map(function(it){
+    /* ผู้แทนจำหน่าย → ผู้ผลิต: รายชื่อผู้ผลิตแสดงเฉพาะของผู้แทนจำหน่ายที่เลือก (พี่โอม 30 ต.ค. 69: ซื้อผ่าน distributor เช่น
+       ซิลลิค ต้องเลือกผู้ผลิตเดียวกัน) */
+    var base = state.items.filter(function(it){ return it.proc && matchReg(it) && matchAcct(it); });
+    mfrSelects('rate-dist', 'rate-mfr', base, state, 'rateDist', 'rateMfr');
+    var pool = base.filter(function(it){ return mfrMatch(it, state.rateDist, state.rateMfr); }).map(function(it){
       return { it:it, status:rateStatus(it) };
     }).sort(function(a, b){ return order[a.status] - order[b.status] || a.it.hospcode.localeCompare(b.it.hospcode, undefined, { numeric:true }); });
 
@@ -1898,6 +1924,8 @@
     if(tr && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); pickRate(tr.getAttribute('data-hc')); }
   });
   var rateTimer;
+  document.getElementById('rate-dist').addEventListener('change', function(e){ state.rateDist = e.target.value; state.rateMfr = 'all'; renderRates(); });
+  document.getElementById('rate-mfr').addEventListener('change', function(e){ state.rateMfr = e.target.value; renderRates(); });
   document.getElementById('rate-search').addEventListener('input', function(e){
     var v = e.target.value;
     clearTimeout(rateTimer);
@@ -1915,7 +1943,7 @@
   var QUOTE_MAX = 8, QUOTE_ITEM_ROW = 7, QUOTE_LAST_COL = 12;
   var EXCELJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
   var QUOTE_NO_KEY = 'rj2-quote-next-no';
-  var quoteState = { open:false, company:'all', onlyOut:false, search:'', sel:{}, edits:{}, nos:{ W:'', WM:'', WC:'' }, date:'', editing:null, note:'' };
+  var quoteState = { open:false, company:'all', mfr:'all', onlyOut:false, search:'', sel:{}, edits:{}, nos:{ W:'', WM:'', WC:'' }, date:'', editing:null, note:'' };
   /* เลขที่แยก 3 ชุด (พี่โอมกำหนด, ใช้ Template เดียวกัน) · เลขถัดไปจำไว้ในเครื่องนี้และไม่ย้อนกลับ
      W  = ทะเบียนยา · WC = ทะเบียนเภสัชเคมีภัณฑ์ · WM = ทะเบียนเวชภัณฑ์ที่มิใช่ยา / วัสดุเภสัชกรรม / อื่น ๆ */
   var QUOTE_SERIES = ['W', 'WM', 'WC'], QUOTE_HIST_SLOT = '_quotes', quoteHist = null;
@@ -2906,10 +2934,12 @@
     var names = Object.keys(comps).sort(function(a, b){ return a.localeCompare(b, 'th'); });
     if(quoteState.company !== 'all' && !comps[quoteState.company]) quoteState.company = 'all';
     fillSelect('quote-company', [['all', 'ทุกบริษัท (' + fmt(pool.length) + ' รายการ)']].concat(names.map(function(k){ return [k, k + ' (' + comps[k] + ')']; })), quoteState.company);
+    mfrSelects(null, 'quote-mfr', pool, quoteState, 'company', 'mfr');
     var q = quoteState.search.trim().toLowerCase();
     var rows = pool.filter(function(it){
       if(quoteState.sel[it.hospcode]) return true;
       if(quoteState.company !== 'all' && (it.distribute || NO_COMPANY) !== quoteState.company) return false;
+      if(quoteState.mfr !== 'all' && (it.manufact || NO_MFR) !== quoteState.mfr) return false;
       if(quoteState.onlyOut && !isOut(it)) return false;
       return !q || (it.hospcode + ' ' + it.tradename + ' ' + it.generic + ' ' + ((state.lookups && state.lookups.med[it.hospcode]) || {}).name).toLowerCase().indexOf(q) >= 0;   /* ชื่อใน Meditem ด้วย (อาจต่างจาก DrugCatNow) */
     }).sort(function(a, b){
@@ -2989,7 +3019,8 @@
 
   document.getElementById('btn-quote').addEventListener('click', function(){ quoteState.open = !quoteState.open; renderQuote(); var qb = document.getElementById('quote-box'); if(quoteState.open && qb.scrollIntoView) qb.scrollIntoView({ block:'nearest' }); });
   document.getElementById('quote-close').addEventListener('click', function(){ quoteState.open = false; renderQuote(); });
-  document.getElementById('quote-company').addEventListener('change', function(e){ quoteState.company = e.target.value; renderQuote(); });
+  document.getElementById('quote-company').addEventListener('change', function(e){ quoteState.company = e.target.value; quoteState.mfr = 'all'; renderQuote(); });
+  document.getElementById('quote-mfr').addEventListener('change', function(e){ quoteState.mfr = e.target.value; renderQuote(); });
   document.getElementById('quote-only-out').addEventListener('change', function(e){ quoteState.onlyOut = e.target.checked; renderQuote(); });
   var quoteTimer;
   document.getElementById('quote-search').addEventListener('input', function(e){ clearTimeout(quoteTimer); var v = e.target.value; quoteTimer = setTimeout(function(){ quoteState.search = v; renderQuote(); }, 150); });
