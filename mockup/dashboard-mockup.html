@@ -1818,7 +1818,21 @@
     var py = state.lookups && state.lookups.planYear;
     document.getElementById('plan-head').innerHTML = 'planfin<br><small>ปี ' + (py ? py % 100 : 70) + ' · ห้ามซื้อเกิน (กล่อง)</small>';
     var body = document.getElementById('rate-table');
-    if(!rows.length){ body.innerHTML = '<tr><td colspan="' + (14 + FLOOR_LOCS.length) + '" class="table-note" style="padding:14px">ไม่พบรายการตามที่เลือก</td></tr>'; return; }
+    if(!rows.length){
+      /* ค้นเจอยาที่ไม่อยู่ในไฟล์ list (ไม่มีอัตราการใช้) → บอกเหตุผลแทน "ไม่พบ" · ค้นชื่อใน Meditem ด้วย เพราะ DrugCatNow / Meditem
+         ตั้งชื่อต่างกันได้ (เช่น 2131964 CASCOR XL: DrugCatNow "TABLET" · Meditem / HIS "CAPSULE") — พี่โอมหาไม่เจอ 30 ต.ค. 69 */
+      var LM = state.lookups ? state.lookups.med : {};
+      var other = q ? state.items.filter(function(it){
+        return !it.proc && [it.hospcode, it.tradename, it.generic, (LM[it.hospcode] || {}).name].join(' ').toLowerCase().indexOf(q) >= 0;
+      }) : [];
+      body.innerHTML = '<tr><td colspan="' + (14 + FLOOR_LOCS.length) + '" class="table-note" style="padding:14px;white-space:normal">' + (other.length
+        ? 'ไม่อยู่ในไฟล์ list (แจ้งความต้องการซื้อ) จึงไม่มีอัตราการใช้: ' + other.slice(0, 5).map(function(it){
+            var total = centralQty(it); FLOOR_LOCS.forEach(function(l){ total += it.stock[l.id] ? it.stock[l.id].qty : 0; });
+            return '<b>' + esc(it.hospcode) + '</b> ' + esc((LM[it.hospcode] || {}).name || it.tradename) + ' · ยอดรวมใน รพ ' + fmt1(total) + ' กล่อง';
+          }).join(' · ') + (other.length > 5 ? ' · … อีก ' + (other.length - 5) + ' รายการ' : '') + ' — ดูคงคลังและทำใบเสนอราคาได้ที่ปุ่ม "ทำใบเสนอราคา"'
+        : 'ไม่พบรายการตามที่เลือก') + '</td></tr>';
+      return;
+    }
     body.innerHTML = rows.map(function(r){ return rateRow(r.it, r.status); }).join('');
   }
 
@@ -2831,7 +2845,7 @@
       if(quoteState.sel[it.hospcode]) return true;
       if(quoteState.company !== 'all' && (it.distribute || NO_COMPANY) !== quoteState.company) return false;
       if(quoteState.onlyOut && !isOut(it)) return false;
-      return !q || (it.hospcode + ' ' + it.tradename + ' ' + it.generic).toLowerCase().indexOf(q) >= 0;
+      return !q || (it.hospcode + ' ' + it.tradename + ' ' + it.generic + ' ' + ((state.lookups && state.lookups.med[it.hospcode]) || {}).name).toLowerCase().indexOf(q) >= 0;   /* ชื่อใน Meditem ด้วย (อาจต่างจาก DrugCatNow) */
     }).sort(function(a, b){
       return (quoteState.sel[b.hospcode] ? 1 : 0) - (quoteState.sel[a.hospcode] ? 1 : 0) || (isOut(b) ? 1 : 0) - (isOut(a) ? 1 : 0) ||
         a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true });
