@@ -20,14 +20,41 @@ Context for any Claude Code session that opens this repo (the owner works from m
 - Do not publish the watermarked Adobe Stock image `messageImage_1791257146874.jpg` (left untracked on purpose).
 - No clasp / Apps Script here. (The sibling folder "Dashboard พี่โอม" is a different project, ME-RJ-2-Dashboard, which does use clasp.)
 
+## Version 1.0 scope freeze (from 2 Nov 2026)
+v1.0 = issues #1–#20: 14 closed, 6 waiting on พี่โอม (#4, #5, #8, #9, #11, #16). Until those 6 are closed, the program gets **bug fixes only**. She set this up to stop "reflex coding": building each new LINE request the day it arrives while his open questions stay unanswered. The freeze covers program code (`mockup/`, `guide/`). Docs, the Q&A file, `ICEBOX.md` and issues are not frozen.
+
+**Gatekeeper.** Before writing or changing any program code, put the request in one of three categories and state which one in the reply:
+- **A. QA bug: fix now.** Something already built fails during his testing: an existing HIS file type is not recognised or fails to import; figures differ from HIS or his slides (box/unit conversion, ED/NED totals, months-of-stock KPI); a broken layout; Thai line breaks, the Garuda or the output are wrong in quote Excel (W / WM / WC) or Word memos (ภย. → ขย. → ย.); IndexedDB loses data; the UI crashes. Follow the Workflow below (`bug` issue, headless tests, `Fixes #n`).
+- **B. His answer to one of the 6 issues: build.** Only when she passes on his answer, or she explicitly says to apply the default rule below. Record the answer in the Q&A file first.
+- **C. New feature or change: no code.** Anything outside #1–#20: a new HIS file type, chart, document template or calculation; changes to a working screen or workflow that are preference, not a defect. Reply:
+  > ⚠️ **SCOPE FREEZE:** this is a new request outside v1.0. Not building it now. Logged in `ICEBOX.md`; new features resume once the 6 open issues are closed.
+
+  Then add it to `ICEBOX.md` (date, his request in neutral words, no real data). Open no GitHub issue for it yet. Only an explicit "lift the freeze for this item" from her overrides this; note the exception in `ICEBOX.md`.
+- **Unsure whether A or C?** Don't guess. Ask her (in Thai, to forward) for a QA report: which screen, which file and month, what the program shows, what it should show (HIS figure or slide), and a screenshot.
+
+**The 6 blocked issues.** Deadline for his answers: **9 Nov 2026 (9 พ.ย. 69)**. From then on, remind her at the start of a session; once she says to go ahead, apply the default: record "ไม่ได้รับคำตอบภายใน 9 พ.ย. 69 จึงใช้ตามที่โปรแกรมทำอยู่" in the Q&A file and close the issue. Anything that can't be built without his files or figures moves to `ICEBOX.md` instead. The defaults are the program's current behaviour (Q&A section 1, column "ตอนนี้ในโปรแกรม"):
+
+| Issue | Waiting on (Q&A section 1 item) | Default after the deadline |
+|---|---|---|
+| #4 วงเงินแผน: หักยอดเมื่อออกใบสั่งซื้อ | starting budget, mid-year plan revisions, amount already ordered (2) | not built without his figures; move to ICEBOX |
+| #5 PO_inven เวชภัณฑ์มิใช่ยา | a sample non-drug PO_inven export (10) | import keeps replacing by month; move to ICEBOX |
+| #8 คำนวณคงคลังย้อนหลัง | other receipt / dispense types outside PO_inven + dispen_inven (7) | Inventory Status only; close |
+| #9 planfin 69 ฉบับหลังปรับแผน | which plan version, units of a few items (1) | show the file as it is; close |
+| #11 บันทึก Word: ข้อที่รอยืนยัน | items 3, 4, 5, 6, 8, 11, 14 | userate rounded and editable; committee typed in settings; date check warns only; first number typed by hand; WC → ภว. / ขว. / ยว.; source = quote history (no Excel import); ดีทแฮล์ม = DKSH layout; ย. / ยว. one layout; ex-VAT = ÷ 1.07; close |
+| #16 ซ่อนส่วนในกราฟ GPSC / GPU | anything else to hide for the executive presentation (13) | hide nothing more; close |
+
+Q&A items 9 (3 fiscal years of stock history) and 12 (split quotes by manufacturer) have no issue. Same deadline, same default (keep current behaviour). v1.0 closes when all 6 issues are closed. Then the `ICEBOX.md` items become issues for the next version, in the order she chooses.
+
+**LINE messages.** When she pastes a message from พี่โอม, use `/line-triage <message>` (`.claude/commands/line-triage.md`). It sorts each point into A / B / C, records answers, logs C items in `ICEBOX.md` and drafts a Thai LINE reply. Every reply to him thanks him for testing and invites QA reports with the short form in that command. Bugs are fixed first, so reporting one gets a quick result.
+
 ## Workflow
 1. `git fetch` and check status first (work happens on several PCs).
 2. Edit `mockup/dashboard-mockup.html` (small, targeted edits; match the surrounding ES5 style and Thai comments).
 3. Test headlessly before pushing: jsdom + fake-indexeddb + xlsx (cross-realm shim `XLSX.read(Buffer.from(new Uint8Array(d)), …)`), and real Chrome via puppeteer-core for visuals / export. Quote output can be checked by opening it in Excel.
 4. Commit with a clear message, push to `master`, wait for the Pages build, then tell her to press Ctrl + F5.
 5. Update `ประเด็นที่รอยืนยันจากพี่โอม.md` (open questions, answers, changes) and `README.md` when rules change.
-6. Track work in **GitHub Issues** (`gh issue list`): one issue per feature / bug / open question, short neutral Thai title, labels `enhancement` / `bug` / `question` + `waiting` (blocked on พี่โอม's answer or files), milestone "Phase 2: บันทึก ภย. / ภว. / ขย. / ย.". The repo is public, so issues hold no real data, prices, figures or names; details stay in the Q&A file. พี่โอม never uses GitHub: she relays his messages and Claude opens / updates the issues. Close them from the commit (`Fixes #n`).
-7. Days worked on the project = distinct commit dates (weekend dates are hospital shifts and count): `git log --format=%ad --date=short | sort -u | wc -l`. After every push, rerun it; when it reaches **20**, tell her plainly in that reply (she asked to be notified, on whichever PC she is using).
+6. Track work in **GitHub Issues** (`gh issue list`): one issue per feature / bug / open question, short neutral Thai title, labels `enhancement` / `bug` / `question` + `waiting` (blocked on พี่โอม's answer or files), milestone "Phase 2: บันทึก ภย. / ภว. / ขย. / ย.". The repo is public, so issues hold no real data, prices, figures or names; details stay in the Q&A file. พี่โอม never uses GitHub: she relays his messages and Claude opens / updates the issues. Close them from the commit (`Fixes #n`). During the v1.0 freeze, new feature requests go to `ICEBOX.md`, not to issues.
+7. Days worked on the project = distinct commit dates (weekend dates are hospital shifts and count): `git log --format=%ad --date=short | sort -u | wc -l`. After every push, rerun it; each time it reaches a multiple of **20** (20 reached 2026-11-02; next 40, 60, …), tell her plainly in that reply (she asked to be notified, on whichever PC she is using).
 
 ## Key business rules (details in the .md and README)
 - Items join on meditem = hospcode = รหัสเวชภัณฑ์ = hospdrugid. Central stock (inventory_exp) is in boxes; dispensing rooms are in units ÷ packqty.
