@@ -2187,6 +2187,15 @@
     Object.keys(dv).forEach(function(addr){
       var x = /^([A-Z]+)(\d+)$/.exec(addr); if(!x) return;
       var rule = cloneStyle(dv[addr]);
+      /* รายการ dropdown (หน่วย A28:A43 / บริษัท B28:B90): ยืดช่วงลงไปถึงช่องสุดท้ายที่มีค่าใน Template
+         เพิ่มหน่วย / บริษัทต่อท้ายรายการใน Template แล้วขึ้นใน dropdown ของไฟล์ที่ส่งออกด้วย ไม่ต้องแก้ Data Validation เอง */
+      if(rule.type === 'list') rule.formulae = (rule.formulae || []).map(function(f){
+        var m = /^(\$?)([A-Z]{1,3})(\$?)(\d+):(\$?)([A-Z]{1,3})(\$?)(\d+)$/.exec(String(f).trim());
+        if(!m || m[2] !== m[6] || +m[4] <= QUOTE_ITEM_ROW) return f;
+        var end = +m[8];
+        for(var r = +m[4]; r <= last; r++){ var v = tws.getCell(m[2] + r).value; if(v == null || String(v).trim() === '') break; end = Math.max(end, r); }
+        return m[1] + m[2] + m[3] + m[4] + ':' + m[5] + m[6] + m[7] + end;
+      });
       rule.formulae = (rule.formulae || []).map(function(f){ return shiftFormula(f, n, 0); });
       if(+x[2] === QUOTE_ITEM_ROW){ for(var i = 0; i < n; i++) ws.getCell(x[1] + (QUOTE_ITEM_ROW + i)).dataValidation = cloneStyle(rule); }
       else ws.getCell(x[1] + outRow(+x[2])).dataValidation = rule;
@@ -2907,6 +2916,28 @@
   /* ---------------- ราคากลาง (ใบ "ราคากลาง …" ใน DATA Template) ----------------
      พี่โอม: ช่อง H = ราคากลาง ไว้ดูว่าห้ามซื้อเกินราคานี้ · ราคาในใบเป็นต่อหน่วย (เม็ด / ซอง / ขวด) จึงคูณจำนวนต่อกล่อง
      จับคู่อัตโนมัติจากชื่อสามัญ + ความแรง + รูปแบบยา แล้วให้เลือกเปลี่ยน / ไม่ใช้ได้ (จำไว้ในเครื่อง) */
+  /* หน่วยในช่องจำนวนต่อกล่อง / จำนวนซื้อ = รายการ dropdown ของ Template (ใบขอใบเสนอราคา คอลัมน์ A แถว 28 ลงไปจนเจอช่องว่าง)
+     พี่โอม (2 พ.ย. 69): เพิ่มหน่วยใน Template ให้ขึ้นที่นี่ด้วย — พิมพ์หน่วยต่อจาก VIAL (A44, A45 …) แล้วลาก Template ใหม่
+     หน่วยเดิม 16 หน่วยยังอยู่เสมอ · ช่องหน่วยพิมพ์เองได้ (รายการเป็นแค่ตัวช่วยเลือก) */
+  var QUOTE_UNITS = ['หลอด','ซอง','ขวด','ชิ้น','กล่อง','เม็ด','AMP','BAG','BOTT','BOTTLE','BOX','GALLON','SET','SYRING','TABLET','VIAL'], QUOTE_UNIT_ROW = 28;
+  var unitCache = { buf:null, list:QUOTE_UNITS };
+  function quoteUnits(){
+    var tpl = state.datasets.quoteTpl; if(!tpl) return QUOTE_UNITS;
+    if(unitCache.buf === tpl.buf) return unitCache.list;
+    var list = [];
+    try{
+      var sn = XLSX.read(new Uint8Array(tpl.buf), { type:'array', bookSheets:true }).SheetNames.filter(function(x){ return x.trim() === String(tpl.sheetName).trim(); })[0];
+      var ws = sn ? XLSX.read(new Uint8Array(tpl.buf), { type:'array', sheets:[sn] }).Sheets[sn] : null;
+      for(var r = QUOTE_UNIT_ROW; ws && r < QUOTE_UNIT_ROW + 200; r++){
+        var c = ws['A' + r], v = c ? String(c.v == null ? '' : c.v).trim() : '';
+        if(!v) break;
+        if(list.indexOf(v) < 0) list.push(v);
+      }
+    }catch(e){}
+    QUOTE_UNITS.forEach(function(u){ if(list.indexOf(u) < 0) list.push(u); });
+    unitCache = { buf:tpl.buf, list:list };
+    return list;
+  }
   var refCache = { buf:null, rows:[] }, refCandCache = {};
   function refRows(){
     var tpl = state.datasets.quoteTpl; if(!tpl) return [];
@@ -3022,8 +3053,7 @@
         refCellHtml(it, l) +
         '<td class="mono" data-total>' + (total ? fmt2(total) : '–') + '</td></tr>';
     }).join('') : '<tr><td colspan="11" class="table-note" style="padding:14px">ไม่พบรายการ</td></tr>';
-    var units = ['หลอด','ซอง','ขวด','ชิ้น','กล่อง','เม็ด','AMP','BAG','BOTT','BOTTLE','BOX','GALLON','SET','SYRING','TABLET','VIAL'];
-    document.getElementById('quote-units').innerHTML = units.map(function(u){ return '<option value="' + u + '"></option>'; }).join('');
+    document.getElementById('quote-units').innerHTML = quoteUnits().map(function(u){ return '<option value="' + esc(u) + '"></option>'; }).join('');
     QUOTE_SERIES.forEach(function(s){ if(!quoteState.nos[s]) quoteState.nos[s] = savedNo(s); });
     if(!quoteState.date) quoteState.date = todayIso();
     QUOTE_SERIES.forEach(function(s){ document.getElementById('quote-no-' + s).value = quoteState.nos[s]; });
