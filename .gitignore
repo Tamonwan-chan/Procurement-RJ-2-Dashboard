@@ -7,8 +7,9 @@
 *.docx
 *.doc
 
-# Folder of real HIS exports, sample memos and old files (local only, every file type)
+# Real HIS exports to drag onto the page, and the archive next to it (local only, every file type)
 ลาก/
+เก็บไว้/
 
 # Headless test tooling
 tests/node_modules/

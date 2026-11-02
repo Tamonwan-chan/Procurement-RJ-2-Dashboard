@@ -23,12 +23,15 @@ tests/                         headless harness: harness.js (load page, drop fil
 ประเด็นที่รอยืนยันจากพี่โอม.md      Q&A log with พี่โอม (questions, answers, changes)
 ข้อความถึงพี่โอม (รอส่ง).md         next LINE message she has not sent yet
 ICEBOX.md                      requests parked by the v1.0 freeze
-ลาก/                           git-ignored, this PC only (copy it by hand between PCs):
-  *.xls, *.xlsx                  current HIS exports + DATA Template.xlsx (the default test set)
-  Inventory_status/ปี 68, ปี 69  month-end stock history
+ลาก/                           git-ignored, this PC only: exactly the files she selects all (Ctrl + A) and drags
+                               onto the page in one go — current HIS exports + DATA Template.xlsx; no subfolders
+                               (a dragged folder shows "ไม่รู้จักไฟล์"). Also the default smoke-test set.
+เก็บไว้/                        git-ignored, this PC only: everything not dragged every time
+  Inventory_status/ปี 68, ปี 69  month-end stock history (dragged once per year folder)
   ตัวอย่างเอกสาร/                 his sample memos (.docx), DATA wb021-040.xlsx, his compiled workbook รายการยาจัดหา (not a HIS export: dropping it with the exports overrides them)
   ไม่ใช้แล้ว/                     Rate_cost, old inventory.xls, duplicates, old drafts
 ```
+Copy `ลาก/` and `เก็บไว้/` by hand between PCs. Keep `ลาก/` flat: a new HIS export goes straight in, replacing the older file of the same type.
 Local-only, never commit: `สรุปบทบาทและงานที่ทำ.md` and the stock image (both in `.git/info/exclude`; add them there on a new PC).
 
 ## Hard rules
@@ -78,7 +81,7 @@ Q&A items 9 (3 fiscal years of stock history) and 12 (split quotes by manufactur
 - Items join on meditem = hospcode = รหัสเวชภัณฑ์ = hospdrugid. Central stock (inventory_exp) is in boxes; dispensing rooms are in units ÷ packqty.
 - Dispensing (dispen_inven) counts by dispense type, column H `name`: every type except เบิกฉุกเฉิน (115, clears borrowed drugs), จ่ายทั่วไป (101), ปรับยอดคงคลัง (120) and จำหน่ายออก; แลกเปลี่ยน (returns to the supplier) is counted; value = payqty × unitcost.
 - PO_inven counts only `minptype` 101 รับจากการสั่งซื้อ (the real export has five columns all named `name`; supplier = `company_dspname`, else `note`).
-- Stock history: every inventory_exp and Inventory_status import is stored per month (`_stockhist` in IndexedDB, current fiscal year + 2 before, so two full years stay comparable early in a new year) for the year-comparison report; a file dated older than the current one is kept as history only. Inventory_status files (Feb 68 – Sep 69) live in `ลาก/Inventory_status/`.
+- Stock history: every inventory_exp and Inventory_status import is stored per month (`_stockhist` in IndexedDB, current fiscal year + 2 before, so two full years stay comparable early in a new year) for the year-comparison report; a file dated older than the current one is kept as history only. Inventory_status files (Feb 68 – Sep 69) live in `เก็บไว้/Inventory_status/`.
 - เดือนสำรองคงคลัง = drug-only stock value at month end ÷ dispensed value; KPI ≤ 1.33; line green ≤ 1.33, orange ≤ 2.00, red > 2.00, plus mean line.
 - GPU chart = PO_inven purchase value since fiscal-year start, ฿500,000 ceiling, planfin totals by GPU at the bar end.
 - planfin: latest year drives "ห้ามซื้อเกิน", quote prices (cost per box) and the GPU chart; up to 5 years kept; the ranking has a free year / compare-year picker.
