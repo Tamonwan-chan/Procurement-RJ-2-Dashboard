@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git fetch:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue view:*)",
+      "Bash(node smoke.js:*)",
+      "Bash(node tests/smoke.js:*)",
+      "Bash(npm run smoke:*)"
+    ],
+    "deny": [
+      "Bash(git add -f:*)",
+      "Bash(git add --force:*)"
+    ]
+  }
+}
