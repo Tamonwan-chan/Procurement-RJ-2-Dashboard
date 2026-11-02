@@ -2945,12 +2945,17 @@
     var rows = [];
     try{
       var names = XLSX.read(new Uint8Array(tpl.buf), { type:'array', bookSheets:true }).SheetNames;
-      var sn = names.filter(function(x){ return /ราคากลาง/.test(x); })[0];
+      /* มีใบราคากลางหลายใบ (ฉบับเก่า + ฉบับปรับใหม่) ใช้ใบที่วันที่ในชื่อใหม่สุด เช่น "ราคากลาง 19-09-68" · ไม่มีวันที่ใช้ใบท้ายสุด */
+      var sn = names.filter(function(x){ return /ราคากลาง/.test(x); }).map(function(x, k){
+        var m = /(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{2,4})/.exec(x), y = m ? +m[3] : 0;
+        if(m && y < 100) y += 2500;
+        return { name:x, at:m ? y * 10000 + +m[2] * 100 + +m[1] : 0, k:k };
+      }).sort(function(a, b){ return b.at - a.at || b.k - a.k; }).map(function(x){ return x.name; })[0];
       if(sn){
         var wb = XLSX.read(new Uint8Array(tpl.buf), { type:'array', sheets:[sn] });
         XLSX.utils.sheet_to_json(wb.Sheets[sn], { header:1, defval:'' }).forEach(function(r, i){
-          var price = num(r[4]), gen = String(r[1] || '').trim();
-          if(price > 0 && gen) rows.push({ i:i + 1, gen:gen, form:String(r[2] || '').trim(), unit:String(r[3] || '').trim(), price:price, sheet:sn.trim() });
+          var price = num(r[4]), gen = String(r[1] || '').trim(), form = String(r[2] || '').trim(), unit = String(r[3] || '').trim();
+          if(price > 0 && gen) rows.push({ i:i + 1, key:refKey(gen, form, unit), gen:gen, form:form, unit:unit, price:price, sheet:sn.trim() });
         });
       }
     }catch(e){}
@@ -2982,11 +2987,16 @@
     }
     return (refCandCache[id] = out.slice(0, 6));
   }
+  /* ราคากลางที่เลือกเองจำเป็น "ชื่อยา | รูปแบบ+ความแรง | หน่วย" (ไม่ซ้ำกันในใบราคากลาง) แทนเลขแถว
+     พี่โอม (2 พ.ย. 69): ราคากลางปรับใหม่จะมาแก้ใน Template เอง — เพิ่ม / ลบแถว หรือวางรายการใหม่แล้วค่าที่เลือกไว้ไม่ชี้ผิดตัว ราคาตามฉบับใหม่
+     ค่าเดิมที่เป็นเลขแถว แปลงเป็นชื่อครั้งแรกที่ใช้ (เทียบกับ Template ที่อยู่ในเครื่องตอนนั้น) */
+  function refKey(gen, form, unit){ return [gen, form, unit].map(function(s){ return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase(); }).join('|'); }
   function refPick(id){
     var map = quoteHist && quoteHist.refMap || {};
     if(id in map){
       if(map[id] === -1) return null;
-      var r = refRows().filter(function(x){ return x.i === map[id]; })[0];
+      var v = map[id], r = refRows().filter(function(x){ return typeof v === 'number' ? x.i === v : x.key === v; })[0];
+      if(r && typeof v === 'number'){ map[id] = r.key; dbPut([quoteHist]).catch(function(){ storageOk = false; }); }
       if(r) return { r:r, chosen:true };
     }
     var c = refCandidates(id)[0];
@@ -2999,7 +3009,7 @@
     var perBox = p ? p.r.price * (l.pack || 1) : 0, price = +l.price || 0;
     var flag = p ? (price > perBox + 0.005 ? '<b class="pt-up">เกิน ฿' + fmt2(price - perBox) + '</b>' : '<span class="pt-down">ไม่เกิน</span>') : '';
     var opts = '<option value="">' + (cands.length ? (p && p.auto ? 'ตามที่ระบบเลือก' : 'เลือกราคากลาง…') : 'ไม่พบในใบราคากลาง') + '</option>' +
-      cands.map(function(c){ return '<option value="' + c.r.i + '"' + (p && p.r.i === c.r.i && !p.auto ? ' selected' : '') + '>฿' + fmt2(c.r.price) + ' / ' + esc(c.r.unit) + ' · ' + esc(c.r.gen + ' ' + c.r.form) + '</option>'; }).join('') +
+      cands.map(function(c){ return '<option value="' + esc(c.r.key) + '"' + (p && p.r.i === c.r.i && !p.auto ? ' selected' : '') + '>฿' + fmt2(c.r.price) + ' / ' + esc(c.r.unit) + ' · ' + esc(c.r.gen + ' ' + c.r.form) + '</option>'; }).join('') +
       '<option value="-1"' + (map[id] === -1 ? ' selected' : '') + '>ไม่ใช้ราคากลาง</option>';
     return '<td class="mono" data-ref' + (p ? ' title="ราคากลาง ฿' + fmt2(p.r.price) + ' / ' + esc(p.r.unit) + ' × ' + fmt1(l.pack || 1) + ' · ' + esc(p.r.gen + ' ' + p.r.form) + (p.auto ? ' (ระบบเลือกให้)' : '') + '"' : '') + '>' +
       (p ? '฿' + fmt2(perBox) + ' ' + flag : '<span class="table-note" style="margin:0">–</span>') +
@@ -3139,7 +3149,7 @@
     if(k === 'ref'){
       if(!quoteHist) quoteHist = { slot:QUOTE_HIST_SLOT, docs:[] };
       var map = quoteHist.refMap || (quoteHist.refMap = {}), v = e.target.value;
-      if(v === '') delete map[hc]; else map[hc] = Number(v);
+      if(v === '') delete map[hc]; else map[hc] = v === '-1' ? -1 : v;
       dbPut([quoteHist]).catch(function(){ storageOk = false; });
       refRedraw(tr, hc); quoteSummary('');
     }
