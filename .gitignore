@@ -6,3 +6,10 @@
 # Real hospital Word documents (memo templates with staff names) — never commit
 *.docx
 *.doc
+
+# Folder of real HIS exports, sample memos and old files (local only, every file type)
+ลาก/
+
+# Headless test tooling
+tests/node_modules/
+tests/out/

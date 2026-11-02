@@ -1,0 +1,13 @@
+{
+  "name": "rj2-procurement-dashboard-tests",
+  "private": true,
+  "description": "Headless checks for mockup/dashboard-mockup.html (jsdom + fake-indexeddb + SheetJS). Real data stays in ../ลาก/ and is never committed.",
+  "scripts": {
+    "smoke": "node smoke.js"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.0.0",
+    "jsdom": "^26.0.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.18.5/xlsx-0.18.5.tgz"
+  }
+}

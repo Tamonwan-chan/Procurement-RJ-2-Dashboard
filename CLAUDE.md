@@ -13,11 +13,29 @@ Context for any Claude Code session that opens this repo (the owner works from m
 - พี่โอม drags HIS Excel exports onto the page; each file type is recognised from its column headers (`detectSlot`). Everything runs in the browser; imported data, the KPI table, quote history and next quote numbers are stored in the browser's IndexedDB (`rj2-procurement-dashboard`) on that PC only.
 - `guide/index.html` is a Thai user guide. `README.md` documents the files and calculation rules.
 
+## Folder map
+```
+mockup/dashboard-mockup.html   the program (path is the live Pages URL: never move or rename)
+mockup/logo-rj2.jpg            logo, set in BRAND
+guide/index.html               Thai user guide (Pages)
+tests/                         headless harness: harness.js (load page, drop files), smoke.js
+.claude/commands/              /line-triage
+ประเด็นที่รอยืนยันจากพี่โอม.md      Q&A log with พี่โอม (questions, answers, changes)
+ข้อความถึงพี่โอม (รอส่ง).md         next LINE message she has not sent yet
+ICEBOX.md                      requests parked by the v1.0 freeze
+ลาก/                           git-ignored, this PC only (copy it by hand between PCs):
+  *.xls, *.xlsx                  current HIS exports + DATA Template.xlsx (the default test set)
+  Inventory_status/ปี 68, ปี 69  month-end stock history
+  ตัวอย่างเอกสาร/                 his sample memos (.docx), DATA wb021-040.xlsx, his compiled workbook รายการยาจัดหา (not a HIS export: dropping it with the exports overrides them)
+  ไม่ใช้แล้ว/                     Rate_cost, old inventory.xls, duplicates, old drafts
+```
+Local-only, never commit: `สรุปบทบาทและงานที่ทำ.md` and the stock image (both in `.git/info/exclude`; add them there on a new PC).
+
 ## Hard rules
-- **Never commit real hospital data.** `.gitignore` blocks `*.xls` / `*.xlsx` everywhere. Data files live in the git-ignored `ลาก/` folder.
+- **Never commit real hospital data.** `.gitignore` blocks `*.xls` / `*.xlsx` / `*.docx` and the whole `ลาก/` folder. Never `git add -f`.
 - **`DATA Template.xlsx` contains the head of department's signature** — it must never be committed, published or embedded in the page. It is dropped into the page once and kept only in that PC's IndexedDB.
 - Keep the **CREDIT** block and the notice at the top of the HTML intact. Change the program name / logo only through `BRAND` in the script.
-- Do not publish the watermarked Adobe Stock image `messageImage_1791257146874.jpg` (left untracked on purpose).
+- Do not publish the watermarked Adobe Stock image `messageImage_1791257146874.jpg` (left untracked on purpose, excluded locally).
 - No clasp / Apps Script here. (The sibling folder "Dashboard พี่โอม" is a different project, ME-RJ-2-Dashboard, which does use clasp.)
 
 ## Version 1.0 scope freeze (from 2 Nov 2026)
@@ -50,7 +68,7 @@ Q&A items 9 (3 fiscal years of stock history) and 12 (split quotes by manufactur
 ## Workflow
 1. `git fetch` and check status first (work happens on several PCs).
 2. Edit `mockup/dashboard-mockup.html` (small, targeted edits; match the surrounding ES5 style and Thai comments).
-3. Test headlessly before pushing: jsdom + fake-indexeddb + xlsx (cross-realm shim `XLSX.read(Buffer.from(new Uint8Array(d)), …)`), and real Chrome via puppeteer-core for visuals / export. Quote output can be checked by opening it in Excel.
+3. Test headlessly before pushing: `cd tests && npm install` once per PC, then `node smoke.js` (drops every HIS export at the top of `ลาก/`, ~10 s; lists each slot's row count, exits 1 on a script error or an unrecognised file) or `node smoke.js <files…>`. For a specific check, write a throwaway script in the session scratchpad that does `require('<repo>/tests/harness')`: `load()` gives a fresh page + empty IndexedDB, `page.drop(paths)` imports like a real drop, then inspect `page.document` (the SheetJS cross-realm shim is built in). Don't commit checks that print real figures. Use real Chrome via puppeteer-core for visuals / export. Quote output can be checked by opening it in Excel.
 4. Commit with a clear message, push to `master`, wait for the Pages build, then tell her to press Ctrl + F5.
 5. Update `ประเด็นที่รอยืนยันจากพี่โอม.md` (open questions, answers, changes) and `README.md` when rules change.
 6. Track work in **GitHub Issues** (`gh issue list`): one issue per feature / bug / open question, short neutral Thai title, labels `enhancement` / `bug` / `question` + `waiting` (blocked on พี่โอม's answer or files), milestone "Phase 2: บันทึก ภย. / ภว. / ขย. / ย.". The repo is public, so issues hold no real data, prices, figures or names; details stay in the Q&A file. พี่โอม never uses GitHub: she relays his messages and Claude opens / updates the issues. Close them from the commit (`Fixes #n`). During the v1.0 freeze, new feature requests go to `ICEBOX.md`, not to issues.
