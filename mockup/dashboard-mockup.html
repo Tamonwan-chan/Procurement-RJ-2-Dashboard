@@ -2499,15 +2499,31 @@
         unspsc:/^99/.test(gps) && gps.length > 8 ? gps.slice(-8) : gps };           /* เลข GPSC ไม่มี 990000 นำหน้า (พี่โอม 28 ต.ค.) */
     });
   }
+  /* คอลัมน์ราคาในตาราง ภย. / ภว. / ขย. / ขว. ตามผู้แทนจำหน่าย — พี่โอม (1 พ.ย. 69): การเงินกำหนดให้ตารางต้องตรงแบบของแต่ละบริษัท
+     zuellig: ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (ไม่รวม VAT)
+     dksh:    ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (รวม VAT)
+     other:   ราคาต่อหน่วย (รวม VAT) · วงเงิน (รวม VAT)
+     เลือกอัตโนมัติจากชื่อบริษัท (ดีทแฮล์ม เคลเลอร์ = กลุ่ม DKSH) · เปลี่ยนเองได้ในหน้าออกบันทึก */
+  var MEMO_LAYOUTS = [['zuellig', 'Zuellig'], ['dksh', 'DKSH'], ['other', 'บริษัทอื่น ๆ']];
+  function memoLayoutOf(company){
+    var c = String(company || '');
+    return /ซิลลิค|zuellig/i.test(c) ? 'zuellig' : /ดีเคเอสเอช|dksh|ดีทแฮล์ม/i.test(c) ? 'dksh' : 'other';
+  }
+  function memoExPrice(price){ return Math.round((+price || 0) / 1.07 * 100) / 100; }
   function memoTotals(d){
-    var total = 0, refSum = 0;
+    var total = 0, refSum = 0, exSum = 0;
     d.lines.forEach(function(l){
       var q = +l.qty || 0, v = Math.round(q * (+l.price || 0) * 100) / 100; total += v;
+      exSum += Math.round(q * memoExPrice(l.price) * 100) / 100;
       /* ขย. ข้อ 3: ราคากลาง × จำนวน ถ้าไม่มีราคากลางใช้ราคาซื้อครั้งสุดท้าย × จำนวน (พี่โอม 28 ต.ค.) */
       refSum += q * (+l.ref > 0 ? +l.ref : +l.last > 0 ? +l.last : +l.price || 0);
     });
-    total = Math.round(total * 100) / 100;
-    var ex = Math.round(total / 1.07 * 100) / 100;
+    total = Math.round(total * 100) / 100; exSum = Math.round(exSum * 100) / 100;
+    /* Zuellig: วงเงินในตารางไม่รวม VAT → มูลค่าไม่รวมภาษี = ผลรวมคอลัมน์ แล้ว × 1.07 (ภย.0492: 19,150.00 → 20,490.50)
+       DKSH: วงเงินรวม VAT แต่มีราคาไม่รวม VAT ต่อหน่วย → มูลค่าไม่รวมภาษี = จำนวน × ราคาไม่รวม VAT (ภย.0506: 27,600.00 / 29,532.00) */
+    var lay = d.layout || 'other', ex = Math.round(total / 1.07 * 100) / 100;
+    if(lay === 'zuellig'){ ex = exSum; total = Math.round(exSum * 1.07 * 100) / 100; }
+    else if(lay === 'dksh') ex = exSum;
     return { total:total, ex:ex, vat:Math.round((total - ex) * 100) / 100, ref:Math.round(refSum * 100) / 100 };
   }
   function memoQty(v, unit){ return v === '' || v == null ? '' : fmt1(+v) + (unit ? ' ' + unit : ''); }
@@ -2566,15 +2582,22 @@
      คอลัมน์ราคาซื้อครั้งสุดท้ายแสดงเมื่อมีรายการที่ไม่มีราคากลาง (พี่โอมยืนยัน 28 ต.ค.)
      fillTop: ความสูงก่อนตาราง → เติมแถวว่างให้ตารางยาวถึงท้ายหน้า (ขย. / ขว. — "ตารางยาต้องเคาะให้สุด") */
   function memoItemTable(d, k, t, fillTop){
-    var last = d.lines.some(function(l){ return !(+l.ref > 0); }), SZ = 24;
-    var cols = [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:last ? 2000 : 3000, flex:1 }, { h:'ยอด\nคงเหลือ', w:740, jc:'center' }, { h:'อัตรา\nการใช้\nต่อเดือน', w:740, jc:'center' },
-      { h:'ขนาด\nบรรจุ', w:880, jc:'center' }, { h:'จำนวน', w:820, jc:'center' }, { h:'ราคา\nกลาง', w:1000, jc:'right', num:1 }]
-      .concat(last ? [{ h:'ราคาซื้อ\nครั้งสุดท้าย\n(รวม VAT)', w:1000, jc:'right', num:1 }] : [])
-      .concat([{ h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1000, jc:'right', num:1 }, { h:'วงเงิน\n(รวม VAT)', w:1466, jc:'right', num:1 }]);
+    var last = d.lines.some(function(l){ return !(+l.ref > 0); }), SZ = 24, lay = d.layout || 'other', exCol = lay !== 'other';
+    /* คอลัมน์ราคาท้ายตาราง: ความกว้างคอลัมน์รายการ = ที่เหลือ · ถ้าแคบเกินไป (มีทั้งราคาซื้อครั้งสุดท้ายและราคาไม่รวม VAT) ใช้คอลัมน์ราคาแคบลง */
+    var priceCols = (last ? [{ h:'ราคาซื้อ\nครั้งสุดท้าย\n(รวม VAT)', w:1000, jc:'right', num:1 }] : [])
+      .concat([{ h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1000, jc:'right', num:1 }])
+      .concat(exCol ? [{ h:'ราคาต่อ\nหน่วย\n(ไม่รวม VAT)', w:1000, jc:'right', num:1 }] : [])
+      .concat([{ h:'วงเงิน\n(' + (lay === 'zuellig' ? 'ไม่รวม' : 'รวม') + ' VAT)', w:1466, jc:'right', num:1 }]);
+    var nameW = MEMO_TBL.w - 4760 - priceCols.reduce(function(a, c){ return a + c.w; }, 0);
+    if(nameW < 1500){ priceCols.forEach(function(c, i){ c.w = i === priceCols.length - 1 ? 1300 : 880; }); nameW = MEMO_TBL.w - 4760 - priceCols.reduce(function(a, c){ return a + c.w; }, 0); }
+    var cols = [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:nameW, flex:1 }, { h:'ยอด\nคงเหลือ', w:740, jc:'center' }, { h:'อัตรา\nการใช้\nต่อเดือน', w:740, jc:'center' },
+      { h:'ขนาด\nบรรจุ', w:880, jc:'center' }, { h:'จำนวน', w:820, jc:'center' }, { h:'ราคา\nกลาง', w:1000, jc:'right', num:1 }].concat(priceCols);
     var n = cols.length, head = [{ head:true, cells:cols.map(function(c){ return { t:c.h }; }) }], items = [], foot = [];
     d.lines.forEach(function(l, i){
+      var q = +l.qty || 0, exP = memoExPrice(l.price);
+      var amount = lay === 'zuellig' ? Math.round(q * exP * 100) / 100 : Math.round(q * (+l.price || 0) * 100) / 100;
       items.push({ cells:[{ t:(i + 1) + '.' }, { t:l.name }, { t:memoQty(l.stock, l.unit) }, { t:memoQty(l.rate, l.unit) }, { t:l.pack }, { t:memoQty(l.qty, l.unit) }, { t:memoMoney(l.ref) }]
-        .concat(last ? [{ t:memoMoney(l.last) }] : []).concat([{ t:fmt2(+l.price || 0) }, { t:fmt2(Math.round((+l.qty || 0) * (+l.price || 0) * 100) / 100) }]) });
+        .concat(last ? [{ t:memoMoney(l.last) }] : []).concat([{ t:fmt2(+l.price || 0) }]).concat(exCol ? [{ t:fmt2(exP) }] : []).concat([{ t:fmt2(amount) }]) });
     });
     foot.push({ cells:[{ t:'มูลค่าที่ไม่รวมภาษี', span:n - 1, jc:'right' }, { t:fmt2(t.ex), nw:1 }] });
     foot.push({ cells:[{ t:'ภาษีมูลค่าเพิ่ม 7%', span:n - 1, jc:'right' }, { t:fmt2(t.vat), nw:1 }] });
@@ -2724,7 +2747,7 @@
       pNo:s.pNo || memoNextNo(k.p, memoBE(today)), pDate:s.pDate || today,
       planRef:s.planRef != null ? s.planRef : memoSet.planRef[memoFY(s.pDate || today)] || '',
       kNo:s.kNo || memoNextNo(k.k, memoFY(today)), kDate:s.kDate || '', yDate:s.yDate || '',
-      bill:s.bill || '', billDate:s.billDate || '', days:s.days || 5,
+      bill:s.bill || '', billDate:s.billDate || '', days:s.days || 5, layout:s.layout || memoLayoutOf(doc.company),
       committee:(s.committee || pick.committee || ['', '', '']).slice(), officer:s.officer || pick.officer || '', head:s.head || pick.head || '',
       exec:s.exec || pick.exec || '', director:s.director || pick.director || '',
       lines:s.lines ? s.lines.map(function(l){ var o = {}; Object.keys(l).forEach(function(x){ o[x] = l[x]; }); return o; }) : memoLinesFrom(doc) };
@@ -2809,6 +2832,9 @@
       '<div class="table-tools">' + F(k.k + '. / ' + k.y + '. เลขที่', 'kNo', ' style="width:100px"') + F(k.k + '. วันที่', 'kDate', ' type="date"') + F(k.y + '. (หนังสือสั่งซื้อ) วันที่', 'yDate', ' type="date"') +
         F('เลขที่ใบเสนอราคา / บิลของบริษัท', 'bill', ' style="width:140px"') + F('ลงวันที่', 'billDate', ' type="date"') + F('กำหนดส่ง (วันทำการ)', 'days', ' style="width:50px" inputmode="numeric"') + '</div>' +
       '<div class="memo-step">3. รายการ (ยอดคงเหลือจากคลังยา · อัตราการใช้จาก userate · ราคากลางจาก DATA Template · ราคาซื้อครั้งสุดท้ายจาก PO_inven — แก้ได้ทุกช่อง)</div>' +
+      '<div class="table-tools"><label class="q-field">คอลัมน์ราคาในตาราง ' + k.p + '. / ' + k.k + '. <select class="search field-select" data-f="layout">' +
+        MEMO_LAYOUTS.map(function(o){ return '<option value="' + o[0] + '"' + (d.layout === o[0] ? ' selected' : '') + '>' + o[1] + (o[0] === memoLayoutOf(doc.company) ? ' (ตามบริษัท)' : '') + '</option>'; }).join('') +
+        '</select></label><span class="table-note" style="margin:0">' + esc({ zuellig:'ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (ไม่รวม VAT)', dksh:'ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (รวม VAT)', other:'ราคาต่อหน่วย (รวม VAT) · วงเงิน (รวม VAT)' }[d.layout] || '') + '</span></div>' +
       '<div class="table-scroll" style="max-height:360px">' + table + '</div>' +
       '<div class="table-note" id="memo-sum" style="margin:8px 0 0">' + memoSumHtml() + '</div>' +
       '<div class="table-tools" style="margin:10px 0 0">' +
@@ -2860,6 +2886,7 @@
         var p = memoSet.people[Number(t.getAttribute('data-i'))]; p.roles = p.roles || {}; p.roles[t.getAttribute('data-role')] = t.checked;
         memoSaveSet(); renderMemo();
       } else if(t.hasAttribute('data-p')){ renderMemo(); }
+      else if(t.getAttribute('data-f') === 'layout'){ d.layout = t.value; memoKeep(); renderMemo(); }
     });
     box.addEventListener('click', function(e){
       var b = e.target.closest('[data-act]'); if(!b) return;
