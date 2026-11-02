@@ -178,6 +178,8 @@
   .barrow .rvalue small{ color:var(--ink-faint); font-size:11px; }
   #chart-gpu .barrow{ grid-template-columns:minmax(120px,190px) 1fr 200px; }
   #chart-gpu .rvalue .plan-tag{ display:block; color:var(--critical); font-size:11px; }
+  #chart-value-gps .barrow{ grid-template-columns:minmax(120px,190px) 1fr 170px; }
+  #chart-value-gps .rvalue .po-tag{ display:block; color:var(--cat-2); font-size:11px; }
   .legend{ display:flex; flex-wrap:wrap; gap:6px 16px; margin:0 0 12px; font-size:12.5px; color:var(--ink-muted); }
   .legend span{ display:inline-flex; align-items:center; gap:6px; }
   .legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; }
@@ -473,7 +475,7 @@
     <span><i style="background:var(--other)"></i>อื่น ๆ (เวชภัณฑ์มิใช่ยา และบัญชีอื่น)</span>
   </div>
   <div class="barlist" id="chart-value-acct" style="margin-bottom:26px"></div>
-  <div class="subhead">แยกตามกลุ่ม GPSC — คงคลัง ณ สิ้นเดือน เทียบปีงบ</div>
+  <div class="subhead">แยกตามกลุ่ม GPSC — คงคลัง ณ สิ้นเดือน และยอดสั่งซื้อสะสม เทียบปีงบ</div>
   <div class="table-tools">
     <select class="search field-select" id="gps-fy" aria-label="ปีงบประมาณ"></select>
     <select class="search field-select" id="gps-cmp" aria-label="เทียบกับปีงบ"></select>
@@ -1648,6 +1650,18 @@
     });
     return out;
   }
+  /* ยอดสั่งซื้อสะสม (PO_inven 101) ต้นปีงบ ต.ค. ถึงสิ้นเดือนที่เลือก แยกกลุ่ม GPSC — พี่โอม (1 พ.ย. 69):
+     คงคลัง = ยอด ณ วันที่ดึง แต่ยอดสั่งซื้อ = ยอดสะสมบวกไปเรื่อย ๆ จนครบปี · จับกลุ่มแบบเดียวกับรายงานสถิติ */
+  function gpsPoGroups(fy, monthIdx){
+    var L = state.lookups, out = {}, yms = kpiMonths(fy).slice(0, monthIdx + 1);
+    if(!L || !L.po) return out;
+    L.po.forEach(function(r){
+      if(yms.indexOf(r.ym) < 0 || !dispItemOk(r.id) || !(r.value > 0 || r.qty > 0)) return;
+      var k = L.gp[(L.med[r.id] || {}).gpscode] || NO_GPS, c = out[k] || (out[k] = { value:0, items:0, ids:{} });
+      c.value += r.value; if(!c.ids[r.id]){ c.ids[r.id] = 1; c.items++; }
+    });
+    return out;
+  }
   function renderGps(){
     dispAttr = {};
     var box = document.getElementById('chart-value-gps'), note = document.getElementById('gps-note'), legend = document.getElementById('gps-legend');
@@ -1680,30 +1694,49 @@
     fillSelect('gps-month', idxs.map(function(i){ return [i, 'สิ้นเดือน ' + MN[i]]; }), gpsState.month);
     var ymA = kpiMonths(gpsState.fy)[gpsState.month], ymB = gpsState.cmp ? kpiMonths(gpsState.cmp)[gpsState.month] : 0;
     var A = gpsSnapGroups(ymA), B = ymB ? gpsSnapGroups(ymB) : null;
+    /* PO_inven ไม่ครอบคลุมตั้งแต่ ต.ค. ของปีงบ (เช่น ไฟล์เริ่ม ม.ค.68) = ยอดสะสมไม่ครบ — ปีที่เทียบไม่เทียบยอดสั่งซื้อ */
+    var poYms = (state.lookups.po || []).map(function(r){ return r.ym; });
+    var poFirst = poYms.length ? Math.min.apply(null, poYms) : 0, poLast = poYms.length ? Math.max.apply(null, poYms) : 0;
+    function poFull(fy){ return poFirst && poFirst <= kpiMonths(fy)[0]; }
+    var PA = gpsPoGroups(gpsState.fy, gpsState.month), PB = ymB && poFull(gpsState.cmp) ? gpsPoGroups(gpsState.cmp, gpsState.month) : null;
     var mv = gpsState.metric === 'value';
     function val(o, k){ return o && o[k] ? (mv ? o[k].value : o[k].items) : 0; }
     function show(v){ return mv ? '฿' + fmt(v) : fmt(v) + ' รายการ'; }
-    legend.innerHTML = (B ? '<span><i style="background:var(--border-strong)"></i>' + monthLabel(ymB) + ' (ปีงบ ' + gpsState.cmp + ')</span>' : '') +
-      '<span><i style="background:var(--cat-2)"></i>' + monthLabel(ymA) + ' (ปีงบ ' + gpsState.fy + ')</span>';
+    function pct(c, p){ return p ? ' <small>' + (c >= p ? '+' : '') + fmt1((c - p) / p * 100) + '%</small>' : ''; }
+    function span(fy, ym){ return monthLabel(kpiMonths(fy)[0]) + ' – ' + monthLabel(ym); }
+    /* สี: คงคลังเขียว สั่งซื้อน้ำเงิน ตามรายงานสถิติ · ปีงบที่เทียบเป็นสีจาง */
+    var C_ST = 'var(--cat-1)', C_PO = 'var(--cat-2)', FADE = '.38';
+    function key(color, fade, text){ return '<span><i style="background:' + color + (fade ? ';opacity:' + FADE : '') + '"></i>' + text + '</span>'; }
+    legend.innerHTML = (B ? key(C_ST, true, 'คงคลัง สิ้นเดือน ' + monthLabel(ymB)) : '') + key(C_ST, false, 'คงคลัง สิ้นเดือน ' + monthLabel(ymA)) +
+      (PB ? key(C_PO, true, 'สั่งซื้อสะสม ' + span(gpsState.cmp, ymB)) : '') + key(C_PO, false, 'สั่งซื้อสะสม ' + span(gpsState.fy, ymA));
     if(!A && !B){ box.innerHTML = '<div class="table-note">ไม่มีคงคลัง ณ สิ้นเดือนนี้ในทั้งสองปีงบ</div>'; return; }
-    var names = Object.keys(A || {}).concat(Object.keys(B || {}).filter(function(k){ return !(A && k in A); }))
-      .sort(function(a, b){ return (a === NO_GPS) - (b === NO_GPS) || val(A, b) - val(A, a) || val(B, b) - val(B, a); });
+    var names = [A, B, PA, PB].reduce(function(acc, o){ Object.keys(o || {}).forEach(function(k){ if(acc.indexOf(k) < 0) acc.push(k); }); return acc; }, [])
+      .sort(function(a, b){ return (a === NO_GPS) - (b === NO_GPS) || val(A, b) - val(A, a) || val(PA, b) - val(PA, a) || val(B, b) - val(B, a); });
     var shown = state.gpsAll ? names : names.slice(0, TOP_GROUPS);
-    var max = Math.max.apply(null, shown.map(function(k){ return Math.max(val(A, k), val(B, k)); }).concat([1]));
+    var max = Math.max.apply(null, shown.map(function(k){ return Math.max(val(A, k), val(B, k), val(PA, k), val(PB, k)); }).concat([1]));
     shown.forEach(function(k){
-      var c = val(A, k), pv = val(B, k), delta = A && B && pv ? (c - pv) / pv * 100 : null;
-      var tip = k + ' · ' + monthLabel(ymA) + ' ' + show(c) + (B ? ' · ' + monthLabel(ymB) + ' ' + show(pv) : '');
-      var row = barRow(k, c, max, 'var(--cat-2)', (A ? show(c) : '–') + (delta != null ? ' <small>' + (delta >= 0 ? '+' : '') + fmt1(delta) + '%</small>' : ''), tip);
-      if(B){
-        var track = row.querySelector('.track'); track.classList.add('pair');
-        var pf = document.createElement('div'); pf.className = 'fill';
-        pf.style.width = (pv > 0 ? Math.max(1.5, pv / max * 100) : 0) + '%'; pf.style.background = 'var(--border-strong)';
-        bindTooltip(pf, tip); track.insertBefore(pf, track.firstChild);
+      var c = val(A, k), pv = val(B, k), p = val(PA, k), pp = val(PB, k);
+      var tip = k + ' · คงคลัง ' + monthLabel(ymA) + ' ' + show(c) + (B ? ' (' + monthLabel(ymB) + ' ' + show(pv) + ')' : '') +
+        ' · สั่งซื้อสะสม ' + span(gpsState.fy, ymA) + ' ' + show(p) + (PB ? ' (' + span(gpsState.cmp, ymB) + ' ' + show(pp) + ')' : '');
+      var html = (A ? show(c) : '–') + (A && B ? pct(c, pv) : '') +
+        '<span class="po-tag">ซื้อ ' + show(p) + (PB ? pct(p, pp) : '') + '</span>';
+      var row = barRow(k, c, max, C_ST, html, tip), track = row.querySelector('.track'); track.classList.add('pair');
+      function bar(v, color, fade, before){
+        var f = document.createElement('div'); f.className = 'fill';
+        f.style.width = (v > 0 ? Math.max(1.5, v / max * 100) : 0) + '%'; f.style.background = color; if(fade) f.style.opacity = FADE;
+        bindTooltip(f, tip); if(before) track.insertBefore(f, track.firstChild); else track.appendChild(f);
       }
+      if(B) bar(pv, C_ST, true, true);
+      if(PB) bar(pp, C_PO, true);
+      bar(p, C_PO, false);
       box.appendChild(row);
     });
+    var poStart = poFirst ? 'PO_inven เริ่ม ' + monthLabel(poFirst) : '';
     note.textContent = (!A ? 'ยังไม่มีคงคลังสิ้นเดือน ' + monthLabel(ymA) + ' · ' : '') + (B === null && gpsState.cmp ? 'ยังไม่มีคงคลังสิ้นเดือน ' + monthLabel(ymB) + ' · ' : '') +
-      'ข้อมูลชุดเดียวกับรายงานสถิติคลังยา (คงคลัง ณ สิ้นเดือน) · ';
+      (!poLast ? 'ยังไม่มีไฟล์ PO_inven (ยอดสั่งซื้อ) · ' : poLast < ymA ? 'ยอดสั่งซื้อ PO_inven มีถึง ' + monthLabel(poLast) + ' · ' : '') +
+      (poLast && !poFull(gpsState.fy) ? 'ยอดสั่งซื้อปีงบ ' + gpsState.fy + ' ไม่ครบตั้งแต่ ต.ค. (' + poStart + ') · ' : '') +
+      (ymB && poLast && !PB ? 'ไม่เทียบยอดสั่งซื้อปีงบ ' + gpsState.cmp + ' เพราะไม่ครบตั้งแต่ ต.ค. (' + poStart + ') · ' : '') +
+      'คงคลัง = ยอด ณ สิ้นเดือน · สั่งซื้อ = ยอดรับจากการสั่งซื้อสะสมตั้งแต่ ต.ค. ถึงเดือนที่เลือก · ข้อมูลชุดเดียวกับรายงานสถิติคลังยา · ';
     moreButton('gps-note', shown.length, names.length, 'gpsAll', function(){ renderGps(); });
   }
   ['gps-fy', 'gps-cmp', 'gps-month'].forEach(function(id){
