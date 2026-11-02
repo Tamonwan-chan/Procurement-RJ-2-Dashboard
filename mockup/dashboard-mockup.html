@@ -608,7 +608,7 @@
     <h2 data-collapse="disp">การจ่ายยาจากคลัง</h2>
     <span class="hint" id="disp-hint">จากไฟล์ dispen_inven · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
-  <p class="desc">มูลค่า = จำนวนจ่าย × ราคาทุน/หน่วยจัดหา (unitcost) · นับตามประเภทการจ่าย (คอลัมน์ name) — ค่าเริ่มต้นนับทุกประเภท ยกเว้น เบิกฉุกเฉิน (ใช้เคลียร์ยายืม), จ่ายทั่วไป, ปรับยอดคงคลัง และจำหน่ายออก ตามที่พี่โอมกำหนด · แลกเปลี่ยน (ส่งบริษัทเปลี่ยนยาที่มีปัญหา / ใกล้หมดอายุ) นับด้วย · กดเพื่อเลือก / ไม่เลือกประเภทได้ (ใช้กับกราฟเดือนสำรองคงคลังด้วย)</p>
+  <p class="desc">มูลค่า = จำนวนจ่าย × ราคาทุน/หน่วยจัดหา (unitcost) · นับตามประเภทการจ่าย (คอลัมน์ name) · แลกเปลี่ยน (ส่งบริษัทเปลี่ยนยาที่มีปัญหา / ใกล้หมดอายุ) นับด้วย · กดเพื่อเลือก / ไม่เลือกประเภทได้ (ใช้กับกราฟเดือนสำรองคงคลังด้วย)</p>
   <div class="table-tools"><select class="search field-select" id="disp-fy" aria-label="ปีงบประมาณ"></select><div class="chips" id="disp-types"></div></div>
   <div class="table-note" id="disp-note" style="margin:-4px 0 12px"></div>
   <div class="subhead">มูลค่าการจ่ายต่อเดือน (ต้นปีงบ – ปัจจุบัน)</div>
@@ -3165,7 +3165,7 @@
   }
 
   /* ---------------- การจ่ายยาจากคลัง (dispen_inven) ---------------- */
-  var dispState = { fy:0, month:'all', room:'all', sort:'value', top:30, search:'', types:{}, rtypes:{} };
+  var dispState = { fy:0, month:'all', room:'all', sort:'value', top:30, search:'', types:{}, rtypes:{}, moreTypes:false };
   /* ประเภทการรับใน RHIS (บันทึกรับเวชภัณฑ์) — 115 รับจากการเบิกฉุกเฉิน ไม่นำเข้าเลย */
   var RECV_TYPE_NAME = { '101':'รับจากการสั่งซื้อ', '102':'รับจากโครงการพิเศษ', '103':'รับทั่วไป', '104':'รับจากการบริจาคจากการสั่งซื้อ', '105':'รับจากการบริจาค',
     '106':'รับจากการแลกเปลี่ยน', '107':'รับคืนจากหน่วยเบิก', '108':'รับจากการขอเบิก', '111':'รับจากคลังพัสดุ' };
@@ -3216,7 +3216,11 @@
     var typeBox = document.getElementById('disp-types'); typeBox.innerHTML = '';
     /* ลำดับปุ่มคงที่ (ประเภทที่นับตามค่าเริ่มต้นขึ้นก่อน) — ไม่สลับตำแหน่งเมื่อกด จะได้ไม่กดผิดปุ่ม */
     function dispTypeDefault(k){ return !!k && k !== 'ไม่ระบุประเภท' && !DISP_TYPES_EXCLUDED.test(k); }
+    /* ประเภทที่ไม่นับซ่อนไว้ กด "ประเภทอื่น" เพื่อแสดง — พี่โอม (1 พ.ย. 69): เวลานำเสนอผู้บริหารจะได้ไม่เป็นประเด็น
+       เปิดหน้าใหม่ซ่อนทุกครั้ง · ประเภทที่เลือกนับไว้ยังแสดงตามปกติ */
+    var hiddenTypes = 0;
     Object.keys(typeStat).sort(function(a, b){ return (dispTypeDefault(b) ? 1 : 0) - (dispTypeDefault(a) ? 1 : 0) || typeStat[b].v - typeStat[a].v; }).forEach(function(k){
+      if(!dispState.moreTypes && !dispTypeDefault(k) && !dispTypeOn(k)){ hiddenTypes++; return; }
       var c = chip(k.replace(/^จ่ายจากการ/, '').replace(/^จ่าย/, ''), dispTypeOn(k), function(){ dispState.types[k] = !dispTypeOn(k); renderDispense(); renderKpi(); renderReport(); }, { sm:true, count:typeStat[k].n });
       c.title = k + ' · ' + fmt(typeStat[k].n) + ' รายการ · ฿' + fmt(typeStat[k].v);
       typeBox.appendChild(c);
@@ -3227,10 +3231,19 @@
       reset.addEventListener('click', function(){ dispState.types = {}; renderDispense(); renderKpi(); renderReport(); });
       typeBox.appendChild(reset);
     }
+    if(hiddenTypes || dispState.moreTypes){
+      var more = document.createElement('button'); more.type = 'button'; more.className = 'btn-ghost';
+      more.textContent = dispState.moreTypes ? 'ซ่อน' : 'ประเภทอื่น';
+      more.setAttribute('aria-expanded', dispState.moreTypes ? 'true' : 'false');
+      more.addEventListener('click', function(){ dispState.moreTypes = !dispState.moreTypes; renderDispense(); });
+      typeBox.appendChild(more);
+    }
     var excluded = inFy.filter(function(r){ return !dispTypeOn(r.kind); });
     var rows = inFy.filter(function(r){ return dispTypeOn(r.kind) && dispItemOk(r.id); });
     var exVal = excluded.reduce(function(s, r){ return s + r.qty * r.cost; }, 0);
-    document.getElementById('disp-note').textContent = excluded.length ? 'ไม่นับ ' + fmt(excluded.length) + ' รายการจากประเภทที่ไม่ได้เลือก (฿' + fmt(exVal) + ')' : 'นับทุกประเภทการจ่าย';
+    /* ยอดที่ไม่นับแสดงเฉพาะตอนเปิด "ประเภทอื่น" */
+    document.getElementById('disp-note').textContent = !dispState.moreTypes ? '' : (excluded.length ? 'ไม่นับ ' + fmt(excluded.length) + ' รายการจากประเภทที่ไม่ได้เลือก (฿' + fmt(exVal) + ')' : 'นับทุกประเภทการจ่าย') +
+      ' · ค่าเริ่มต้นไม่นับ เบิกฉุกเฉิน (ใช้เคลียร์ยายืม), จ่ายทั่วไป, ปรับยอดคงคลัง และจำหน่ายออก';
 
     /* monthly value: ต.ค. → ก.ย. of the fiscal year */
     var startY = dispState.fy - 543 - 1, months = [];
