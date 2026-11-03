@@ -43,29 +43,27 @@ Local-only, never commit: `สรุปบทบาทและงานที�
 - No clasp / Apps Script here. (The sibling folder "Dashboard พี่โอม" is a different project, ME-RJ-2-Dashboard, which does use clasp.)
 
 ## Version 1.0 scope freeze (from 2 Nov 2026)
-v1.0 = issues #1–#20: 14 closed, 6 waiting on พี่โอม (#4, #5, #8, #9, #11, #16). Until those 6 are closed, the program gets **bug fixes only**. She set this up to stop "reflex coding": building each new LINE request the day it arrives while his open questions stay unanswered. The freeze covers program code (`mockup/`, `guide/`). Docs, the Q&A file, `ICEBOX.md` and issues are not frozen.
+v1.0 = issues #1–#20: 14 closed, 6 waiting on พี่โอม (#4, #5, #8, #9, #11, #16); on 3 Nov his answers closed #4 and #8, so 4 remain (#5, #9, #11, #16). Until those are closed, the program gets **bug fixes only**. She set this up to stop "reflex coding": building each new LINE request the day it arrives while his open questions stay unanswered. The freeze covers program code (`mockup/`, `guide/`). Docs, the Q&A file, `ICEBOX.md` and issues are not frozen.
 
 **Gatekeeper.** Before writing or changing any program code, put the request in one of three categories and state which one in the reply:
 - **A. QA bug: fix now.** Something already built fails during his testing: an existing HIS file type is not recognised or fails to import; figures differ from HIS or his slides (box/unit conversion, ED/NED totals, months-of-stock KPI); a broken layout; Thai line breaks, the Garuda or the output are wrong in quote Excel (W / WM / WC) or Word memos (ภย. → ขย. → ย.); IndexedDB loses data; the UI crashes. Follow the Workflow below (`bug` issue, headless tests, `Fixes #n`).
 - **B. His answer to one of the 6 issues: build.** Only when she passes on his answer, or she explicitly says to apply the default rule below. Record the answer in the Q&A file first.
 - **C. New feature or change: no code.** Anything outside #1–#20: a new HIS file type, chart, document template or calculation; changes to a working screen or workflow that are preference, not a defect. Reply:
-  > ⚠️ **SCOPE FREEZE:** this is a new request outside v1.0. Not building it now. Logged in `ICEBOX.md`; new features resume once the 6 open issues are closed.
+  > ⚠️ **SCOPE FREEZE:** this is a new request outside v1.0. Not building it now. Logged in `ICEBOX.md`; new features resume once the remaining open issues are closed.
 
   Then add it to `ICEBOX.md` (date, his request in neutral words, no real data). Open no GitHub issue for it yet. Only an explicit "lift the freeze for this item" from her overrides this; note the exception in `ICEBOX.md`.
 - **Unsure whether A or C?** Don't guess. Ask her (in Thai, to forward) for a QA report: which screen, which file and month, what the program shows, what it should show (HIS figure or slide), and a screenshot.
 
-**The 6 blocked issues.** Deadline for his answers: **9 Nov 2026 (9 พ.ย. 69)**. From then on, remind her at the start of a session; once she says to go ahead, apply the default: record "ไม่ได้รับคำตอบภายใน 9 พ.ย. 69 จึงใช้ตามที่โปรแกรมทำอยู่" in the Q&A file and close the issue. Anything that can't be built without his files or figures moves to `ICEBOX.md` instead. The defaults are the program's current behaviour (Q&A section 1, column "ตอนนี้ในโปรแกรม"):
+**The blocked issues (4 left: #5, #9, #11, #16).** Deadline for his answers: **9 Nov 2026 (9 พ.ย. 69)**. From then on, remind her at the start of a session; once she says to go ahead, apply the default: record "ไม่ได้รับคำตอบภายใน 9 พ.ย. 69 จึงใช้ตามที่โปรแกรมทำอยู่" in the Q&A file and close the issue. Anything that can't be built without his files or figures moves to `ICEBOX.md` instead. The defaults are the program's current behaviour (Q&A section 1, column "ตอนนี้ในโปรแกรม"):
 
 | Issue | Waiting on (Q&A section 1 item) | Default after the deadline |
 |---|---|---|
-| #4 วงเงินแผน: หักยอดเมื่อออกใบสั่งซื้อ | starting budget, mid-year plan revisions, amount already ordered (2) | not built without his figures; move to ICEBOX |
 | #5 PO_inven เวชภัณฑ์มิใช่ยา | a sample non-drug PO_inven export (10) | import keeps replacing by month; move to ICEBOX |
-| #8 คำนวณคงคลังย้อนหลัง | other receipt / dispense types outside PO_inven + dispen_inven (7) | Inventory Status only; close |
-| #9 planfin 69 ฉบับหลังปรับแผน | which plan version, units of a few items (1) | show the file as it is; close |
-| #11 บันทึก Word: ข้อที่รอยืนยัน | items 3, 4, 5, 6, 8, 11, 14 | userate rounded and editable; committee typed in settings; date check warns only; first number typed by hand; WC → ภว. / ขว. / ยว.; source = quote history (no Excel import); ดีทแฮล์ม = DKSH layout; ย. / ยว. one layout; ex-VAT = ÷ 1.07; close |
+| #9 planfin 69 ฉบับหลังปรับแผน | which revision round the file is, units of a few items (1; partly answered 3 Nov) | show the file as it is; close |
+| #11 บันทึก Word: ข้อที่รอยืนยัน | items 3 (what "ไม่เกิน planfin" compares), 11, 14 (4, 5, 6, 8 answered 3 Nov) | userate rounded and editable, not checked against planfin; source = quote history (no Excel import); ดีทแฮล์ม = DKSH layout; ย. / ยว. one layout; ex-VAT = ÷ 1.07; close |
 | #16 ซ่อนส่วนในกราฟ GPSC / GPU | anything else to hide for the executive presentation (13) | hide nothing more; close |
 
-Q&A items 9 (3 fiscal years of stock history) and 12 (split quotes by manufacturer) have no issue. Same deadline, same default (keep current behaviour). v1.0 closes when all 6 issues are closed. Then the `ICEBOX.md` items become issues for the next version, in the order she chooses.
+Q&A items 9 (3 fiscal years of stock history) and 12 (split quotes by manufacturer) have no issue. Same deadline, same default (keep current behaviour). v1.0 closes when all of them are closed. Then the `ICEBOX.md` items become issues for the next version, in the order she chooses.
 
 **LINE messages.** When she pastes a message from พี่โอม, use `/line-triage <message>` (`.claude/commands/line-triage.md`). It sorts each point into A / B / C, records answers, logs C items in `ICEBOX.md` and drafts a Thai LINE reply. Every reply to him thanks him for testing and invites QA reports with the short form in that command. Bugs are fixed first, so reporting one gets a quick result.
 
@@ -87,5 +85,5 @@ Q&A items 9 (3 fiscal years of stock history) and 12 (split quotes by manufactur
 - GPU chart = PO_inven purchase value since fiscal-year start, ฿500,000 ceiling, planfin totals by GPU at the bar end.
 - planfin: latest year drives "ห้ามซื้อเกิน", quote prices (cost per box) and the GPU chart; up to 5 years kept; the ranking has a free year / compare-year picker.
 - Quotes: one sheet per distributor, max 8 items; numbers W (drugs) / WM (non-drug supplies, materials, others) / WC (pharmaceutical chemicals), format `W001-70`, rolling to the new fiscal year automatically; reopen-to-edit keeps the same number.
-- Purchase memos (Word): from a quote in the history, ภย./ภว. → ขย./ขว. → ย./ยว. (W → ย-series, WM/WC → ว-series); committee and signers are picked per memo from a people list kept only in IndexedDB (`_memoset`) — never put staff names in code or the repo; the Garuda comes from an old memo .docx dropped once. Details and the .docx gotchas (Thai line breaking) are in README.
+- Purchase memos (Word): from a quote in the history, ภย./ภว. → ขย./ขว. → ย./ยว. (W / WB / WC → ย-series, WM → ว-series; the memo screen shows plan budget left = planfin − PO_inven 101 received, per pot); committee and signers are picked per memo from a people list kept only in IndexedDB (`_memoset`) — never put staff names in code or the repo; the Garuda comes from an old memo .docx dropped once. Details and the .docx gotchas (Thai line breaking) are in README.
 - Fiscal year starts in October (พ.ศ.).

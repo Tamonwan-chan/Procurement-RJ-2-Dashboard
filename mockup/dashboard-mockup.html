@@ -2363,8 +2363,8 @@
     non:{ p:'ภว', k:'ขว', y:'ยว', what:'วัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช)', col:'รายการเวชภัณฑ์ที่มิใช่ยา', need:'เพื่อใช้ในทางการแพทย์',
       subjP:'ขออนุมัติหลักการซื้อวัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช) โดยวิธีเฉพาะเจาะจง', subjK:'ขออนุมัติซื้อวัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช) โดยวิธีเฉพาะเจาะจง' }
   };
-  /* WC (เภสัชเคมีภัณฑ์) ไปชุด ภว. / ขว. / ยว. ตามคำตอบ 26 ต.ค. 69 (รอยืนยันอีกครั้งเรื่องกองเงิน) */
-  function memoKindOf(doc){ return doc.series === 'W' || doc.series === 'WB' ? MEMO_KIND.drug : MEMO_KIND.non; }
+  /* W / WB / WC (เภสัชเคมีภัณฑ์) → ภย. / ขย. / ย. · WM → ภว. / ขว. / ยว. — พี่โอมยืนยัน 3 พ.ย. 69 (เดิม WC ไปชุด ภว.) */
+  function memoKindOf(doc){ return doc.series === 'WM' ? MEMO_KIND.non : MEMO_KIND.drug; }
   function memoSeed(){
     return { slot:MEMO_SLOT, people:[], planRef:{}, next:{}, pick:{}, garuda:null,
       org:{ hosp:'โรงพยาบาลราชวิถี 2 (รังสิต)', dept:'กลุ่มงานเภสัชกรรม',
@@ -2784,9 +2784,23 @@
     if(!d.planRef) w.push('ยังไม่ได้ใส่หนังสืออ้างอิงแผน');
     return w;
   }
+  /* วงเงินแผนคงเหลือ = วงเงินแผน (planfin ปีงบ) − PO_inven รับจากการสั่งซื้อแล้ว (101) ของกองนั้น — พี่โอม 3 พ.ย. 69 (#4)
+     กองยา = W / WB / WC (planfin + planfin_C) · กองเวชภัณฑ์มิใช่ยา = WM (planfin_M) · ยังไม่หักใบที่สั่งแล้วแต่ยังไม่ได้รับของ */
+  function memoBudgetHtml(doc, t){
+    var d = memoState.d, fy = memoFY(d.kDate || d.pDate), pot = memoKindOf(doc) === MEMO_KIND.drug ? 'drug' : 'nondrug';
+    var name = pot === 'drug' ? 'ยา' : 'เวชภัณฑ์มิใช่ยา', sums = planPotSums(fy);
+    if(!sums) return 'วงเงินแผน' + name + ': ยังไม่มี planfin ปีงบ ' + fy;
+    var x = sums.P[pot];
+    if(!sums.poN || !sums.hasPot[pot]) return 'วงเงินแผน' + name + ' ปีงบ ' + fy + ' ฿' + fmt2(x.plan) + ' · ' + (sums.poN ? 'ไฟล์ PO_inven ยังไม่มีรายการ' + name + ' จึงหักยอดที่ซื้อแล้วไม่ได้' : 'ยังไม่มี PO_inven ปีงบ ' + fy);
+    var left = x.plan - x.buy, after = left - t.total;
+    function money(v){ return v < 0 ? '<b class="pt-up">−฿' + fmt2(-v) + ' (เกินแผน)</b>' : '<b>฿' + fmt2(v) + '</b>'; }
+    return 'วงเงินแผน' + name + ' ปีงบ ' + fy + ' ฿' + fmt2(x.plan) + ' − รับจากการสั่งซื้อแล้ว ฿' + fmt2(x.buy) + ' (PO_inven ถึง ' + monthLabel(sums.lastYm) + ') = คงเหลือ ' + money(left) +
+      ' · ใบนี้ ฿' + fmt2(t.total) + ' → หลังใบนี้ ' + money(after);
+  }
   function memoSumHtml(){
-    var d = memoState.d, t = memoTotals(d), w = memoWarn(d);
-    return 'รวม ' + d.lines.length + ' รายการ · วงเงิน ฿' + fmt2(t.total) + ' (ไม่รวมภาษี ฿' + fmt2(t.ex) + ' · VAT ฿' + fmt2(t.vat) + ') · ขย. ข้อ 3 ราคากลางของพัสดุ ฿' + fmt2(t.ref) +
+    var d = memoState.d, t = memoTotals(d), w = memoWarn(d), doc = memoDoc();
+    return (doc ? memoBudgetHtml(doc, t) + '<br>' : '') +
+      'รวม ' + d.lines.length + ' รายการ · วงเงิน ฿' + fmt2(t.total) + ' (ไม่รวมภาษี ฿' + fmt2(t.ex) + ' · VAT ฿' + fmt2(t.vat) + ') · ขย. ข้อ 3 ราคากลางของพัสดุ ฿' + fmt2(t.ref) +
       (w.length ? '<br><b class="pt-up">' + w.map(esc).join(' · ') + '</b>' : '') + (memoState.msg ? '<br>' + esc(memoState.msg) : '');
   }
   function renderMemo(){
@@ -3640,10 +3654,9 @@
     var t = regTypeOf(L, id);
     return t === 'ทะเบียนยา' || t === 'ทะเบียนเภสัชเคมีภัณฑ์' ? 'drug' : 'nondrug';
   }
-  function renderPlanBudget(cur){
-    var box = document.getElementById('plantop-budget'), flag = document.getElementById('plantop-flag'), L = state.lookups;
-    box.innerHTML = ''; flag.hidden = true;
-    var plan = L && cur ? L.planByYear[cur] : null; if(!plan) return;
+  /* ยอดแผนและซื้อจริงแยกกองของปีงบ (ใช้ทั้งแถบวงเงินในตารางแผน และวงเงินคงเหลือในหน้าออกบันทึก) */
+  function planPotSums(cur){
+    var L = state.lookups, plan = L && cur ? L.planByYear[cur] : null; if(!plan) return null;
     var P = {}; PLAN_POTS.forEach(function(o){ P[o[0]] = { plan:0, buy:0 }; });
     Object.keys(plan).forEach(function(id){ P[plan[id].grp === '2/1' ? 'nondrug' : 'drug'].plan += plan[id].value; });
     var poN = 0, lastYm = 0;
@@ -3653,6 +3666,13 @@
     });
     /* PO_inven ที่ได้ (26 ต.ค. 69) มีแต่ยา / เภสัชเคมีภัณฑ์ — ถ้าไม่มีเวชภัณฑ์มิใช่ยาเลย อย่าแสดงว่า "ใช้ไป 0%" */
     var hasPot = {}; (L.po || []).forEach(function(r){ hasPot[planPotOf(L, r.id, null)] = 1; });
+    return { P:P, poN:poN, lastYm:lastYm, hasPot:hasPot };
+  }
+  function renderPlanBudget(cur){
+    var box = document.getElementById('plantop-budget'), flag = document.getElementById('plantop-flag');
+    box.innerHTML = ''; flag.hidden = true;
+    var sums = planPotSums(cur); if(!sums) return;
+    var P = sums.P, poN = sums.poN, lastYm = sums.lastYm, hasPot = sums.hasPot;
     var COLOR = { over:'var(--critical)', near:'var(--warning)', ok:'var(--good)', noplan:'var(--ink-faint)', nodata:'var(--ink-faint)' };
     var over = [], near = 0, rows = '', tPlan = 0, tBuy = 0;
     PLAN_POTS.forEach(function(o){
