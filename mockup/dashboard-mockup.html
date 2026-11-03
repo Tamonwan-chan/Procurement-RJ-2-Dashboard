@@ -213,7 +213,7 @@
   .pill.status-high{ background:var(--critical-soft); color:var(--critical); }
   .pill.status-low{ background:var(--warning-soft); color:var(--warning); }
   th.plan, td.plan{ color:var(--critical); font-weight:600; }
-  :root{ --disp:#C2651A; }
+  :root{ --disp:#FFC000; }   /* จ่ายจากคลัง (คุณธมลวรรณ 3 พ.ย. 69) */
   .kpi-chart{ width:100%; height:auto; display:block; margin:4px 0 6px; }
   .pt-chart{ display:flex; flex-direction:column; gap:7px; margin:4px 0 18px; }
   .pt-row{ display:grid; grid-template-columns:minmax(120px,230px) 1fr 170px; align-items:center; gap:10px; }
@@ -254,6 +254,9 @@
   .rank-badge.mid{ background:#15803D; color:#FFFFFF; }
   @media (max-width:700px){ .pt-row{ grid-template-columns:minmax(90px,1fr) 1.2fr 120px; } }
   #disp-flow .pt-row{ grid-template-columns:minmax(70px,110px) 1fr 290px; }
+  /* รายงานสถิติ มุมมองรายเดือน: ชื่อเดือนสั้น แท่งชิดซ้าย (คุณธมลวรรณ 3 พ.ย. 69) */
+  #rep-chart.by-month .pt-row{ grid-template-columns:44px 1fr 170px; }
+  @media (max-width:700px){ #rep-chart.by-month .pt-row{ grid-template-columns:40px 1fr 120px; } }
   @media (max-width:700px){ #disp-flow .pt-row{ grid-template-columns:60px 1fr 150px; } }
   /* รายงานสถิติคลังยา: หัวตาราง 2 ชั้น (หัวข้อ × ปีงบ) */
   .rep-table thead th{ position:static; text-align:center; }
@@ -270,8 +273,8 @@
   .kpi-legend i.dash{ height:0; border-top:2px dashed currentColor; }
   .kpi-table input{ width:150px; text-align:right; font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink); background:var(--surface); border:1px solid var(--border-strong); border-radius:6px; padding:3px 6px; }
   .kpi-table .src{ display:block; font-size:11px; color:var(--ink-faint); }
-  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --disp:#EE9A4D; } }
-  :root[data-theme="dark"]{ --disp:#EE9A4D; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --disp:#FFC000; } }
+  :root[data-theme="dark"]{ --disp:#FFC000; }
   .rate-inv{ color:var(--ink-faint); font-size:11px; }
   .pill.order{ background:var(--accent-soft); color:var(--accent); }
   .pill.status-normal{ background:var(--good-soft); color:var(--good); }
@@ -4258,6 +4261,7 @@
     }
     var res = repAggregate(d), agg = res.agg, total = res.total, yy = function(y){ return String(y).slice(-2); };
     var multi = d.fys.length > 1, oneMonth = repState.month >= 0, byMonth = repState.by === 'month';
+    chart.classList.toggle('by-month', byMonth);
     var range = oneMonth ? 'เดือน ' + REP_MN[repState.month] : 'ต.ค.–ก.ย.';
     var types = Object.keys((state.lookups.disp || []).reduce(function(o, r){ if(dispTypeOn(r.kind)) o[(r.kind || 'ไม่ระบุประเภท').replace(/^จ่ายจากการ/, '')] = 1; return o; }, {}));
     var notes = [(multi ? 'ภาพรวมปีงบ ' + d.fys.join(', ') : 'ปีงบ ' + d.cur) + ' · ' + range + (oneMonth ? '' : ' (เดือนที่ยังไม่มีข้อมูลเว้นว่าง)')];
