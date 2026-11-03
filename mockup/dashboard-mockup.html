@@ -3083,13 +3083,19 @@
   }
   var REF_SALT = /^(hydrochloride|dihydrochloride|hcl|sodium|disodium|potassium|calcium|magnesium|sulfate|sulphate|phosphate|acetate|maleate|citrate|besylate|besilate|mesylate|mesilate|tartrate|fumarate|succinate|hydrobromide|bromide|chloride|nitrate|lactate|gluconate|hyclate|propionate|dipropionate|furoate|valerate|etexilate|monohydrate|dihydrate|trihydrate|anhydrous|with|plus)$/;
   var REF_FORMS = [['tab','tab|tablet'],['cap','cap|capsule'],['inj','inj|injection|sterile|vial|amp|ampule|infusion'],['eye','eye|ophth'],['liq','syr|syrup|suspension|susp|oral sol'],['top','cream|oint|gel|lotion'],['sach','sachet|pwdr|powder|granule'],['inh','inhal|inhaler|nebul|spray|aerosol']];
-  function refToks(s){ return String(s || '').toLowerCase().replace(/[^a-z\s+]/g, ' ').split(/[\s+]+/).filter(function(w){ return w.length >= 4 && !REF_SALT.test(w); }); }
+  /* ชื่อแบบกรด / เกลือเป็นยาตัวเดียวกัน: alendronic acid = alendronate sodium, clavulanic = clavulanate (#23)
+     ตัด -ic / -ate ท้ายคำ (คำยาวพอ ไม่ให้ folic เหลือ fol) และไม่นับคำว่า acid — เดิมเหลือแต่ acid จึงไปจับ nicotinic / folic acid */
+  function refToks(s){
+    return String(s || '').toLowerCase().replace(/[^a-z\s+]/g, ' ').split(/[\s+]+/).filter(function(w){ return w.length >= 4 && w !== 'acid' && !REF_SALT.test(w); })
+      .map(function(w){ return w.length >= 7 ? w.replace(/(ate|ic)$/, '') : w; });
+  }
+  function refParts(s){ return String(s || '').replace(/\([^)]*\)/g, ' ').split(/\+|\band\b|-(?=[a-z])/i).filter(function(x){ return /[a-z]/i.test(x) && !/\bagent\b/i.test(x); }).length || 1; }   /* จำนวนตัวยา คั่นด้วย + / and / ขีด (Tegafur-uracil) ไม่นับในวงเล็บ และไม่นับ "liposomal agent" */
   function refNums(s){ return (String(s || '').toLowerCase().match(/\d+(?:\.\d+)?/g) || []).map(Number).filter(function(x){ return x > 0; }); }
   function refForms(s){ s = String(s || '').toLowerCase(); return REF_FORMS.filter(function(f){ return new RegExp('\\b(' + f[1] + ')').test(s); }).map(function(f){ return f[0]; }); }
   function refCandidates(id){
     if(refCandCache[id]) return refCandCache[id];
     var L = state.lookups || {}, dc = (L.dc || {})[id] || {}, m = (L.med || {})[id] || {};
-    var g = refToks(dc.generic || m.gnrname || ''), out = [];
+    var g = refToks(dc.generic || m.gnrname || ''), parts = refParts(dc.generic || m.gnrname || ''), out = [];
     if(g.length){
       var gs = {}; g.forEach(function(w){ gs[w] = 1; });
       var ns = {}; refNums([dc.strength, dc.tradename, m.name].join(' ')).forEach(function(x){ ns[x] = 1; });
@@ -3100,7 +3106,9 @@
         if(!hit) return;
         var jac = hit / Object.keys(all).length, rn = refNums(r.form), nHit = rn.filter(function(x){ return ns[x]; }).length;
         var fHit = refForms(r.form).some(function(x){ return fs.indexOf(x) >= 0; });
-        out.push({ r:r, score:jac * 3 + (rn.length ? nHit / rn.length : 0) * 2 + (fHit ? 1 : 0), jac:jac, nHit:nHit, nLen:rn.length });
+        /* ยาผสมไม่จับกับแถวที่มีตัวยาน้อยกว่า (betamethasone + salicylic acid ≠ betamethasone เดี่ยว · ferrous + folic acid ≠ folic acid) */
+        var cover = parts <= refParts(r.gen);
+        out.push({ r:r, score:jac * 3 + (rn.length ? nHit / rn.length : 0) * 2 + (fHit ? 1 : 0), jac:jac, nHit:nHit, nLen:rn.length, cover:cover });
       });
       out.sort(function(a, b){ return b.score - a.score; });
     }
@@ -3119,7 +3127,7 @@
       if(r) return { r:r, chosen:true };
     }
     var c = refCandidates(id)[0];
-    return c && c.score >= 3.5 && c.jac >= 0.5 && (!c.nLen || c.nHit) ? { r:c.r, auto:true } : null;
+    return c && c.cover && c.score >= 3.5 && c.jac >= 0.5 && (!c.nLen || c.nHit) ? { r:c.r, auto:true } : null;   /* ระบบเลือกให้เฉพาะเมื่อตัวยาครบ (#23) */
   }
   function refCellHtml(it, l){
     if(!refRows().length) return '<td class="mono table-note" data-ref>–</td>';
