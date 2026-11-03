@@ -20,6 +20,7 @@ mockup/logo-rj2.jpg            logo, set in BRAND
 guide/index.html               Thai user guide (Pages)
 tests/                         headless harness: harness.js (load page, drop files), smoke.js
 .claude/commands/              /line-triage
+.vscode/extensions.json        recommended VS Code extensions (GitLens, GitHub Issues, Live Preview, Markdown All in One)
 ประเด็นที่รอยืนยันจากพี่โอม.md      Q&A log with พี่โอม (questions, answers, changes)
 ข้อความถึงพี่โอม (รอส่ง).md         next LINE message she has not sent yet
 ICEBOX.md                      requests parked by the v1.0 freeze
