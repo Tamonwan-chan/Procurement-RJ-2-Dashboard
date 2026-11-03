@@ -2913,6 +2913,8 @@
     box.hidden = !doc;
     if(!doc) return;
     var k = memoKindOf(doc), set = memoSet;
+    /* วาดใหม่ทั้งกล่อง (เช่น ติ๊กหน้าที่) แล้วตารางเลื่อนกลับซ้ายสุด — จำตำแหน่งเลื่อนของตารางรายชื่อ / รายการไว้คืน (คุณธมลวรรณ 3 พ.ย. 69) */
+    var keep = {}; Array.prototype.forEach.call(box.querySelectorAll("[data-keep]"), function(el){ keep[el.getAttribute("data-keep")] = [el.scrollLeft, el.scrollTop]; });
     function F(label, key, attrs){ return '<label class="q-field">' + label + ' <input class="q-in" data-f="' + key + '" value="' + esc(d[key] == null ? '' : d[key]) + '"' + (attrs || '') + '></label>'; }
     var who = '<label class="q-field">ประธานกรรมการ <select class="search field-select" data-who="c0">' + memoOpts('committee', d.committee[0]) + '</select></label>' +
       '<label class="q-field">กรรมการ <select class="search field-select" data-who="c1">' + memoOpts('committee', d.committee[1]) + '</select></label>' +
@@ -2944,7 +2946,7 @@
       '<div class="memo-step">1. เลือกคณะกรรมการและผู้ลงนาม <button type="button" class="btn-ghost" data-act="set">' + (memoState.setOpen ? 'ซ่อนตั้งค่ารายชื่อ' : 'ตั้งค่ารายชื่อ / หัวกระดาษ') + '</button></div>' +
       (memoState.setOpen ?
         '<div class="memo-set"><div class="table-note" style="margin:0 0 8px">รายชื่อเก็บไว้ในเครื่องนี้เท่านั้น (ไม่อยู่ในโปรแกรมบนเว็บ) · ติ๊กว่าแต่ละคนอยู่ในหน้าที่ไหนได้หลายช่อง · ช่อง "ใช้ลงนาม" = บรรทัดใต้ชื่อตอนลงนาม (ว่างไว้ = ใช้ตำแหน่ง)</div>' +
-        '<div class="table-scroll" style="max-height:300px"><table style="min-width:1100px"><thead><tr><th>ชื่อ – นามสกุล</th><th>ตำแหน่ง</th><th>ใช้ลงนาม</th>' + MEMO_ROLES.map(function(r){ return '<th>' + r[1] + '</th>'; }).join('') + '<th></th></tr></thead><tbody>' +
+        '<div class="table-scroll" data-keep="people" style="max-height:300px"><table style="min-width:1100px"><thead><tr><th>ชื่อ – นามสกุล</th><th>ตำแหน่ง</th><th>ใช้ลงนาม</th>' + MEMO_ROLES.map(function(r){ return '<th>' + r[1] + '</th>'; }).join('') + '<th></th></tr></thead><tbody>' +
         (people || '<tr><td colspan="9" class="table-note" style="padding:10px">ยังไม่มีรายชื่อ — กด "เพิ่มรายชื่อ"</td></tr>') + '</tbody></table></div>' +
         '<div class="table-tools" style="margin:8px 0 0"><button type="button" class="btn-ghost" data-act="add-person">เพิ่มรายชื่อ</button></div>' +
         '<div class="table-tools" style="margin:10px 0 0">' +
@@ -2963,13 +2965,14 @@
       '<div class="table-tools"><label class="q-field">คอลัมน์ราคาในตาราง ' + k.p + '. / ' + k.k + '. <select class="search field-select" data-f="layout">' +
         MEMO_LAYOUTS.map(function(o){ return '<option value="' + o[0] + '"' + (d.layout === o[0] ? ' selected' : '') + '>' + o[1] + (o[0] === memoLayoutOf(doc.company) ? ' (ตามบริษัท)' : '') + '</option>'; }).join('') +
         '</select></label><span class="table-note" style="margin:0">' + esc({ zuellig:'ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (ไม่รวม VAT)', dksh:'ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (รวม VAT)', other:'ราคาต่อหน่วย (รวม VAT) · วงเงิน (รวม VAT)' }[d.layout] || '') + '</span></div>' +
-      '<div class="table-scroll" style="max-height:360px">' + table + '</div>' +
+      '<div class="table-scroll" data-keep="lines" style="max-height:360px">' + table + '</div>' +
       '<div class="table-note" id="memo-sum" style="margin:8px 0 0">' + memoSumHtml() + '</div>' +
       '<div class="table-tools" style="margin:10px 0 0">' +
         '<button type="button" class="btn-solid" data-act="exp-p">ส่งออก ' + k.p + '. (.docx)</button>' +
         '<button type="button" class="btn-solid" data-act="exp-k">ส่งออก ' + k.k + '. (.docx)</button>' +
         '<button type="button" class="btn-solid" data-act="exp-y">ส่งออก ' + k.y + '. หนังสือสั่งซื้อ (.docx)</button>' +
         '<button type="button" class="btn-ghost" data-act="reset-lines">ดึงรายการจากใบเสนอราคาใหม่</button></div>';
+    Array.prototype.forEach.call(box.querySelectorAll("[data-keep]"), function(el){ var v = keep[el.getAttribute("data-keep")]; if(v){ el.scrollLeft = v[0]; el.scrollTop = v[1]; } });
   }
   function memoExport(which){
     var doc = memoDoc(), d = memoState.d; if(!doc || !d) return;
