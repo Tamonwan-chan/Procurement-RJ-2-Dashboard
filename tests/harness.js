@@ -59,7 +59,7 @@ function load(opts){
       var ev = new w.Event('drop', { bubbles:true, cancelable:true });
       Object.defineProperty(ev, 'dataTransfer', { value:{ files:files } });
       w.document.getElementById('dropzone').dispatchEvent(ev);
-      return waitFor(function(){ return /นำเข้าแล้ว|ย้อนหลัง|Inventory Status|ตราครุฑ/.test(note.textContent) || bar.textContent; }, opts.timeout || 120000)
+      return waitFor(function(){ return /นำเข้าแล้ว|ย้อนหลัง|Inventory Status|ตราครุฑ|ใบเสนอราคา/.test(note.textContent) || bar.textContent; }, opts.timeout || 120000)
         .then(function(){ return { note: note.textContent, error: bar.textContent }; });
     },
     close: function(){ w.close(); }

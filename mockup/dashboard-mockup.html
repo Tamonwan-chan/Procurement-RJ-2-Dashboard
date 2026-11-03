@@ -1248,7 +1248,7 @@
     if(!files.length) return;
     hideError();
     showNote('กำลังอ่านไฟล์ ' + files.length + ' ไฟล์…');
-    var found = {}, unknown = [], dup = [], keptLot = false, statusFiles = [], docxHit = [];
+    var found = {}, unknown = [], dup = [], keptLot = false, statusFiles = [], docxHit = [], quoteFiles = [];
     var chain = Promise.resolve();
     files.forEach(function(f){
       chain = chain.then(function(){ return readFile(f); }).then(function(buf){
@@ -1268,6 +1268,10 @@
           var stRows = parseInvStatus(wb, stAsof);
           if(stRows.length){ statusFiles.push({ fileName:f.name, importedAt:new Date().toISOString(), rows:stRows, asof:stAsof }); return; }
         }
+        /* ไฟล์ใบขอใบเสนอราคา (W / WM / WC ที่ส่งออกแล้ว หรือใบ wb… ที่ทำเอง) → ประวัติใบเสนอราคา สำหรับออก ภย. / ภว.
+           ไฟล์ที่ชื่อมีคำว่า Template เท่านั้นที่เป็นแบบฟอร์ม (เดิมไฟล์ที่ส่งออกถูกจับเป็น Template เพราะหน้าตาเหมือนกัน) */
+        var qSheets = /template/i.test(f.name) ? [] : quoteFileSheets(wb);
+        if(qSheets.length){ quoteFiles.push({ file:f.name, sheets:qSheets.map(function(sn){ return wb.Sheets[sn]; }) }); return; }
         var tplSheet = quoteSheetName(wb);
         if(tplSheet){
           found.quoteTpl = { slot:'quoteTpl', fileName:f.name, sheetName:tplSheet.trim(), importedAt:new Date().toISOString(), rowCount:1, buf:buf };
@@ -1327,13 +1331,14 @@
       state.fresh = Object.keys(found);
       var save = recs.length ? dbPut(recs).catch(function(){ storageOk = false; }) : Promise.resolve();
       return save.then(function(){
-        if(!recs.length && !oldInv && !statusFiles.length && !docxHit.length){
+        if(!recs.length && !oldInv && !statusFiles.length && !docxHit.length && !quoteFiles.length){
           showNote('');
           showError('ไม่รู้จักไฟล์ที่นำเข้า: ' + unknown.join(', ') + ' — ต้องเป็นไฟล์ที่ export จาก HIS ที่มีหัวคอลัมน์เดิม');
           return;
         }
         recs = recs.filter(function(r){ return r.slot !== PREV_SLOT; });
         rebuild();
+        var qi = quoteFiles.length ? importQuoteDocs(quoteFiles) : null;
         if(state.datasets.inventory){ kpiRecordStock(state.datasets.inventory); stockHistRecord(state.datasets.inventory); }
         if(oldInv){ kpiRecordStock(oldInv); stockHistRecord(oldInv); }
         if(statusFiles.length){
@@ -1352,6 +1357,9 @@
           (statusFiles.length ? (recs.length || oldInv ? ' · ' : '') + 'Inventory Status ' + statusFiles.map(function(x){ return monthLabel(Math.floor(x.asof / 100)); }).join(', ') + ' บันทึกเป็นคงคลัง ณ สิ้นเดือน (ประวัติ ไม่แทนข้อมูลล่าสุด)' : '') +
           (dup.length ? ' · มีไฟล์ซ้ำประเภทเดียวกัน ใช้ไฟล์ที่วางทีหลัง: ' + dup.join(', ') : '') +
           (keptLot ? ' · คลังยามี 2 ไฟล์ ใช้ไฟล์ที่มี lot / expdate' : '') +
+          (qi ? (recs.length || oldInv || statusFiles.length ? ' · ' : '') + (qi.nos.length ? 'ใบเสนอราคาจากไฟล์ ' + qi.nos.length + ' ใบ (' + qi.nos[0] + (qi.nos.length > 1 ? ' – ' + qi.nos[qi.nos.length - 1] : '') + ') อยู่ในประวัติใบเสนอราคาแล้ว เลือกออกบันทึกได้ที่ "ใบที่ส่งออกแล้ว"' +
+            (qi.updated ? ' · ปรับใบเดิมตามไฟล์ ' + qi.updated + ' ใบ' : '') + (qi.same ? ' · ' + qi.same + ' ใบตรงกับประวัติอยู่แล้ว' : '') +
+            (qi.miss.length ? ' · ไม่พบรหัสยาจากชื่อ (ไม่มียอดคงเหลือ / อัตราการใช้ให้ แก้ในบันทึกได้): ' + qi.miss.slice(0, 5).join(', ') + (qi.miss.length > 5 ? ' …' : '') : '') : 'ไฟล์ใบเสนอราคาไม่มีรายการ') : '') +
           (docxHit.length ? ' · ตราครุฑสำหรับบันทึก (Word) จาก ' + docxHit.join(', ') + ' เก็บไว้ในเครื่องนี้แล้ว' : '') +
           (storageOk ? '' : ' · บันทึกลงเครื่องไม่ได้ ข้อมูลจะหายเมื่อปิดหน้า'));
         if(unknown.length) showError('ไม่รู้จักไฟล์: ' + unknown.join(', ') + ' — ไฟล์นี้ไม่ได้ถูกนำเข้า');
@@ -2331,6 +2339,90 @@
     });
     quoteHist.docs = quoteHist.docs.slice(0, 300);
   }
+
+  /* ไฟล์ใบขอใบเสนอราคา (Excel ที่ส่งออกจากโปรแกรม หรือใบ wb… ที่ทำเองจาก DATA Template) → ประวัติใบเสนอราคา
+     พี่โอม 3 พ.ย. 69: บริษัทตอบกลับช้าเร็วไม่เท่ากัน จึงลากไฟล์ใบเสนอราคาเข้ามาออก ภย. ได้ ควบคู่กับเลือกจากประวัติในโปรแกรม
+     ใบ = ช่อง A1 "เลขที่ W…" + ช่อง B4 / A4 มีคำว่า "ใบเสนอราคา" · ไฟล์ที่ชื่อมีคำว่า Template = DATA Template ไม่ใช่ไฟล์ใบเสนอราคา */
+  function quoteFileSheets(wb){
+    return wb.SheetNames.filter(function(sn){
+      var ws = wb.Sheets[sn], a1 = ws && ws.A1, c = ws && (ws.B4 || ws.A4);
+      return !!a1 && /เลขที่\s*W/i.test(String(a1.v)) && !!c && /ใบเสนอราคา/.test(String(c.v));
+    });
+  }
+  function quoteNameKey(s){ return String(s || '').toUpperCase().replace(/[\s ]+/g, ''); }
+  /* ชื่อยาในใบ → hospcode: ชื่อใน Meditem / รายการในโปรแกรม (ตรงกันทุกตัวอักษร ไม่นับช่องว่าง) · ชื่อซ้ำหลายรหัส = ไม่เดา */
+  function quoteNameIndex(){
+    var L = state.lookups || { med:{} }, idx = {};
+    function add(name, id, pri){
+      var k = quoteNameKey(name); if(!k || !id) return;
+      var o = idx[k];
+      if(!o || pri < o.pri) idx[k] = { id:id, pri:pri, ids:[id] };
+      else if(pri === o.pri && o.ids.indexOf(id) < 0) o.ids.push(id);
+    }
+    state.items.forEach(function(it){ add(it.tradename, it.hospcode, 0); add(it.generic, it.hospcode, 1); });
+    Object.keys(L.med || {}).forEach(function(id){ add(L.med[id].name, id, 2); });
+    return idx;
+  }
+  function quoteDateIso(v){
+    function z(n){ return (n < 10 ? '0' : '') + n; }
+    if(typeof v === 'number' && v > 20000){ var d = XLSX.SSF.parse_date_code(v); return d ? d.y + '-' + z(d.m) + '-' + z(d.d) : ''; }
+    var m = /(\d{1,2})\s*([^\d\s]+)\s*(\d{4})/.exec(String(v || '')); if(!m) return '';
+    var mo = TH_MONTHS.indexOf(m[2]) + 1, y = Number(m[3]); if(!mo) return '';
+    if(y > 2400) y -= 543;
+    return y + '-' + z(mo) + '-' + z(Number(m[1]));
+  }
+  function parseQuoteSheet(ws, idx){
+    function v(a){ var c = ws[a]; return c ? c.v : ''; }
+    function r2(x){ return Math.round((+x || 0) * 100) / 100; }
+    var no = String(v('A1')).replace(/^\s*เลขที่\s*/, '').replace(/\s+/g, '').toUpperCase();
+    var pre = (noParts(no) || {}).pre || 'W';
+    var series = pre === 'WB' ? 'W' : pre === 'WV' ? 'WM' : QUOTE_SERIES.indexOf(pre) >= 0 ? pre : 'W';
+    var lines = [];
+    for(var r = QUOTE_ITEM_ROW; r < QUOTE_ITEM_ROW + 50; r++){
+      var a = v('A' + r); if(a === '' || !isFinite(+a)) break;   /* แถวรายการ: ช่อง A เป็นลำดับที่ · ถึงแถว "รวม" = จบ */
+      var name = clean(v('B' + r)); if(!name) continue;
+      var price = r2(num(v('I' + r)));
+      if(!(price > 0) && num(v('G' + r)) > 0) price = r2(num(v('G' + r)) * 1.07);
+      var hit = idx[quoteNameKey(name)];
+      lines.push({ id:hit && hit.ids.length === 1 ? hit.id : '', name:name, qty:r2(num(v('E' + r))), price:price,
+        unitS:clean(v('D' + r)), unitP:clean(v('F' + r)) || 'กล่อง', pack:num(v('C' + r)) || 1 });
+    }
+    return { no:no, series:series, company:clean(v('B5')), date:quoteDateIso(v('A2')) || todayIso(), lines:lines };
+  }
+  /* เพิ่มใบจากไฟล์เข้าประวัติ: เลขที่ซ้ำ = ใช้ข้อมูลในไฟล์ (อาจแก้ราคา / จำนวนในไฟล์หลังส่งออก) แต่เก็บเลขที่ / กรรมการในบันทึกเดิมไว้
+     เลขถัดไปของชุด W / WM / WC เลื่อนตามใบในไฟล์ (ใบที่ทำจากเครื่องอื่น) ไม่ย้อนกลับ */
+  function importQuoteDocs(files){
+    if(!quoteHist) quoteHist = { slot:QUOTE_HIST_SLOT, docs:[] };
+    var idx = quoteNameIndex(), res = { nos:[], updated:0, same:0, miss:[] };
+    files.forEach(function(f){
+      f.sheets.forEach(function(ws){
+        var q = parseQuoteSheet(ws, idx); if(!q.no || !q.lines.length) return;
+        var old = quoteHist.docs.filter(function(d){ return d.no === q.no; })[0];
+        q.lines.forEach(function(l){
+          if(!l.id && old) old.lines.forEach(function(o){ if(o.id && quoteNameKey(o.name) === quoteNameKey(l.name)) l.id = o.id; });
+          if(!l.id && res.miss.indexOf(l.name) < 0) res.miss.push(l.name);
+        });
+        var sig = function(d){ return JSON.stringify([d.company, d.lines.map(function(l){ return [l.id, quoteNameKey(l.name), +l.qty, +l.price]; })]); };
+        if(old && sig(old) === sig(q)){ res.same++; res.nos.push(q.no); return; }
+        var doc = { no:q.no, series:q.series, company:q.company, date:q.date, at:new Date().toISOString(), file:f.file, src:'file',
+          revisions:old ? (old.revisions || 1) + 1 : 1, lines:q.lines };
+        if(old && old.memo){ doc.memo = old.memo; delete doc.memo.lines; }   /* รายการในบันทึกดึงใหม่จากไฟล์ */
+        if(old) res.updated++;
+        quoteHist.docs = [doc].concat(quoteHist.docs.filter(function(d){ return d.no !== q.no; }));
+        res.nos.push(q.no);
+        var p = noParts(q.no), cur = noParts(savedNo(q.series));
+        if(p && cur && p.pre === q.series && cur.pre === p.pre && cur.suf === p.suf){
+          var nx = laterNo(savedNo(q.series), nextNo(q.no));
+          quoteHist.next = quoteHist.next || {}; quoteHist.next[q.series] = nx;
+          try{ localStorage.setItem(noKey(q.series), nx); }catch(e){}
+          if(!quoteState.editing) quoteState.nos[q.series] = nx;
+        }
+      });
+    });
+    quoteHist.docs = quoteHist.docs.slice(0, 300);
+    if(res.nos.length) dbPut([quoteHist]).catch(function(){ storageOk = false; });
+    return res;
+  }
   function reopenQuote(no){
     var doc = (quoteHist && quoteHist.docs || []).filter(function(d){ return d.no === no; })[0]; if(!doc) return;
     var byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
@@ -3083,7 +3175,7 @@
     QUOTE_SERIES.forEach(function(s){ document.getElementById('quote-no-' + s).value = quoteState.nos[s]; });
     var docs = quoteHist && quoteHist.docs || [];
     fillSelect('quote-hist', docs.length ? docs.map(function(d){
-      return [d.no, d.no + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '')];
+      return [d.no, d.no + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '') + (d.src === 'file' ? ' · จากไฟล์' : '')];
     }) : [['', 'ยังไม่มีใบที่ส่งออก']], quoteState.editing ? quoteState.editing.no : '');
     document.getElementById('quote-reopen').disabled = !docs.length;
     document.getElementById('quote-cancel-edit').hidden = !quoteState.editing;
