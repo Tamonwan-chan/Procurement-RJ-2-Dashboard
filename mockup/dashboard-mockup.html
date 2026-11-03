@@ -2690,13 +2690,15 @@
   }
   /* ความสูงบรรทัด (twips) ของ TH SarabunIT๙ ตามขนาดตัวอักษร และพื้นที่ก่อนตาราง ขย. — วัดจาก Word (30 ต.ค. 69) */
   var MEMO_LINE = { 24:272, 26:295, 28:318, 32:363 }, MEMO_ROW_PAD = 13, MEMO_K_TOP = 6330, MEMO_FILL_SAFETY = 300;
+  /* ตัวอักษรในตาราง ภย. / ภว. / ขย. / ขว. / ย. / ยว. = 14 pt (half-point 28) ตามที่การเงินกำหนด (คุณธมลวรรณ 3 พ.ย. 69 · เดิม 12 pt) */
+  var MEMO_TBL_SZ = 28;
   var MEMO_TBL = { w:10226, ind:-600 };              /* ตารางยื่นเลยขอบซ้าย–ขวาข้างละ ~1 ซม. (พี่โอม: ยืดซ้ายขวาได้ จะได้ไม่บีบ) */
 
   /* ตารางรายการ (ภย. / ภว. / ขย. / ขว. ใช้ตารางเดียวกัน — "ดึงข้อมูลมาจาก ภย. เหมือนเดิมทั้งหมด")
      คอลัมน์ราคาซื้อครั้งสุดท้ายแสดงเมื่อมีรายการที่ไม่มีราคากลาง (พี่โอมยืนยัน 28 ต.ค.)
      fillTop: ความสูงก่อนตาราง → เติมแถวว่างให้ตารางยาวถึงท้ายหน้า (ขย. / ขว. — "ตารางยาต้องเคาะให้สุด") */
   function memoItemTable(d, k, t, fillTop){
-    var last = d.lines.some(function(l){ return !(+l.ref > 0); }), SZ = 24, lay = d.layout || 'other', exCol = lay !== 'other';
+    var last = d.lines.some(function(l){ return !(+l.ref > 0); }), SZ = MEMO_TBL_SZ, lay = d.layout || 'other', exCol = lay !== 'other';
     /* คอลัมน์ราคาท้ายตาราง: ความกว้างคอลัมน์รายการ = ที่เหลือ · ถ้าแคบเกินไป (มีทั้งราคาซื้อครั้งสุดท้ายและราคาไม่รวม VAT) ใช้คอลัมน์ราคาแคบลง */
     var priceCols = (last ? [{ h:'ราคาซื้อ\nครั้งสุดท้าย\n(รวม VAT)', w:1000, jc:'right', num:1 }] : [])
       .concat([{ h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1000, jc:'right', num:1 }])
@@ -2822,7 +2824,7 @@
     rows.push({ cells:[{ t:'ภาษีมูลค่าเพิ่ม 7%', span:nc - 1, jc:'right' }, { t:fmt2(t.vat) }] });
     rows.push({ cells:[{ t:'รวมจำนวนเงินทั้งสิ้น', span:nc - 1, jc:'right', b:1 }, { t:fmt2(t.total), b:1 }] });
     rows.push({ cells:[{ t:'จำนวนรวม ' + n + ' รายการ รวมเป็นเงินทั้งสิ้น\t(' + bahtText(t.total) + ')', span:nc, jc:'left', tabs:[['right', MEMO_TBL.w - 160]] }] });
-    fitCols(cols, rows, 24);
+    fitCols(cols, rows, MEMO_TBL_SZ);
     var hosp = memoSet.org.hosp;
     var body = wPara(wRun('หนังสือสั่งซื้อ', { b:1, sz:44 }), { jc:'center', after:120 }) +
       P('เลขที่  ' + k.y + '.' + d.kNo) +
@@ -2830,7 +2832,7 @@
       P('ถึง  ' + doc.company + ' ตามใบของ ' + doc.company) +
       P('เลขที่  ' + (d.bill || '…………………') + '   ลงวันที่  ' + (memoDateTh(d.billDate) || '…………………') + '   ' + hosp + ' ได้รับราคาและตกลงซื้อของ', { jc:'thaiDistribute' }) +
       P('จำนวน ' + n + ' รายการ จึงให้ผู้ขายส่งของ ณ ' + memoSet.org.dept + ' ' + hosp + ' ภายใน ' + (d.days || 5) + ' วันทำการ โดยนับถัดจากวันที่ผู้ขายได้รับหนังสือสั่งซื้อนี้ ดังรายการต่อไปนี้', { jc:'thaiDistribute', after:120 }) +
-      wTable(rows, cols, { sz:24, headSz:24, ind:MEMO_TBL.ind }) +
+      wTable(rows, cols, { sz:MEMO_TBL_SZ, headSz:MEMO_TBL_SZ, ind:MEMO_TBL.ind }) +
       P('สิ่งของตามรายการข้างต้นนี้ สำหรับใช้ในราชการ' + hosp, { before:120 }) +
       wPara(wRun('ตามบันทึกเลขที่  ', { sz:S }) + wRun(k.k + '.' + d.kNo + '   วันที่  ' + memoDateTh(d.kDate), { sz:S, b:1 })) +
       P('เงื่อนไขการสั่งซื้อ', { b:1, before:120 }) +
