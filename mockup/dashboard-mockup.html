@@ -166,6 +166,10 @@
   .subhead{ font-size:13.5px; font-weight:600; color:var(--ink-muted); margin-bottom:12px; }
 
   .barlist{ display:flex; flex-direction:column; gap:8px; }
+  /* กราฟ GPSC มีหลายแท่งต่อกลุ่ม: เส้นคั่นกลุ่ม ให้รู้ว่าแท่งไหนเป็นของกลุ่มไหน (#22) */
+  #chart-value-gps{ gap:0; }
+  #chart-value-gps .barrow{ padding:7px 0; border-top:1px solid var(--border); border-radius:0; }
+  #chart-value-gps .barrow:first-child{ border-top:none; }
   .barrow{ display:grid; grid-template-columns:minmax(120px,190px) 1fr 118px; align-items:center; gap:10px; border-radius:6px; }
   .barrow.clickable{ cursor:pointer; padding:2px 4px; margin:0 -4px; }
   .barrow.clickable:hover{ background:var(--surface-2); }
@@ -1710,7 +1714,10 @@
     var poYms = (state.lookups.po || []).map(function(r){ return r.ym; });
     var poFirst = poYms.length ? Math.min.apply(null, poYms) : 0, poLast = poYms.length ? Math.max.apply(null, poYms) : 0;
     function poFull(fy){ return poFirst && poFirst <= kpiMonths(fy)[0]; }
-    var PA = gpsPoGroups(gpsState.fy, gpsState.month), PB = ymB && poFull(gpsState.cmp) ? gpsPoGroups(gpsState.cmp, gpsState.month) : null;
+    /* เดือนที่ PO_inven ยังไม่ถึง = ไม่มีข้อมูล ไม่ใช่ ฿0 → ไม่แสดงแท่ง / คำอธิบายสี / ตัวเลขสั่งซื้อ (#22) */
+    function poHas(ym){ return poLast && poLast >= ym; }
+    var PA = poHas(ymA) ? gpsPoGroups(gpsState.fy, gpsState.month) : null;
+    var PB = ymB && poFull(gpsState.cmp) && poHas(ymB) ? gpsPoGroups(gpsState.cmp, gpsState.month) : null;
     var mv = gpsState.metric === 'value';
     function val(o, k){ return o && o[k] ? (mv ? o[k].value : o[k].items) : 0; }
     function show(v){ return mv ? '฿' + fmt(v) : fmt(v) + ' รายการ'; }
@@ -1720,7 +1727,7 @@
     var C_ST = 'var(--cat-1)', C_PO = 'var(--cat-2)', FADE = '.38';
     function key(color, fade, text){ return '<span><i style="background:' + color + (fade ? ';opacity:' + FADE : '') + '"></i>' + text + '</span>'; }
     legend.innerHTML = (B ? key(C_ST, true, 'คงคลัง สิ้นเดือน ' + monthLabel(ymB)) : '') + key(C_ST, false, 'คงคลัง สิ้นเดือน ' + monthLabel(ymA)) +
-      (PB ? key(C_PO, true, 'สั่งซื้อสะสม ' + span(gpsState.cmp, ymB)) : '') + key(C_PO, false, 'สั่งซื้อสะสม ' + span(gpsState.fy, ymA));
+      (PB ? key(C_PO, true, 'สั่งซื้อสะสม ' + span(gpsState.cmp, ymB)) : '') + (PA ? key(C_PO, false, 'สั่งซื้อสะสม ' + span(gpsState.fy, ymA)) : '');
     if(!A && !B){ box.innerHTML = '<div class="table-note">ไม่มีคงคลัง ณ สิ้นเดือนนี้ในทั้งสองปีงบ</div>'; return; }
     var names = [A, B, PA, PB].reduce(function(acc, o){ Object.keys(o || {}).forEach(function(k){ if(acc.indexOf(k) < 0) acc.push(k); }); return acc; }, [])
       .sort(function(a, b){ return (a === NO_GPS) - (b === NO_GPS) || val(A, b) - val(A, a) || val(PA, b) - val(PA, a) || val(B, b) - val(B, a); });
@@ -1729,9 +1736,9 @@
     shown.forEach(function(k){
       var c = val(A, k), pv = val(B, k), p = val(PA, k), pp = val(PB, k);
       var tip = k + ' · คงคลัง ' + monthLabel(ymA) + ' ' + show(c) + (B ? ' (' + monthLabel(ymB) + ' ' + show(pv) + ')' : '') +
-        ' · สั่งซื้อสะสม ' + span(gpsState.fy, ymA) + ' ' + show(p) + (PB ? ' (' + span(gpsState.cmp, ymB) + ' ' + show(pp) + ')' : '');
+        (PA ? ' · สั่งซื้อสะสม ' + span(gpsState.fy, ymA) + ' ' + show(p) : '') + (PB ? (PA ? ' (' : ' · สั่งซื้อสะสม ') + span(gpsState.cmp, ymB) + ' ' + show(pp) + (PA ? ')' : '') : '');
       var html = (A ? show(c) : '–') + (A && B ? pct(c, pv) : '') +
-        '<span class="po-tag">ซื้อ ' + show(p) + (PB ? pct(p, pp) : '') + '</span>';
+        (PA ? '<span class="po-tag">ซื้อ ' + show(p) + (PB ? pct(p, pp) : '') + '</span>' : PB ? '<span class="po-tag">ซื้อ ปีงบ ' + gpsState.cmp + ' ' + show(pp) + '</span>' : '');
       var row = barRow(k, c, max, C_ST, html, tip), track = row.querySelector('.track'); track.classList.add('pair');
       function bar(v, color, fade, before){
         var f = document.createElement('div'); f.className = 'fill';
@@ -1740,14 +1747,14 @@
       }
       if(B) bar(pv, C_ST, true, true);
       if(PB) bar(pp, C_PO, true);
-      bar(p, C_PO, false);
+      if(PA) bar(p, C_PO, false);
       box.appendChild(row);
     });
     var poStart = poFirst ? 'PO_inven เริ่ม ' + monthLabel(poFirst) : '';
     note.textContent = (!A ? 'ยังไม่มีคงคลังสิ้นเดือน ' + monthLabel(ymA) + ' · ' : '') + (B === null && gpsState.cmp ? 'ยังไม่มีคงคลังสิ้นเดือน ' + monthLabel(ymB) + ' · ' : '') +
-      (!poLast ? 'ยังไม่มีไฟล์ PO_inven (ยอดสั่งซื้อ) · ' : poLast < ymA ? 'ยอดสั่งซื้อ PO_inven มีถึง ' + monthLabel(poLast) + ' · ' : '') +
+      (!poLast ? 'ยังไม่มีไฟล์ PO_inven (ยอดสั่งซื้อ) · ' : !PA || (ymB && poFull(gpsState.cmp) && !PB) ? 'ไม่แสดงยอดสั่งซื้อ' + (!PA ? ' ปีงบ ' + gpsState.fy : '') + (ymB && poFull(gpsState.cmp) && !PB ? (!PA ? ' และ' : '') + ' ปีงบ ' + gpsState.cmp : '') + ' เพราะ PO_inven มีถึง ' + monthLabel(poLast) + ' (ลาก PO_inven เดือนถัดไปแล้วจะขึ้น) · ' : '') +
       (poLast && !poFull(gpsState.fy) ? 'ยอดสั่งซื้อปีงบ ' + gpsState.fy + ' ไม่ครบตั้งแต่ ต.ค. (' + poStart + ') · ' : '') +
-      (ymB && poLast && !PB ? 'ไม่เทียบยอดสั่งซื้อปีงบ ' + gpsState.cmp + ' เพราะไม่ครบตั้งแต่ ต.ค. (' + poStart + ') · ' : '') +
+      (ymB && poLast && !poFull(gpsState.cmp) ? 'ไม่เทียบยอดสั่งซื้อปีงบ ' + gpsState.cmp + ' เพราะไม่ครบตั้งแต่ ต.ค. (' + poStart + ') · ' : '') +
       'คงคลัง = ยอด ณ สิ้นเดือน · สั่งซื้อ = ยอดรับจากการสั่งซื้อสะสมตั้งแต่ ต.ค. ถึงเดือนที่เลือก · ข้อมูลชุดเดียวกับรายงานสถิติคลังยา · ';
     moreButton('gps-note', shown.length, names.length, 'gpsAll', function(){ renderGps(); });
   }
