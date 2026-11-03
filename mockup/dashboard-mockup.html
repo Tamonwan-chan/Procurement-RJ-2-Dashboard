@@ -2737,12 +2737,19 @@
       wPara(wRun('เรียน    ผู้อำนวยการ' + memoSet.org.hosp), { before:120 });
   }
   /* "ตำแหน่ง" ต่อท้ายชื่อเลย แล้วแท็บไปหน้าที่ (พี่โอม 30 ต.ค. 69: เลื่อนตำแหน่งเข้ามาชิดชื่อ) */
+  /* กรรมการ: หน้าที่ (ประธานกรรมการ / กรรมการ) ชิดขอบขวา ตามบันทึกจริง (คุณธมลวรรณ 3 พ.ย. 69) · เดิม tab ซ้ายที่ 7400 ตำแหน่งยาวแล้วหน้าที่ตกบรรทัด
+     3 บรรทัดย่อหน้าเท่ากัน: ปกติ 1418 · ถ้าบรรทัดยาวสุดไม่พอ เลื่อนทั้ง 3 บรรทัดไปทางซ้ายให้หน้าที่อยู่บรรทัดเดียวกัน */
+  var MEMO_TEXT_W = 11906 - 1440 - 1440;
   function memoCommittee(d){
     var ROLE = ['ประธานกรรมการ', 'กรรมการ', 'กรรมการ'];
-    return [0, 1, 2].map(function(i){
+    var lines = [0, 1, 2].map(function(i){
       var p = memoPerson(d.committee[i]);
-      return wPara(wRun((i + 1) + '. ' + (p ? p.name : '..............................') + '  ตำแหน่ง' + (p ? p.pos : '..............................') + '\t' + ROLE[i]), { left:1418, tabs:[['left', 7400]] });
-    }).join('');
+      return (i + 1) + '. ' + (p ? p.name : '..............................') + '  ตำแหน่ง' + (p ? p.pos : '..............................');
+    });
+    /* textTw กว้างกว่าจริง ~10% (เทียบบันทึกที่พิมพ์จริง) → × 0.95 ยังเหลือที่ว่าง ~0.8 ซม. */
+    var need = Math.max.apply(null, lines.map(function(t, i){ return (textTw(t, 32) + textTw(ROLE[i], 32)) * 0.95 + 280; }));
+    var left = Math.max(0, Math.min(1418, Math.floor(MEMO_TEXT_W - need)));
+    return lines.map(function(t, i){ return wPara(wRun(t + '\t' + ROLE[i]), { left:left, tabs:[['right', MEMO_TEXT_W]] }); }).join('');
   }
   function memoSignBlock(p, label){
     return (label ? 'ลงชื่อ.................................(' + label + ')\n' : '\n\n') + '(' + (p ? p.name : '...............................................') + ')\n' + memoSign(p);
