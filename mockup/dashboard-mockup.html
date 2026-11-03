@@ -1995,7 +1995,7 @@
   var QUOTE_MAX = 8, QUOTE_ITEM_ROW = 7, QUOTE_LAST_COL = 12;
   var EXCELJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
   var QUOTE_NO_KEY = 'rj2-quote-next-no';
-  var quoteState = { open:false, company:'all', mfr:'all', onlyOut:false, search:'', sel:{}, edits:{}, nos:{ W:'', WM:'', WC:'' }, date:'', editing:null, note:'' };
+  var quoteState = { open:false, company:'all', mfr:'all', mfrFree:false, onlyOut:false, search:'', sel:{}, edits:{}, nos:{ W:'', WM:'', WC:'' }, date:'', editing:null, note:'' };
   /* เลขที่แยก 3 ชุด (พี่โอมกำหนด, ใช้ Template เดียวกัน) · เลขถัดไปจำไว้ในเครื่องนี้และไม่ย้อนกลับ
      W  = ทะเบียนยา · WC = ทะเบียนเภสัชเคมีภัณฑ์ · WM = ทะเบียนเวชภัณฑ์ที่มิใช่ยา / วัสดุเภสัชกรรม / อื่น ๆ */
   var QUOTE_SERIES = ['W', 'WM', 'WC'], QUOTE_HIST_SLOT = '_quotes', quoteHist = null;
@@ -2448,6 +2448,9 @@
     quoteState.nos[ser] = doc.no;
     quoteState.date = doc.date;
     quoteState.company = 'all'; quoteState.search = ''; document.getElementById('quote-search').value = '';
+    /* ล็อกผู้ผลิตตามใบเดิม · ใบเดิมมีหลายผู้ผลิตอยู่แล้ว = ปลดล็อก */
+    var mfrs = doc.lines.filter(function(l){ return byId[l.id]; }).map(function(l){ return byId[l.id].manufact || NO_MFR; }).filter(function(m, i, a){ return a.indexOf(m) === i; });
+    quoteState.mfr = mfrs.length === 1 ? mfrs[0] : 'all'; quoteState.mfrFree = mfrs.length > 1;
     quoteState.note = gone.length ? 'ไม่พบในข้อมูลที่นำเข้าตอนนี้: ' + gone.join(', ') : '';
     renderQuote();
   }
@@ -3224,9 +3227,24 @@
     FLOOR_LOCS.forEach(function(l){ var s = it.stock[l.id], q = s ? s.qty : 0; total += q; parts.push(l.short + ' ' + fmt1(q)); });
     return '<td class="mono" title="' + esc(parts.join(' · ')) + '"><b>' + (total > 0 && total < 0.05 ? '&lt;0.1' : fmt1(total)) + '</b>' + (isOut(it) ? '<br>' + OUT_PILL : '') + '</td>';
   }
+  /* แยกใบตามผู้ผลิต — พี่โอม (3 พ.ย. 69): ติ๊กยาตัวแรกแล้ว ช่องผู้ผลิตล็อกเป็นผู้ผลิตของยาตัวนั้น รายการถัดไปจึงเห็นเฉพาะผู้ผลิตเดียวกัน
+     ถ้าผู้ผลิตใน HIS ยังไม่ได้แก้ เลือก "ทุกผู้ผลิต" เพื่อปลดล็อก แล้วออกใบรวมได้ (มีคำเตือน) · ล้างรายการที่เลือก = ล็อกใหม่ */
+  function quoteMfrLock(hc){
+    if(quoteState.mfr !== 'all' || quoteState.mfrFree) return false;
+    var it = state.items.filter(function(x){ return x.hospcode === hc; })[0]; if(!it) return false;
+    quoteState.mfr = it.manufact || NO_MFR;
+    return true;
+  }
+  function quoteMixedMfr(sheets){
+    return sheets.filter(function(s){
+      return s.items.map(function(it){ return it.manufact || NO_MFR; }).filter(function(m, i, a){ return a.indexOf(m) === i; }).length > 1;
+    }).map(function(s){ return s.no; });
+  }
   function quoteSummary(extra){
     var g = quoteGroups();
-    var ed = quoteState.editing, over = [];
+    var ed = quoteState.editing, over = [], mixed = quoteMixedMfr(g.sheets);
+    if(mixed.length) extra = '⚠ ใบ ' + mixed.join(', ') + ' มีหลายผู้ผลิต (ปลดล็อกผู้ผลิตแล้ว) ตรวจก่อนส่งออก' + (extra ? ' · ' + extra : '');
+    else if(g.count && quoteState.mfr !== 'all') extra = 'ผู้ผลิตล็อกเป็น ' + quoteState.mfr + ' ตามรายการแรก (เลือก "ทุกผู้ผลิต" เพื่อปลดล็อก)' + (extra ? ' · ' + extra : '');
     g.sheets.forEach(function(s){ s.items.forEach(function(it){ var l = quoteLine(it), r = refPick(it.hospcode); if(r && (+l.price || 0) > r.r.price * (l.pack || 1) + 0.005) over.push(l.name); }); });
     if(over.length) extra = '⚠ ราคาเกินราคากลาง ' + over.length + ' รายการ: ' + over.slice(0, 3).join(', ') + (over.length > 3 ? ' …' : '') + (extra ? ' · ' + extra : '');
     document.getElementById('quote-summary').textContent = (ed ? 'กำลังแก้ไขใบ ' + ed.no + ' — เพิ่ม / ลบ / แก้จำนวนได้ แล้วกดส่งออก จะได้ไฟล์เลขเดิม (เลขถัดไปไม่เปลี่ยน) · ' : '') + (g.count
@@ -3237,7 +3255,11 @@
   document.getElementById('btn-quote').addEventListener('click', function(){ quoteState.open = !quoteState.open; renderQuote(); var qb = document.getElementById('quote-box'); if(quoteState.open && qb.scrollIntoView) qb.scrollIntoView({ block:'nearest' }); });
   document.getElementById('quote-close').addEventListener('click', function(){ quoteState.open = false; renderQuote(); });
   document.getElementById('quote-company').addEventListener('change', function(e){ quoteState.company = e.target.value; quoteState.mfr = 'all'; renderQuote(); });
-  document.getElementById('quote-mfr').addEventListener('change', function(e){ quoteState.mfr = e.target.value; renderQuote(); });
+  document.getElementById('quote-mfr').addEventListener('change', function(e){
+    quoteState.mfr = e.target.value;
+    quoteState.mfrFree = quoteState.mfr === 'all' && Object.keys(quoteState.sel).length > 0;   /* เลือก "ทุกผู้ผลิต" ระหว่างมีรายการ = ปลดล็อก */
+    renderQuote();
+  });
   document.getElementById('quote-only-out').addEventListener('change', function(e){ quoteState.onlyOut = e.target.checked; renderQuote(); });
   var quoteTimer;
   document.getElementById('quote-search').addEventListener('input', function(e){ clearTimeout(quoteTimer); var v = e.target.value; quoteTimer = setTimeout(function(){ quoteState.search = v; renderQuote(); }, 150); });
@@ -3246,13 +3268,13 @@
   });
   document.getElementById('quote-reopen').addEventListener('click', function(){ var v = document.getElementById('quote-hist').value; if(v) reopenQuote(v); });
   document.getElementById('quote-cancel-edit').addEventListener('click', function(){
-    quoteState.editing = null; quoteState.sel = {}; quoteState.note = '';
+    quoteState.editing = null; quoteState.sel = {}; quoteState.note = ''; quoteState.mfrFree = false;
     QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = savedNo(s); });
     renderQuote();
   });
   document.getElementById('quote-date').addEventListener('change', function(e){ quoteState.date = e.target.value; });
   document.getElementById('quote-clear').addEventListener('click', function(){
-    quoteState.sel = {}; quoteState.note = '';
+    quoteState.sel = {}; quoteState.note = ''; quoteState.mfrFree = false;
     if(quoteState.editing){ quoteState.editing = null; QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = savedNo(s); }); }
     renderQuote();
   });
@@ -3261,7 +3283,12 @@
   quoteBody.addEventListener('change', function(e){
     var tr = e.target.closest('tr[data-hc]'); if(!tr) return;
     var hc = tr.getAttribute('data-hc'), k = e.target.getAttribute('data-k');
-    if(k === 'sel'){ if(e.target.checked) quoteState.sel[hc] = 1; else delete quoteState.sel[hc]; tr.classList.toggle('on', e.target.checked); quoteSummary(''); }
+    if(k === 'sel'){
+      if(e.target.checked) quoteState.sel[hc] = 1; else delete quoteState.sel[hc];
+      if(!Object.keys(quoteState.sel).length) quoteState.mfrFree = false;
+      if(e.target.checked && quoteMfrLock(hc)){ renderQuote(); return; }
+      tr.classList.toggle('on', e.target.checked); quoteSummary('');
+    }
     if(k === 'ref'){
       if(!quoteHist) quoteHist = { slot:QUOTE_HIST_SLOT, docs:[] };
       var map = quoteHist.refMap || (quoteHist.refMap = {}), v = e.target.value;
@@ -3275,7 +3302,10 @@
     var hc = tr.getAttribute('data-hc'), k = e.target.getAttribute('data-k'); if(!k || k === 'sel') return;
     var ed = quoteState.edits[hc] || (quoteState.edits[hc] = {});
     ed[k] = k === 'qty' || k === 'price' ? e.target.value : e.target.value.trim();
-    if(k === 'qty' && +e.target.value > 0 && !quoteState.sel[hc]){ quoteState.sel[hc] = 1; tr.classList.add('on'); tr.querySelector('[data-k="sel"]').checked = true; }
+    if(k === 'qty' && +e.target.value > 0 && !quoteState.sel[hc]){
+      quoteState.sel[hc] = 1; tr.classList.add('on'); tr.querySelector('[data-k="sel"]').checked = true;
+      if(quoteMfrLock(hc)) document.getElementById('quote-mfr').value = quoteState.mfr;   /* รายการกรองตามผู้ผลิตตอนแสดงครั้งถัดไป */
+    }
     var qty = +(tr.querySelector('[data-k="qty"]').value) || 0, price = +(tr.querySelector('[data-k="price"]').value) || 0;
     tr.querySelector('[data-total]').textContent = qty * price ? fmt2(qty * price) : '–';
     if(k === 'price') refRedraw(tr, hc);
