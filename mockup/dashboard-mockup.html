@@ -1787,7 +1787,7 @@
     var months = po.filter(function(r){ return fiscalOf(r.ym) === gpuState.fy; }).map(function(r){ return r.ym; }).sort();
     fillSelect('gpu-fy', fyList.map(function(y){ return [y, 'ปีงบประมาณ ' + y + ' (ต.ค.' + String(y - 1).slice(-2) + ' – ' + (y === gpuState.fy && months.length ? monthLabel(months[months.length - 1]) : 'ก.ย.' + String(y).slice(-2)) + ')']; }), gpuState.fy);
     var groups = {}, missing = 0, missingValue = 0;
-    function grp(code){ return groups[code] || (groups[code] = { code:code, value:0, planQty:0, planValue:0, names:{}, planNames:{} }); }
+    function grp(code){ return groups[code] || (groups[code] = { code:code, value:0, planUnits:0, planValue:0, unitNames:{}, noPack:false, names:{}, planNames:{} }); }
     po.forEach(function(r){
       if(fiscalOf(r.ym) !== gpuState.fy || !dispItemOk(r.id)) return;
       var code = gpuOf(L, r.id);
@@ -1797,7 +1797,15 @@
     });
     Object.keys(L.plan).forEach(function(id){
       var code = gpuOf(L, id); if(!code || !groups[code] || !dispItemOk(id)) return;
-      var x = L.plan[id], g = groups[code]; g.planQty += x.qty; g.planValue += x.value; g.planNames[id] = x.name + ' ' + fmt1(x.qty) + ' (฿' + fmt(x.value) + ')';
+      /* แผนรวมต่อ GPU นับเป็นหน่วยย่อย (เม็ด ฯลฯ) = กล่อง × จำนวนต่อกล่อง เพราะแต่ละบริษัทขนาดบรรจุไม่เท่ากัน รวมเป็นกล่องเทียบกันไม่ได้ (พี่โอม 4 พ.ย. 69)
+         ราคาต่อหน่วยย่อย = ราคาทุนต่อกล่อง ÷ จำนวนต่อกล่อง · ไม่รู้ขนาดบรรจุ = ไม่เดา แสดงแต่มูลค่า */
+      var x = L.plan[id], g = groups[code], pk = x.pack > 0 ? x.pack : packOf(L, id), un = thaiUnit(x.unit), units = x.qty * pk;
+      if(un === 'กล่อง' && pk > 1) un = '';   /* หน่วยในไฟล์เป็น pack แต่มีหลายชิ้นต่อกล่อง: thaiUnit แปลงเป็นกล่องซึ่งไม่ใช่หน่วยย่อย */
+      g.planValue += x.value;
+      if(pk > 0){ g.planUnits += units; if(un) g.unitNames[un] = 1; } else g.noPack = true;
+      var uName = un || 'หน่วย';
+      g.planNames[id] = x.name + ' ' + (pk === 1 ? fmt1(x.qty) + ' ' + uName : fmt1(x.qty) + ' กล่อง' + (pk > 1 ? ' × ' + fmt(pk) + ' = ' + fmt(units) + ' ' + uName : '')) +
+        (pk > 0 && units > 0 ? ' · ฿' + fmt2(x.value / units) + ' / ' + uName : '') + ' (฿' + fmt(x.value) + ')';
     });
     var list = Object.keys(groups).map(function(k){ return groups[k]; }).filter(function(g){ return g.value > 0; }).sort(function(a, b){ return b.value - a.value; });
     var shown = state.gpuAll ? list : list.slice(0, TOP_GROUPS);
@@ -1809,7 +1817,7 @@
       var ids = Object.keys(g.names), first = g.names[ids[0]];
       var label = (g.generic || first) + (ids.length > 1 ? ' (' + ids.length + ' ยี่ห้อ)' : '');
       var hasPlan = Object.keys(g.planNames).length > 0;
-      var valueHtml = '฿' + fmt(g.value) + '<span class="plan-tag">' + (hasPlan ? 'แผน' + (py ? ' ' + py : '') + ' ฿' + fmt(g.planValue) + ' · ' + fmt1(g.planQty) : 'ไม่มีใน planfin') + '</span>';
+      var valueHtml = '฿' + fmt(g.value) + '<span class="plan-tag">' + (hasPlan ? 'แผน' + (py ? ' ' + py : '') + ' ฿' + fmt(g.planValue) + (g.noPack ? '' : ' · ' + fmt(g.planUnits) + ' ' + (Object.keys(g.unitNames).length === 1 ? Object.keys(g.unitNames)[0] : 'หน่วย')) : 'ไม่มีใน planfin') + '</span>';
       var tip = 'GPU ' + g.code + ' · ซื้อแล้ว ฿' + fmt(g.value) + ' (' + ids.map(function(id){ return g.names[id]; }).join(' / ') + ')' +
         (hasPlan ? ' · planfin: ' + Object.keys(g.planNames).map(function(id){ return g.planNames[id]; }).join(' / ') : '');
       var row = barRow(label, g.value, max, g.value > GPU_TARGET ? 'var(--critical)' : 'var(--cat-1)', valueHtml, tip);
