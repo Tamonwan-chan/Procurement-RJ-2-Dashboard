@@ -2922,6 +2922,23 @@
     return 'วงเงินแผน' + name + ' ปีงบ ' + fy + ' ฿' + fmt2(x.plan) + ' − รับจากการสั่งซื้อแล้ว ฿' + fmt2(x.buy) + ' (PO_inven ถึง ' + monthLabel(sums.lastYm) + ') = คงเหลือ ' + money(left) +
       ' · ใบนี้ ฿' + fmt2(t.total) + ' → หลังใบนี้ ' + money(after);
   }
+  /* อัตราการใช้ × 12 เทียบแผนทั้งปี — พี่โอม (4 พ.ย. 69): เกินแผนได้ (คนไข้มากขึ้น ห้องจ่ายเบิกมากขึ้น) แค่แสดงให้เห็น ไม่ห้ามออกเอกสาร
+     ปีงบเดียวกับวงเงินแผน (ตามวันที่ ขย. ไม่ระบุใช้วันที่ ภย.) · มูลค่าที่เกิน = กล่องที่เกิน × ราคาต่อกล่องในแผน · แสดงเฉพาะหน้าจอ ไม่อยู่ในไฟล์ Word */
+  function memoPlanCheck(l, fy){
+    var by = state.lookups && state.lookups.planByYear && state.lookups.planByYear[fy], rate = +l.rate, unit = l.unit || 'กล่อง';
+    if(!(rate > 0)) return '–';
+    if(!by) return '<small>ไม่มี planfin ปีงบ ' + (fy % 100) + '</small>';
+    var x = by[l.id]; if(!x) return '<small>ไม่มีในแผน</small>';
+    var use = rate * 12, detail = '<br><small>ใช้ 12 เดือน ' + fmt1(use) + ' · แผน ' + fmt1(x.qty) + ' ' + esc(unit) + '</small>';
+    if(use <= x.qty) return '<span class="pt-down">อยู่ในแผน</span>' + detail;
+    var over = use - x.qty, per = x.qty > 0 ? x.value / x.qty : x.cost || 0;
+    return '<b class="pt-up">เกินแผน</b> ' + fmt1(over) + ' ' + esc(unit) + (per > 0 ? ' / ฿' + fmt(over * per) : '') + detail;
+  }
+  function memoPlanRefresh(box){
+    var d = memoState.d, fy = memoFY(d.kDate || d.pDate), h = box.querySelector('[data-plan-head]');
+    if(h) h.textContent = 'ใช้ × 12 เทียบแผนปีงบ ' + (fy % 100);
+    Array.prototype.forEach.call(box.querySelectorAll('[data-plan]'), function(c){ c.innerHTML = memoPlanCheck(d.lines[Number(c.getAttribute('data-plan'))], fy); });
+  }
   function memoSumHtml(){
     var d = memoState.d, t = memoTotals(d), w = memoWarn(d), doc = memoDoc();
     return (doc ? memoBudgetHtml(doc, t) + '<br>' : '') +
@@ -2946,10 +2963,12 @@
     var NUMK = { stock:1, rate:1, qty:1, ref:1, last:1, price:1 };
     var lineCols = [['name', 'รายการ', 260], ['stock', 'ยอดคงเหลือ', 70], ['rate', 'อัตราการใช้/เดือน', 70], ['unit', 'หน่วย', 60], ['pack', 'ขนาดบรรจุ', 140], ['qty', 'จำนวน', 70],
       ['ref', 'ราคากลาง', 80], ['last', 'ราคาซื้อครั้งสุดท้าย', 80], ['price', 'ราคาต่อหน่วย', 80], ['gpu', 'GPU', 80], ['tpu', 'TPU', 80], ['unspsc', 'UNSPSC', 90]];
-    var table = '<table style="min-width:1400px"><thead><tr><th>#</th>' + lineCols.map(function(c){ return '<th>' + c[1] + '</th>'; }).join('') + '<th class="mono">วงเงิน</th></tr></thead><tbody>' +
+    var planFy = memoFY(d.kDate || d.pDate);
+    var table = '<table style="min-width:1620px"><thead><tr><th>#</th>' + lineCols.map(function(c){ return '<th>' + c[1] + '</th>' + (c[0] === 'rate' ? '<th data-plan-head>ใช้ × 12 เทียบแผนปีงบ ' + (planFy % 100) + '</th>' : ''); }).join('') + '<th class="mono">วงเงิน</th></tr></thead><tbody>' +
       d.lines.map(function(l, i){
         return '<tr><td class="mono">' + (i + 1) + '</td>' + lineCols.map(function(c){
-          return '<td><input class="q-in' + (NUMK[c[0]] ? ' num' : '') + '" data-l="' + c[0] + '" data-i="' + i + '" value="' + esc(l[c[0]] == null ? '' : l[c[0]]) + '" style="width:' + c[2] + 'px"' + (NUMK[c[0]] ? ' inputmode="decimal"' : '') + '></td>';
+          return '<td><input class="q-in' + (NUMK[c[0]] ? ' num' : '') + '" data-l="' + c[0] + '" data-i="' + i + '" value="' + esc(l[c[0]] == null ? '' : l[c[0]]) + '" style="width:' + c[2] + 'px"' + (NUMK[c[0]] ? ' inputmode="decimal"' : '') + '></td>' +
+            (c[0] === 'rate' ? '<td data-plan="' + i + '" style="white-space:nowrap">' + memoPlanCheck(l, planFy) + '</td>' : '');
         }).join('') + '<td class="mono" data-v="' + i + '">' + fmt2((+l.qty || 0) * (+l.price || 0)) + '</td></tr>';
       }).join('') + '</tbody></table>';
     var people = (set.people || []).map(function(p, i){
@@ -3027,6 +3046,7 @@
       else return;
       memoKeep();
       document.getElementById('memo-sum').innerHTML = memoSumHtml();
+      memoPlanRefresh(box);
     });
     box.addEventListener('change', function(e){
       var t = e.target, d = memoState.d; if(!d) return;

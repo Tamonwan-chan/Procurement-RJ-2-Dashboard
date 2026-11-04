@@ -59,7 +59,7 @@ v1.0 = issues #1–#20: 14 closed, 6 waiting on พี่โอม (#4, #5, #8, 
 | Issue | Waiting on (Q&A section 1 item) | Default after the deadline |
 |---|---|---|
 | #9 planfin 69 ฉบับหลังปรับแผน | which revision round the file is (1; units answered 4 Nov: plan and PO are both boxes) | show the file as it is; close |
-| #11 บันทึก Word: ข้อที่รอยืนยัน | items 3 (what "ไม่เกิน planfin" compares), 14 part 3 (ex-VAT = ÷ 1.07 not answered explicitly) (4, 5, 6, 8, 11 and 14 parts 1–2 answered 3 Nov; 11 = quote Excel import, built) | userate rounded and editable, not checked against planfin; ex-VAT = ÷ 1.07; close |
+| #11 บันทึก Word: ข้อที่รอยืนยัน | item 14 part 3 (ex-VAT = ÷ 1.07 not answered explicitly) (3, 4, 5, 6, 8, 11 and 14 parts 1–2 answered; 3 = usage × 12 vs yearly plan, shown on the memo screen, built; 11 = quote Excel import, built) | ex-VAT = ÷ 1.07; close |
 | #16 ซ่อนส่วนในกราฟ GPSC / GPU | anything else to hide for the executive presentation (13) | hide nothing more; close |
 
 Q&A items 9 (3 fiscal years of stock history) and 12 (split quotes by manufacturer) had no issue; both answered 3 Nov (9 = keep 3 years; 12 = manufacturer lock, built). Item 15 (his latest PO_inven) is a file request, not a blocker. v1.0 closes when the issues above are closed. Then the `ICEBOX.md` items become issues for the next version, in the order she chooses.
