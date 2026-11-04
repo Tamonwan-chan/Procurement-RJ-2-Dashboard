@@ -62,6 +62,10 @@ v1.0 = issues #1–#20: 14 closed, 6 waiting on พี่โอม (#4, #5, #8, 
 
 Q&A items 9 (3 fiscal years of stock history) and 12 (split quotes by manufacturer) had no issue; both answered 3 Nov (9 = keep 3 years; 12 = manufacturer lock, built). Item 15 (his latest PO_inven) is a file request, not a blocker. v1.0 closes when the issues above are closed. Then the `ICEBOX.md` items become issues for the next version, in the order she chooses.
 
+**Must not be forgotten (she asked for this on 4 Nov; don't rely on her remembering).** Two follow-ups are parked in `ICEBOX.md`, marked "ต้องทำใน v2.0": whether the อยู่ในแผน / เกินแผน check belongs in the Word files, and why `userate` runs above actual dispensing, so most items show เกินแผน. Raise both yourself:
+- when v1.0 closes and the `ICEBOX.md` items become issues, put these two first;
+- whenever พี่โอม or she mentions the plan check, เกินแผน, `userate` or usage rates, even in passing: say the follow-up exists and offer to deal with it.
+
 **LINE messages.** When she pastes a message from พี่โอม, use `/line-triage <message>` (`.claude/commands/line-triage.md`). It sorts each point into A / B / C, records answers, logs C items in `ICEBOX.md` and drafts a Thai LINE reply. Every reply to him thanks him for testing and invites QA reports with the short form in that command. Bugs are fixed first, so reporting one gets a quick result.
 
 ## Workflow
