@@ -595,7 +595,7 @@
     <span class="hint">จากไฟล์ PO_inven · กรองตามทะเบียนและประเภทบัญชี</span>
   </header>
   <p class="desc">นับเฉพาะประเภทการรับ 101 รับจากการสั่งซื้อ (ไม่นับรับจากการเบิกฉุกเฉิน) · มูลค่า = unitcost ในไฟล์ (จำนวนรับ × ราคาต่อหน่วยจัดซื้อ)</p>
-  <div class="table-tools"><select class="search field-select" id="po-fy" aria-label="ปีงบประมาณ"></select></div>
+  <div class="table-tools"><select class="search field-select" id="po-fy" aria-label="ปีงบประมาณ"></select><div class="chips" id="po-type"></div></div>
   <div class="subhead">มูลค่ารับจากการสั่งซื้อต่อเดือน (ต้นปีงบ – ปัจจุบัน)</div>
   <div class="barlist" id="po-months" style="margin-bottom:26px"></div>
   <div class="subhead">รายการที่ซื้อเข้า</div>
@@ -3621,13 +3621,18 @@
 
   /* ---------------- รับจากการสั่งซื้อเข้าคลัง (PO_inven) ----------------
      พี่โอม: ยอดแต่ละเดือน และเดือนนี้ซื้ออะไรบ้าง เลือก filter ได้ */
-  var poState = { fy:0, month:'all', company:'all', sort:'value', search:'' };
+  var poState = { fy:0, type:'all', month:'all', company:'all', sort:'value', search:'' };
   var NO_COMPANY_PO = 'ไม่ระบุบริษัท';
+  /* แยกประเภท / รวมได้ (พี่โอม 4 พ.ย. 69) แบ่งตามทะเบียนแบบเดียวกับชุด W / WC / WM ของใบเสนอราคา
+     เวชภัณฑ์มิใช่ยา = ทะเบียนอื่นทั้งหมด (เวชภัณฑ์ที่มิใช่ยา วัสดุ รังสี อวัยวะเทียม …) · ไม่มีทะเบียนแยกปุ่มไว้ ยอดรวมจึงเท่าผลรวมทุกปุ่มเสมอ */
+  var PO_TYPES = [['all', 'รวมทุกประเภท'], ['drug', 'ยา'], ['nondrug', 'เวชภัณฑ์มิใช่ยา'], ['chem', 'สารเคมีภัณฑ์'], ['none', REG_UNKNOWN]];
+  function poTypeOf(L, id){ var r = regTypeOf(L, id); return !r ? 'none' : r === 'ทะเบียนยา' ? 'drug' : r === 'ทะเบียนเภสัชเคมีภัณฑ์' ? 'chem' : 'nondrug'; }
+  function poTypeLabel(k){ return PO_TYPES.filter(function(t){ return t[0] === k; })[0][1]; }
   function renderPo(){
     dispAttr = {};
     var L = state.lookups, all = L && L.po ? L.po : [];
-    var mBox = document.getElementById('po-months'), body = document.getElementById('po-table'), count = document.getElementById('po-count');
-    mBox.innerHTML = ''; count.textContent = '';
+    var mBox = document.getElementById('po-months'), body = document.getElementById('po-table'), count = document.getElementById('po-count'), tBox = document.getElementById('po-type');
+    mBox.innerHTML = ''; count.textContent = ''; tBox.innerHTML = '';
     if(!all.length){
       mBox.innerHTML = '<div class="table-note">นำเข้าไฟล์ PO_inven (รับจากการสั่งซื้อ) เพื่อดูยอดรายเดือนและรายการที่ซื้อเข้า</div>';
       body.innerHTML = ''; ['po-fy','po-month','po-company'].forEach(function(i){ document.getElementById(i).innerHTML = ''; });
@@ -3638,7 +3643,16 @@
     if(fyList.indexOf(poState.fy) < 0) poState.fy = fyList[fyList.length - 1];
     fillSelect('po-fy', fyList.map(function(y){ return [y, 'ปีงบประมาณ ' + y]; }), poState.fy);
     function company(r){ return r.company || (L.dc[r.id] || {}).distribute || NO_COMPANY_PO; }
-    var rows = all.filter(function(r){ return fiscalOf(r.ym) === poState.fy && dispItemOk(r.id); });
+    var fyRows = all.filter(function(r){ return fiscalOf(r.ym) === poState.fy && dispItemOk(r.id); }), typeSum = { all:0, drug:0, nondrug:0, chem:0, none:0 }, typeOf = {};
+    fyRows.forEach(function(r){ var t = typeOf[r.id] || (typeOf[r.id] = poTypeOf(L, r.id)); typeSum[t] += r.value; typeSum.all += r.value; });
+    var hasNone = fyRows.some(function(r){ return typeOf[r.id] === 'none'; });
+    if(poState.type === 'none' && !hasNone) poState.type = 'all';
+    PO_TYPES.forEach(function(t){
+      if(t[0] === 'none' && !hasNone) return;
+      tBox.appendChild(chip(t[1] + ' ฿' + fmt(typeSum[t[0]]), poState.type === t[0], function(){ poState.type = t[0]; renderPo(); }, { sm:true }));
+    });
+    var rows = fyRows.filter(function(r){ return poState.type === 'all' || typeOf[r.id] === poState.type; });
+    var typeNote = poState.type === 'all' ? '' : poTypeLabel(poState.type) + ' · ';
     var months = kpiMonths(poState.fy), byMonth = {};
     rows.forEach(function(r){ byMonth[r.ym] = (byMonth[r.ym] || 0) + r.value; });
     var have = months.filter(function(ym){ return byMonth[ym]; });
@@ -3655,7 +3669,7 @@
     });
     var ytd = shownMonths.reduce(function(s, ym){ return s + (byMonth[ym] || 0); }, 0);
     var tot = document.createElement('div'); tot.className = 'table-note';
-    tot.textContent = 'รวมต้นปีงบ – ' + monthLabel(lastYm) + ': ฿' + fmt(ytd) + ' · คลิกแท่งเดือนเพื่อดูรายการที่ซื้อในเดือนนั้น';
+    tot.textContent = typeNote + 'รวมต้นปีงบ – ' + monthLabel(lastYm) + ': ฿' + fmt(ytd) + ' · คลิกแท่งเดือนเพื่อดูรายการที่ซื้อในเดือนนั้น';
     mBox.appendChild(tot);
 
     if(poState.month !== 'all' && !byMonth[poState.month]) poState.month = 'all';
@@ -3684,7 +3698,7 @@
         '<td class="mono">' + fmt(a.n) + '</td><td class="mono">' + fmt1(a.qty) + ' ' + esc(a.unit) + '</td><td class="mono">' + fmt2(a.value) + '</td>' +
         '<td class="mono">' + (total ? fmt1(a.value / total * 100) + '%' : '–') + '</td></tr>';
     }).join('') : '<tr><td colspan="8" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง</td></tr>';
-    count.textContent = (poState.month === 'all' ? 'ปีงบ ' + poState.fy : monthLabel(Number(poState.month))) + ' · แสดง ' + fmt(shown.length) + ' จาก ' + fmt(list.length) + ' รายการ · รวมมูลค่า ฿' + fmt2(total);
+    count.textContent = typeNote + (poState.month === 'all' ? 'ปีงบ ' + poState.fy : monthLabel(Number(poState.month))) + ' · แสดง ' + fmt(shown.length) + ' จาก ' + fmt(list.length) + ' รายการ · รวมมูลค่า ฿' + fmt2(total);
   }
   ['po-fy','po-month','po-company','po-sort'].forEach(function(id){
     document.getElementById(id).addEventListener('change', function(e){
