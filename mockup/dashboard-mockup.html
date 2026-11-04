@@ -3515,7 +3515,7 @@
     var typeBox = document.getElementById('disp-types'); typeBox.innerHTML = '';
     /* ลำดับปุ่มคงที่ (ประเภทที่นับตามค่าเริ่มต้นขึ้นก่อน) — ไม่สลับตำแหน่งเมื่อกด จะได้ไม่กดผิดปุ่ม */
     function dispTypeDefault(k){ return !!k && k !== 'ไม่ระบุประเภท' && !DISP_TYPES_EXCLUDED.test(k); }
-    /* ประเภทที่ไม่นับซ่อนไว้ กด "ประเภทอื่น" เพื่อแสดง — พี่โอม (1 พ.ย. 69): เวลานำเสนอผู้บริหารจะได้ไม่เป็นประเด็น
+    /* ประเภทที่ไม่นับซ่อนไว้ กด "แสดงทั้งหมด" เพื่อแสดง — พี่โอม (1 พ.ย. 69): เวลานำเสนอผู้บริหารจะได้ไม่เป็นประเด็น
        เปิดหน้าใหม่ซ่อนทุกครั้ง · ประเภทที่เลือกนับไว้ยังแสดงตามปกติ */
     var hiddenTypes = 0;
     Object.keys(typeStat).sort(function(a, b){ return (dispTypeDefault(b) ? 1 : 0) - (dispTypeDefault(a) ? 1 : 0) || typeStat[b].v - typeStat[a].v; }).forEach(function(k){
@@ -3532,7 +3532,8 @@
     }
     if(hiddenTypes || dispState.moreTypes){
       var more = document.createElement('button'); more.type = 'button'; more.className = 'btn-ghost';
-      more.textContent = dispState.moreTypes ? 'ซ่อน' : 'ประเภทอื่น';
+      /* พี่โอม (4 พ.ย. 69): คำว่า "ซ่อน" ดูเป็นจุดสนใจเวลานำเสนอผู้บริหาร */
+      more.textContent = dispState.moreTypes ? 'แสดงเฉพาะที่นับ' : 'แสดงทั้งหมด';
       more.setAttribute('aria-expanded', dispState.moreTypes ? 'true' : 'false');
       more.addEventListener('click', function(){ dispState.moreTypes = !dispState.moreTypes; renderDispense(); });
       typeBox.appendChild(more);
@@ -3540,7 +3541,7 @@
     var excluded = inFy.filter(function(r){ return !dispTypeOn(r.kind); });
     var rows = inFy.filter(function(r){ return dispTypeOn(r.kind) && dispItemOk(r.id); });
     var exVal = excluded.reduce(function(s, r){ return s + r.qty * r.cost; }, 0);
-    /* ยอดที่ไม่นับแสดงเฉพาะตอนเปิด "ประเภทอื่น" */
+    /* ยอดที่ไม่นับแสดงเฉพาะตอนกด "แสดงทั้งหมด" */
     document.getElementById('disp-note').textContent = !dispState.moreTypes ? '' : (excluded.length ? 'ไม่นับ ' + fmt(excluded.length) + ' รายการจากประเภทที่ไม่ได้เลือก (฿' + fmt(exVal) + ')' : 'นับทุกประเภทการจ่าย') +
       ' · ค่าเริ่มต้นไม่นับ เบิกฉุกเฉิน (ใช้เคลียร์ยายืม), จ่ายทั่วไป, ปรับยอดคงคลัง และจำหน่ายออก';
 
