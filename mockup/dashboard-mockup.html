@@ -2686,13 +2686,13 @@
         var span = cell.span || 1, w = 0; for(var k = 0; k < span; k++) w += cols[ci + k].w;
         ln = Math.max(ln, linesTw(cell.t, w, r.head && cols.headSz ? cols.headSz : sz)); ci += span;
       });
-      return a + ln * MEMO_LINE[sz] + MEMO_ROW_PAD;
+      return a + ln * MEMO_LINE[r.head && cols.headSz ? cols.headSz : sz] + MEMO_ROW_PAD;
     }, 0);
   }
   /* ความสูงบรรทัด (twips) ของ TH SarabunIT๙ ตามขนาดตัวอักษร และพื้นที่ก่อนตาราง ขย. — วัดจาก Word (30 ต.ค. 69) */
   var MEMO_LINE = { 24:272, 26:295, 28:318, 32:363 }, MEMO_ROW_PAD = 13, MEMO_K_TOP = 6330, MEMO_FILL_SAFETY = 300;
-  /* ตัวอักษรในตาราง ภย. / ภว. / ขย. / ขว. / ย. / ยว. = 14 pt (half-point 28) ตามที่การเงินกำหนด (คุณธมลวรรณ 3 พ.ย. 69 · เดิม 12 pt) */
-  var MEMO_TBL_SZ = 28;
+  /* ตัวอักษรในตาราง ภย. / ภว. / ขย. / ขว. / ย. / ยว.: ข้อมูล 14 pt ตามที่การเงินกำหนด · หัวตาราง 12 pt (พี่โอม 4 พ.ย. 69) · ค่าเป็น half-point */
+  var MEMO_TBL_SZ = 28, MEMO_TBL_HEAD_SZ = 24;
   var MEMO_TBL = { w:10226, ind:-600 };              /* ตารางยื่นเลยขอบซ้าย–ขวาข้างละ ~1 ซม. (พี่โอม: ยืดซ้ายขวาได้ จะได้ไม่บีบ) */
 
   /* ตารางรายการ (ภย. / ภว. / ขย. / ขว. ใช้ตารางเดียวกัน — "ดึงข้อมูลมาจาก ภย. เหมือนเดิมทั้งหมด")
@@ -2720,13 +2720,13 @@
     foot.push({ cells:[{ t:'ภาษีมูลค่าเพิ่ม 7%', span:n - 1, jc:'right' }, { t:fmt2(t.vat), nw:1 }] });
     foot.push({ cells:[{ t:'รวมจำนวนเงินทั้งสิ้น', span:n - 1, jc:'right', b:1 }, { t:fmt2(t.total), b:1, nw:1 }] });
     foot.push({ cells:[{ t:'จำนวนรวม ' + d.lines.length + ' รายการ รวมเป็นเงินทั้งสิ้น\t(' + bahtText(t.total) + ')', span:n, jc:'left', tabs:[['right', MEMO_TBL.w - 160]] }] });
-    cols.headSz = SZ;
+    cols.headSz = MEMO_TBL_HEAD_SZ;
     fitCols(cols, items.concat(foot), SZ);
     if(fillTop != null){
       var room = 16838 - 1440 - 1247 - fillTop - tableTw(head.concat(items, foot), cols, SZ) - MEMO_FILL_SAFETY;
       if(room > 250) items.push({ h:room, cells:cols.map(function(){ return { t:'' }; }) });
     }
-    return wTable(head.concat(items, foot), cols, { sz:SZ, headSz:SZ, ind:MEMO_TBL.ind });
+    return wTable(head.concat(items, foot), cols, { sz:SZ, headSz:MEMO_TBL_HEAD_SZ, ind:MEMO_TBL.ind });
   }
   /* หัวบันทึก: ส่วนราชการ / ที่ / วันที่ / เรื่อง มีเส้นประถึงขอบขวา (พี่โอม 30 ต.ค. 69) */
   function memoHead(lineOrg, no, date, subj, right){
@@ -2840,7 +2840,7 @@
       P('ถึง  ' + doc.company + ' ตามใบของ ' + doc.company) +
       P('เลขที่  ' + (d.bill || '…………………') + '   ลงวันที่  ' + (memoDateTh(d.billDate) || '…………………') + '   ' + hosp + ' ได้รับราคาและตกลงซื้อของ', { jc:'thaiDistribute' }) +
       P('จำนวน ' + n + ' รายการ จึงให้ผู้ขายส่งของ ณ ' + memoSet.org.dept + ' ' + hosp + ' ภายใน ' + (d.days || 5) + ' วันทำการ โดยนับถัดจากวันที่ผู้ขายได้รับหนังสือสั่งซื้อนี้ ดังรายการต่อไปนี้', { jc:'thaiDistribute', after:120 }) +
-      wTable(rows, cols, { sz:MEMO_TBL_SZ, headSz:MEMO_TBL_SZ, ind:MEMO_TBL.ind }) +
+      wTable(rows, cols, { sz:MEMO_TBL_SZ, headSz:MEMO_TBL_HEAD_SZ, ind:MEMO_TBL.ind }) +
       P('สิ่งของตามรายการข้างต้นนี้ สำหรับใช้ในราชการ' + hosp, { before:120 }) +
       wPara(wRun('ตามบันทึกเลขที่  ', { sz:S }) + wRun(k.k + '.' + d.kNo + '   วันที่  ' + memoDateTh(d.kDate), { sz:S, b:1 })) +
       P('เงื่อนไขการสั่งซื้อ', { b:1, before:120 }) +
@@ -2969,7 +2969,8 @@
       '<div class="memo-step">2. ' + k.p + '. / ' + k.k + '. / ' + k.y + '. — เลขที่ วันที่ และหนังสืออ้างอิง</div>' +
       '<div class="table-tools">' + F(k.p + '. เลขที่', 'pNo', ' style="width:100px"') + F('วันที่', 'pDate', ' type="date"') +
         '<label class="q-field">หนังสืออ้างอิงแผน (ต่อจาก "ตามหนังสือ' + esc(set.org.hosp) + '") <input class="q-in" data-f="planRef" value="' + esc(d.planRef) + '" style="width:520px" placeholder="เช่น แจ้งร่างแผน… ที่ ว.52/2569 ลงวันที่ 6 ตุลาคม 2569"></label></div>' +
-      '<div class="table-tools">' + F(k.k + '. / ' + k.y + '. เลขที่', 'kNo', ' style="width:100px"') + F(k.k + '. วันที่', 'kDate', ' type="date"') + F(k.y + '. (หนังสือสั่งซื้อ) วันที่', 'yDate', ' type="date"') +
+      '<div class="table-tools">' + F(k.k + '. / ' + k.y + '. เลขที่', 'kNo', ' style="width:100px"') + F(k.k + '. วันที่', 'kDate', ' type="date"') + '</div>' +
+      '<div class="table-tools">' + F(k.y + '. (หนังสือสั่งซื้อ) วันที่', 'yDate', ' type="date"') +
         F('เลขที่ใบเสนอราคา / บิลของบริษัท', 'bill', ' style="width:140px"') + F('ลงวันที่', 'billDate', ' type="date"') + F('กำหนดส่ง (วันทำการ)', 'days', ' style="width:50px" inputmode="numeric"') + '</div>' +
       '<div class="memo-step">3. รายการ (ยอดคงเหลือจากคลังยา · อัตราการใช้จาก userate · ราคากลางจาก DATA Template · ราคาซื้อครั้งสุดท้ายจาก PO_inven — แก้ได้ทุกช่อง)</div>' +
       '<div class="table-tools"><label class="q-field">คอลัมน์ราคาในตาราง ' + k.p + '. / ' + k.k + '. <select class="search field-select" data-f="layout">' +
