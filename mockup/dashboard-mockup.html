@@ -2461,7 +2461,8 @@
      รายชื่อ / ตำแหน่ง / ตราครุฑ เก็บใน IndexedDB ของเครื่องนี้เท่านั้น — เว็บเปิดสาธารณะ ห้ามใส่ชื่อคนในโค้ด
      ไฟล์ .docx สร้างเองด้วยตัวเขียน zip ของ SheetJS (ไม่ต้องโหลดไลบรารีเพิ่ม) */
   var MEMO_SLOT = '_memoset', memoSet = null;
-  var MEMO_ROLES = [['committee', 'กรรมการตรวจรับ'], ['officer', 'เจ้าหน้าที่พัสดุ'], ['head', 'หัวหน้าเจ้าหน้าที่พัสดุ'], ['exec', 'ผู้บริหารเสนอความเห็น'], ['director', 'ผู้อำนวยการ']];
+  /* หน้าจอเรียก head ว่า หัวหน้ากลุ่มงานเภสัชกรรม (คุณธมลวรรณ 4 พ.ย. 69) · ใน ขย. / ขว. / ย. / ยว. ยังพิมพ์ ลงชื่อ…(หัวหน้าเจ้าหน้าที่พัสดุ) ตามเอกสารจริง */
+  var MEMO_ROLES = [['committee', 'กรรมการตรวจรับ'], ['officer', 'เจ้าหน้าที่พัสดุ'], ['head', 'หัวหน้ากลุ่มงานเภสัชกรรม'], ['exec', 'ผู้บริหารเสนอความเห็น'], ['director', 'ผู้อำนวยการ']];
   var MEMO_KIND = {
     drug:{ p:'ภย', k:'ขย', y:'ย', what:'ยา', col:'รายการยา', need:'เพื่อใช้รักษาผู้ป่วย',
       subjP:'ขออนุมัติหลักการซื้อยาโดยวิธีเฉพาะเจาะจง', subjK:'ขออนุมัติซื้อยา โดยวิธีเฉพาะเจาะจง' },
@@ -2892,7 +2893,7 @@
     var w = [];
     if(d.committee.filter(Boolean).length < 3) w.push('ยังเลือกคณะกรรมการตรวจรับไม่ครบ 3 คน');
     else if(d.committee[0] === d.committee[1] || d.committee[0] === d.committee[2] || d.committee[1] === d.committee[2]) w.push('คณะกรรมการตรวจรับซ้ำกัน');
-    if(!d.head) w.push('ยังไม่ได้เลือกหัวหน้าเจ้าหน้าที่พัสดุ');
+    if(!d.head) w.push('ยังไม่ได้เลือกหัวหน้ากลุ่มงานเภสัชกรรม');
     if(d.kDate && d.pDate && d.kDate <= d.pDate) w.push('วันที่ ขย. / ขว. ควรอยู่หลังวันที่ ภย. / ภว.');
     if(!memoSet.garuda) w.push('ยังไม่มีตราครุฑ — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าด้านบน');
     if(!d.planRef) w.push('ยังไม่ได้ใส่หนังสืออ้างอิงแผน');
@@ -2929,7 +2930,7 @@
       '<label class="q-field">กรรมการ <select class="search field-select" data-who="c1">' + memoOpts('committee', d.committee[1]) + '</select></label>' +
       '<label class="q-field">กรรมการ <select class="search field-select" data-who="c2">' + memoOpts('committee', d.committee[2]) + '</select></label>' +
       '<label class="q-field">เจ้าหน้าที่พัสดุ <select class="search field-select" data-who="officer">' + memoOpts('officer', d.officer) + '</select></label>' +
-      '<label class="q-field">หัวหน้าเจ้าหน้าที่พัสดุ <select class="search field-select" data-who="head">' + memoOpts('head', d.head) + '</select></label>' +
+      '<label class="q-field">หัวหน้ากลุ่มงานเภสัชกรรม <select class="search field-select" data-who="head">' + memoOpts('head', d.head) + '</select></label>' +
       '<label class="q-field">ผู้บริหารเสนอความเห็น (ขย.) <select class="search field-select" data-who="exec">' + memoOpts('exec', d.exec) + '</select></label>' +
       '<label class="q-field">ผู้อำนวยการ <select class="search field-select" data-who="director">' + memoOpts('director', d.director) + '</select></label>';
     var NUMK = { stock:1, rate:1, qty:1, ref:1, last:1, price:1 };
