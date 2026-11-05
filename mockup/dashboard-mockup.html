@@ -587,9 +587,11 @@
       <button type="button" class="btn-ghost" id="quote-reopen">เปิดมาแก้ไข (ใช้เลขเดิม)</button>
       <button type="button" class="btn-ghost" id="quote-cancel-edit" hidden>ยกเลิกการแก้ไข</button>
       <button type="button" class="btn-solid" id="quote-memo">ออกบันทึก ภย. / ขย. / ย. (Word)</button>
+      <button type="button" class="btn-solid" id="quote-ry">ออกบันทึกตรวจรับ รย. / รยว. (Word)</button>
     </div>
   </div>
   <div class="quote-box" id="memo-box" hidden></div>
+  <div class="quote-box" id="ry-box" hidden></div>
   <div class="rate-detail" id="rate-detail" hidden></div>
   <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
   <div class="table-scroll" style="max-height:460px">
@@ -1015,7 +1017,7 @@
         var pq = num(g(r,'rcvqty')), pp = num(g(r,'minpunitcost'));
         out.push({ id:id, ym:pd.ym, name:txt(g(r,'medname')), qty:pq, price:pp, value:num(g(r,'unitcost')) || pq * pp,
           company:clean(g(r,'company_dspname')) || clean(g(r,'note')), unit:clean(g(r,'name')), pack:num(g(r,'packqty')), inv:clean(g(r,'invno')),
-          rtype:rtype, rname:rname, date:pd.d ? pd.ym * 100 + pd.d : 0 });
+          no:clean(g(r,'minpno')), rtype:rtype, rname:rname, date:pd.d ? pd.ym * 100 + pd.d : 0 });
       }
       else if(slot === 'list') out.push({ id:id, name:txt(g(r,'medname')), lowrate:num(g(r,'lowrate')), highrate:num(g(r,'highrate')),
         userate:num(g(r,'userate')), sumqty:num(g(r,'sumqty')) });
@@ -2486,9 +2488,9 @@
   /* หน้าจอเรียก head ว่า หัวหน้ากลุ่มงานเภสัชกรรม (คุณธมลวรรณ 4 พ.ย. 69) · ใน ขย. / ขว. / ย. / ยว. ยังพิมพ์ ลงชื่อ…(หัวหน้าเจ้าหน้าที่พัสดุ) ตามเอกสารจริง */
   var MEMO_ROLES = [['committee', 'กรรมการตรวจรับ'], ['officer', 'เจ้าหน้าที่พัสดุ'], ['head', 'หัวหน้ากลุ่มงานเภสัชกรรม'], ['exec', 'ผู้บริหารเสนอความเห็น'], ['director', 'ผู้อำนวยการ']];
   var MEMO_KIND = {
-    drug:{ p:'ภย', k:'ขย', y:'ย', what:'ยา', col:'รายการยา', need:'เพื่อใช้รักษาผู้ป่วย',
+    drug:{ p:'ภย', k:'ขย', y:'ย', r:'รย', what:'ยา', col:'รายการยา', need:'เพื่อใช้รักษาผู้ป่วย',
       subjP:'ขออนุมัติหลักการซื้อยาโดยวิธีเฉพาะเจาะจง', subjK:'ขออนุมัติซื้อยา โดยวิธีเฉพาะเจาะจง' },
-    non:{ p:'ภว', k:'ขว', y:'ยว', what:'วัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช)', col:'รายการเวชภัณฑ์ที่มิใช่ยา', need:'เพื่อใช้ในทางการแพทย์',
+    non:{ p:'ภว', k:'ขว', y:'ยว', r:'รยว', what:'วัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช)', col:'รายการเวชภัณฑ์ที่มิใช่ยา', need:'เพื่อใช้ในทางการแพทย์',
       subjP:'ขออนุมัติหลักการซื้อวัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช) โดยวิธีเฉพาะเจาะจง', subjK:'ขออนุมัติซื้อวัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช) โดยวิธีเฉพาะเจาะจง' }
   };
   /* W / WB / WC (เภสัชเคมีภัณฑ์) → ภย. / ขย. / ย. · WM → ภว. / ขว. / ยว. — พี่โอมยืนยัน 3 พ.ย. 69 (เดิม WC ไปชุด ภว.) */
@@ -2572,7 +2574,7 @@
           var span = c.span || 1, w = 0; for(var k = 0; k < span; k++) w += cols[ci + k].w;
           var jc = c.jc || (r.head ? 'center' : cols[ci].jc || 'left'), nw = !r.head && (c.nw || (span === 1 && cols[ci].num)); ci += span;
           return '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/>' + (span > 1 ? '<w:gridSpan w:val="' + span + '"/>' : '') + (nw ? '<w:noWrap/>' : '') + '<w:vAlign w:val="' + (o.top ? 'top' : 'center') + '"/></w:tcPr>' +
-            wPara(wRun(c.t, { b:c.b || r.head, sz:r.head && o.headSz ? o.headSz : sz }), { jc:jc, tabs:c.tabs }) + '</w:tc>';
+            (c.xml || wPara(wRun(c.t, { b:c.b || r.head, sz:r.head && o.headSz ? o.headSz : sz }), { jc:jc, tabs:c.tabs })) + '</w:tc>';
         }).join('') + '</w:tr>';
       }).join('') + '</w:tbl>';
   }
@@ -3005,6 +3007,7 @@
         '<div class="table-tools" style="margin:10px 0 0">' +
           '<label class="q-field">ส่วนราชการ (ภย. / ภว.) <input class="q-in" data-org="lineP" value="' + esc(set.org.lineP) + '" style="width:420px"></label>' +
           '<label class="q-field">ส่วนราชการ (ขย. / ขว.) <input class="q-in" data-org="lineK" value="' + esc(set.org.lineK) + '" style="width:420px"></label>' +
+          '<label class="q-field">ส่วนราชการ (รย. / รยว.) <input class="q-in" data-org="lineR" value="' + esc(set.org.lineR || RY_LINE) + '" style="width:420px"></label>' +
           '<label class="q-field">ชื่อโรงพยาบาล <input class="q-in" data-org="hosp" value="' + esc(set.org.hosp) + '" style="width:220px"></label>' +
           '<label class="q-field">กลุ่มงาน <input class="q-in" data-org="dept" value="' + esc(set.org.dept) + '" style="width:160px"></label></div>' +
         '<div class="table-note" style="margin:8px 0 0">ตราครุฑ: ' + (set.garuda ? 'มีแล้ว (จาก ' + esc(set.garuda.file || 'ไฟล์ Word') + ')' : 'ยังไม่มี — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าไฟล์ด้านบน') + '</div></div>' : '') +
@@ -3087,6 +3090,226 @@
     document.getElementById('quote-memo').addEventListener('click', function(){
       var no = document.getElementById('quote-hist').value;
       if(no) memoOpen(no);
+    });
+  })();
+
+  /* ---------------- บันทึกตรวจรับ รย. / รยว. (Word) ----------------
+     พี่โอม 5 พ.ย. 69 (#34, ตัวอย่าง รย.1314): รย. ต่อจาก ย. (ยา, เภสัชเคมีภัณฑ์) · รยว. ต่อจาก ยว. (เวชภัณฑ์มิใช่ยา) · 1 รย. = 1 ย.
+     รายการดึงจาก PO_inven รับจากการสั่งซื้อ (101) ที่รับเข้า HIS แล้ว · ช่อง pono / invdate ใน HIS ว่าง (ไม่มี ERP เชื่อม) จึงเลือก "การรับ 1 ครั้ง" ตามเลขที่รับ minpno
+     ดึงจากไฟล์: จำนวนรายการ · จำนวนเงิน (ผลรวม unitcost) · ผู้จำหน่าย · เลขที่เอกสาร (invno) · วันที่ตรวจรับ (minpdate)
+     กรอกเอง: เลขที่ รย. (รันต่อตามปีงบ เหมือน ขย.) · วันที่ · เลขที่ / วันที่ ขย. · วันที่เอกสารส่งของ · ติ๊กกรรมการ 3 คน
+     ยังไม่ได้ทำ: ย. 1 ใบที่ส่งของหลายรอบ (ถามพี่โอมอยู่) · ถ้อยคำ รยว. ยังไม่ได้เทียบตัวอย่างจริง */
+  var RY_LINE = 'โรงพยาบาลราชวิถี 2 (รังสิต)  กลุ่มงานเภสัชกรรม  โทร   02-592-9550  ต่อ   70006', RY_LIST_MAX = 100;
+  var ryState = { open:false, q:'', d:null, msg:'' }, ryTimer;
+  /* note อาจต่อท้ายชื่อบริษัทด้วยเลขบิล: ตัดให้เหลือชื่อ (แก้ในช่องได้) */
+  function ryCompany(s){ return String(s || '').replace(/(จำกัด(\s*\(มหาชน\))?).*$/, '$1').replace(/\s*\b(bill|inv)\b.*$/i, '').trim(); }
+  function ryIso(n){ var z = function(v){ return (v < 10 ? '0' : '') + v; }; return n ? Math.floor(n / 10000) + '-' + z(Math.floor(n / 100) % 100) + '-' + z(n % 100) : ''; }
+  function ryGroups(){
+    var by = {}, list = [];
+    (state.lookups && state.lookups.po || []).forEach(function(r){
+      if(!r.no) return;
+      var g = by[r.no]; if(!g){ g = by[r.no] = { no:r.no, date:r.date, company:ryCompany(r.company), inv:r.inv, rows:[] }; list.push(g); }
+      g.rows.push(r);
+    });
+    return list.sort(function(a, b){ return (b.date || 0) - (a.date || 0) || (a.no < b.no ? 1 : -1); });
+  }
+  function ryGroup(no){ return ryGroups().filter(function(g){ return g.no === no; })[0] || null; }
+  function ryKindKey(g){
+    var drug = 0; g.rows.forEach(function(r){ if(planPotOf(state.lookups, r.id, null) === 'drug') drug++; });
+    return { key:drug * 2 >= g.rows.length ? 'drug' : 'non', mixed:drug > 0 && drug < g.rows.length };
+  }
+  function ryKind(d){ return d.kind === 'non' ? MEMO_KIND.non : MEMO_KIND.drug; }
+  function ryRows(g, d){ return g.rows.filter(function(r, i){ return !d.skip[i]; }); }
+  function ryTotal(g, d){ return Math.round(ryRows(g, d).reduce(function(a, r){ return a + (r.value || 0); }, 0) * 100) / 100; }
+  function ryPick(no){
+    var g = ryGroup(no); if(!g) return;
+    var saved = memoSet.ry && memoSet.ry[no];
+    if(saved) ryState.d = JSON.parse(JSON.stringify(saved));
+    else {
+      var iso = ryIso(g.date), key = ryKindKey(g).key, k = key === 'non' ? MEMO_KIND.non : MEMO_KIND.drug;
+      ryState.d = { no:no, kind:key, rNo:memoNextNo(k.r, memoFY(iso)), rDate:'', kNo:'', kDate:'', company:g.company, bill:g.inv || '', billDate:'', inspect:iso,
+        subj:'รายงานผลการตรวจรับยาและเวชภัณฑ์', cat:'หมวดค่าวัสดุ', committee:((memoSet.pick || {}).committee || []).filter(Boolean).slice(0, 3), skip:{}, done:false };
+    }
+    ryState.msg = ''; renderRy();
+  }
+  function ryWarn(g, d){
+    var w = [];
+    if(!/^\d+\/\d{4}$/.test(String(d.rNo || '').trim())) w.push('เลขที่ ' + ryKind(d).r + '. ควรเป็นรูปแบบ 1314/2569');
+    if(!d.kNo) w.push('ยังไม่ได้กรอกเลขที่ ' + ryKind(d).k + '.');
+    if(!d.kDate) w.push('ยังไม่ได้กรอกวันที่ ' + ryKind(d).k + '.');
+    if(!d.billDate) w.push('ยังไม่ได้กรอกวันที่ของเอกสารส่งของ');
+    if(d.committee.length < 3) w.push('ยังติ๊กกรรมการตรวจรับไม่ครบ 3 คน');
+    if(!ryRows(g, d).length) w.push('ยังไม่ได้เลือกรายการ');
+    if(ryKindKey(g).mixed) w.push('การรับครั้งนี้มีทั้งยาและเวชภัณฑ์มิใช่ยา ตรวจรายการที่ติ๊กและชนิดเอกสาร');
+    if(!memoSet.garuda) w.push('ยังไม่มีตราครุฑ — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าด้านบน');
+    if(d.kind === 'non') w.push('ถ้อยคำ รยว. ยังไม่ได้เทียบกับตัวอย่างจริง ตรวจก่อนใช้');
+    return w;
+  }
+  function rySumHtml(g, d){
+    var w = ryWarn(g, d), n = ryRows(g, d).length, t = ryTotal(g, d);
+    return 'ในเอกสาร: จำนวน ' + n + ' รายการ · ฿' + fmt2(t) + ' (' + esc(bahtText(t)) + ')' +
+      (w.length ? '<br><b class="pt-up">' + w.map(esc).join(' · ') + '</b>' : '') + (ryState.msg ? '<br>' + esc(ryState.msg) : '');
+  }
+  function ryListHtml(){
+    var q = ryState.q.toLowerCase(), cur = ryState.d && ryState.d.no, done = memoSet.ry || {};
+    var all = ryGroups().filter(function(g){
+      if(!q) return true;
+      return (g.no + ' ' + g.company + ' ' + g.inv + ' ' + g.rows.map(function(r){ return r.name; }).join(' ')).toLowerCase().indexOf(q) >= 0;
+    });
+    var rows = all.slice(0, RY_LIST_MAX).map(function(g){
+      var s = done[g.no], names = g.rows.map(function(r){ return r.name; });
+      return '<tr' + (g.no === cur ? ' style="background:var(--surface-2,#eef3f8)"' : '') + '><td><button type="button" class="btn-ghost" data-rp="' + esc(g.no) + '">' + (g.no === cur ? 'เลือกอยู่' : 'เลือก') + '</button></td>' +
+        '<td style="white-space:nowrap">' + esc(memoDateTh(ryIso(g.date))) + '</td><td class="mono">' + esc(g.no) + '</td><td>' + esc(g.company) + '</td><td class="mono">' + esc(g.inv) + '</td>' +
+        '<td>' + g.rows.length + ' · ' + esc(names[0]) + (names.length > 1 ? ' …' : '') + '</td><td class="mono">' + fmt2(g.rows.reduce(function(a, r){ return a + (r.value || 0); }, 0)) + '</td>' +
+        '<td style="white-space:nowrap">' + (s && s.done ? '<b>ออกแล้ว ' + esc(ryKind(s).r + '.' + s.rNo) + '</b>' : '') + '</td></tr>';
+    }).join('');
+    return '<table style="min-width:1000px"><thead><tr><th></th><th>วันที่รับ</th><th>เลขที่รับ</th><th>ผู้จำหน่าย</th><th>เลขที่เอกสาร</th><th>รายการ</th><th class="mono">มูลค่า</th><th>สถานะ</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="8" class="table-note" style="padding:10px">ไม่พบการรับที่ตรงกับคำค้น</td></tr>') + '</tbody></table>' +
+      (all.length > RY_LIST_MAX ? '<div class="table-note" style="margin:6px 0 0">แสดง ' + RY_LIST_MAX + ' ครั้งล่าสุดจาก ' + all.length + ' ครั้ง · ค้นหาเพื่อดูเพิ่ม</div>' : '');
+  }
+  function renderRy(){
+    var box = document.getElementById('ry-box'); box.hidden = !ryState.open;
+    if(!ryState.open) return;
+    var groups = ryGroups(), d = ryState.d, g = d ? ryGroup(d.no) : null, top =
+      '<div class="rd-top"><div><div class="rd-name">ออกบันทึกตรวจรับ รย. / รยว. (Word)</div>' +
+      '<div class="table-note" style="margin:2px 0 0">รายการจาก PO_inven รับจากการสั่งซื้อที่รับเข้า HIS แล้ว · 1 รย. ต่อ 1 ย. · จำค่าที่แก้ไว้กับการรับครั้งนั้น</div></div>' +
+      '<button type="button" class="btn-ghost" data-ract="close">ปิด</button></div>';
+    if(!groups.length){
+      box.innerHTML = top + '<div class="table-note" style="margin:10px 0 0">' + ((state.lookups && state.lookups.po || []).length ? 'PO_inven ที่นำเข้าไว้ยังไม่มีเลขที่รับ — ลากไฟล์ PO_inven เข้ามาอีกครั้ง 1 ครั้ง' : 'ยังไม่มีข้อมูล — ลากไฟล์ PO_inven (รับจากการสั่งซื้อ) มาวาง') + '</div>';
+      return;
+    }
+    function F(label, key, attrs){ return '<label class="q-field">' + label + ' <input class="q-in" data-rf="' + key + '" value="' + esc(d[key] == null ? '' : d[key]) + '"' + (attrs || '') + '></label>'; }
+    var html = top + '<div class="memo-step">1. เลือกการรับจาก PO_inven</div>' +
+      '<div class="table-tools"><input class="search" id="ry-q" type="search" placeholder="ค้นหาบริษัท / เลขที่เอกสาร / เลขที่รับ / ชื่อยา" value="' + esc(ryState.q) + '" aria-label="ค้นหาการรับ" style="min-width:320px"></div>' +
+      '<div class="table-scroll" id="ry-list" style="max-height:280px">' + ryListHtml() + '</div>';
+    if(d && g){
+      var k = ryKind(d), people = (memoSet.people || []).filter(function(p){ return p.roles && p.roles.committee; });
+      var hist = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.memo && x.memo.kNo && memoKindOf(x) === k; });
+      html += '<div class="memo-step">2. รายการที่รับ (ติ๊กออกได้ ถ้าไม่ได้อยู่ใน ' + k.y + '. ใบนี้)</div>' +
+        '<div class="table-scroll" style="max-height:220px"><table style="min-width:700px"><thead><tr><th></th><th>รายการ</th><th class="mono">จำนวนรับ</th><th class="mono">มูลค่า</th></tr></thead><tbody>' +
+        g.rows.map(function(r, i){ return '<tr><td><input type="checkbox" data-rt="' + i + '"' + (d.skip[i] ? '' : ' checked') + ' aria-label="เลือกรายการ"></td><td>' + esc(r.name) + '</td><td class="mono">' + fmt1(r.qty) + (r.pack ? ' <small>(' + fmt1(r.pack) + ')</small>' : '') + '</td><td class="mono">' + fmt2(r.value || 0) + '</td></tr>'; }).join('') +
+        '</tbody></table></div>' +
+        '<div class="memo-step">3. ข้อมูลในบันทึก (แก้ได้ทุกช่อง)</div>' +
+        '<div class="table-tools"><label class="q-field">ชนิดเอกสาร <select class="search field-select" data-rf="kind"><option value="drug"' + (d.kind !== 'non' ? ' selected' : '') + '>รย. (ต่อจาก ย.)</option><option value="non"' + (d.kind === 'non' ? ' selected' : '') + '>รยว. (ต่อจาก ยว.)</option></select></label>' +
+          F(k.r + '. เลขที่', 'rNo', ' style="width:100px"') + F('วันที่', 'rDate', ' type="date"') + '</div>' +
+        '<div class="table-tools">' +
+          (hist.length ? '<label class="q-field">ดึงจากบันทึกในโปรแกรม <select class="search field-select" data-rhist><option value="">— พิมพ์เอง —</option>' + hist.map(function(x){ return '<option value="' + esc(x.no) + '">' + esc(k.k + '.' + x.memo.kNo + ' · ' + x.company) + '</option>'; }).join('') + '</select></label>' : '') +
+          F(k.k + '. เลขที่', 'kNo', ' style="width:100px" placeholder="0627/2569"') + F(k.k + '. ลงวันที่', 'kDate', ' type="date"') + '</div>' +
+        '<div class="table-tools">' + F('ผู้จำหน่าย', 'company', ' style="width:320px"') + F('เอกสารเลขที่', 'bill', ' style="width:150px"') + F('เอกสารลงวันที่', 'billDate', ' type="date"') + F('วันที่ตรวจรับ', 'inspect', ' type="date"') + '</div>' +
+        '<div class="table-tools">' + F('เรื่อง', 'subj', ' style="width:300px"') + F('หมวด', 'cat', ' style="width:120px"') + '</div>' +
+        '<div class="memo-step">4. กรรมการตรวจรับ (ติ๊ก 3 คน คนแรกเป็นประธาน)</div>' +
+        '<div class="table-tools">' + (people.length ? people.map(function(p){
+          var at = d.committee.indexOf(p.id);
+          return '<label class="q-field"><input type="checkbox" data-rc="' + esc(p.id) + '"' + (at >= 0 ? ' checked' : '') + '> ' + esc(p.name) + (at === 0 ? ' <b>(ประธานกรรมการ)</b>' : at > 0 ? ' <b>(กรรมการ)</b>' : '') + '</label>';
+        }).join('') : '<span class="table-note" style="margin:0">ยังไม่มีรายชื่อกรรมการ — เพิ่มได้ที่ปุ่ม ออกบันทึก ภย. / ขย. / ย. → ตั้งค่ารายชื่อ แล้วติ๊กหน้าที่ กรรมการตรวจรับ</span>') + '</div>' +
+        '<div class="table-note" id="ry-sum" style="margin:8px 0 0">' + rySumHtml(g, d) + '</div>' +
+        '<div class="table-tools" style="margin:10px 0 0"><button type="button" class="btn-solid" data-ract="export">ส่งออก ' + k.r + '. (.docx)</button></div>';
+    }
+    box.innerHTML = html;
+  }
+  function buildMemoR(g, d){
+    var k = ryKind(d), rows = ryRows(g, d), t = ryTotal(g, d), hosp = memoSet.org.hosp, fy = memoFY(d.kDate || d.inspect), S = 28;
+    function nm(i){ var p = memoPerson(d.committee[i]); return '(' + (p ? p.name : '..............................') + ')'; }
+    var SIGN = { left:4320 }, ROW = { tabs:[['left', 709], ['left', 4650]] }, ROW2 = { tabs:[['left', 709], ['left', 1134], ['left', 4320]] }, NAME = { tabs:[['left', 4650]] };
+    function P(s, o){ return wPara(wRun(s, { sz:S, b:o && o.b }), { before:120, jc:o && o.jc, left:o && o.left }); }
+    /* เลขช่อง 2–5 ในกรอบเล็ก และช่องติ๊กการจ่ายเงิน ตามตัวอย่าง (ในตัวอย่างเป็นกล่องลอย) */
+    function NUM(n){ return '<w:r><w:rPr><w:rFonts w:ascii="' + DOCX_FONT + '" w:hAnsi="' + DOCX_FONT + '" w:cs="' + DOCX_FONT + '"/><w:sz w:val="' + S + '"/><w:szCs w:val="' + S + '"/><w:bdr w:val="single" w:sz="4" w:space="0" w:color="auto"/></w:rPr><w:t xml:space="preserve"> ' + n + ' </w:t></w:r>'; }
+    var TICK = '<w:r><w:rPr><w:sz w:val="' + S + '"/><w:szCs w:val="' + S + '"/></w:rPr><w:sym w:font="Wingdings" w:char="F06F"/></w:r>';
+    var a = wPara(NUM(2) + wRun('          เรียน ผู้อำนวยการ' + hosp, { sz:S }), { before:120 }) +
+      P('                    เพื่อโปรดอนุมัติให้จ่ายเงิน จำนวน  ' + fmt2(t) + ' บาท') +
+      P('                    โดยหักค่าปรับเป็นเงิน จำนวน ...............................บาท') +
+      P('  ผู้ตรวจได้ตรวจสอบเอกสารถูกต้องแล้ว     ลงชื่อ........................   ....../....../......') +
+      P('                                                    (................................................)') +
+      P('  หัวหน้างานผู้ตรวจทานเบิกแล้ว              ลงชื่อ.......................   ....../....../......') +
+      P('  หัวหน้าฝ่ายการเงินและบัญชีอนุมัติเบิก     ลงชื่อ........................   ....../....../......');
+    var b = wPara(NUM(3) + wRun('      ผู้อนุมัติ', { sz:S, b:1 }), { before:120 }) + P('', {}) +
+      P('               อนุมัติจ่าย', { b:1 }) + P('', {}) + P('', {}) + P('               ....../....../......', { b:1 });
+    var c = wPara(NUM(4) + wRun('    หัวหน้างานผู้จ่ายตรวจทานจ่ายแล้ว ลงชื่อ........................   ....../....../......', { sz:S }), { before:120 }) +
+      P('ผู้จ่ายได้จ่ายเงินแล้วโดย              ลงชื่อ........................       ....../....../......') +
+      wPara(wRun('      ', { sz:S }) + TICK + wRun('  โอนจ่ายตรงเข้าบัญชี โดยระบบ GFMIS', { sz:S }), { before:120 }) +
+      wPara(wRun('      ', { sz:S }) + TICK + wRun('  จ่ายเป็นเช็คเลขที่ ...............................................................', { sz:S }), { before:120 }) +
+      P('(......................................................................................)', { jc:'center' });
+    var e = wPara(NUM(5) + wRun('    ลงบัญชีถูกต้องแล้ว.', { sz:S }), { before:120 }) +
+      P('ผู้ลงบัญชี.........................................................') +
+      P('(.....................................................................)') +
+      P('                    ...../....../......') +
+      P('หัวหน้างานผู้ลงบัญชี.......................................');
+    var body = memoHead(memoSet.org.lineR || RY_LINE, k.r + '.' + d.rNo, memoDateTh(d.rDate), d.subj, d.cat) +
+      wPara(wRun('ตามบันทึก' + memoSet.org.dept + 'ที่ ' + k.k + '.' + (d.kNo || '.............') + ' ลงวันที่ ' + (memoDateTh(d.kDate) || '.............') + ' ได้อนุมัติให้ผู้มีนามท้ายบันทึกนี้เป็นกรรมการตรวจรับ' + k.what + ' จำนวน ' + rows.length + ' รายการ ด้วยงบเงินบำรุง' + hosp +
+        ' ปีงบประมาณ ' + fy + ' หมวดงบดำเนินการ ค่าวัสดุ เป็นจำนวนเงิน ' + fmt2(t) + ' บาท (' + bahtText(t) + ') เพื่อไว้ใช้ในราชการ' + hosp + ' ซึ่ง' + d.company + ' เป็นผู้จำหน่าย และได้นำส่งตามเอกสาร เลขที่ ' + (d.bill || '.............') +
+        ' ลงวันที่ ' + (memoDateTh(d.billDate) || '.............') + ' ณ ' + hosp), { before:120, first:1418, jc:'thaiDistribute' }) +
+      wPara(wRun('คณะกรรมการฯ ได้ทำการตรวจรับพัสดุดังกล่าวแล้ว ปรากฏว่า ถูกต้องครบถ้วนทุกประการ เมื่อวันที่  ' + memoDateTh(d.inspect) + ' จึงได้ลงลายมือไว้เป็นหลักฐาน ดังนี้'), { before:120, first:1418, jc:'thaiDistribute' }) +
+      wPara(wRun('ลงชื่อ .........................................ประธานคณะกรรมการ'), { before:360, left:SIGN.left }) +
+      wPara(wRun('\t(ลงชื่อ).............................(เจ้าหน้าที่งานคลัง)\t' + nm(0)), ROW) +
+      wPara(wRun('ลงชื่อ .........................................คณะกรรมการ'), SIGN) +
+      wPara(wRun('\tเรียน   ผู้อำนวยการ\t' + nm(1)), ROW) +
+      wPara(wRun('\t\tเพื่อโปรดทราบรายงานผลการตรวจรับ\tลงชื่อ .........................................คณะกรรมการ'), ROW2) +
+      wPara(wRun('\t' + nm(2)), NAME) +
+      wPara(wRun('(ลงชื่อ).........................หัวหน้ากลุ่มงานเภสัชกรรม/หัวหน้าเจ้าหน้าที่'), { before:240, left:2160 }) +
+      wPara('', { before:60 }) +
+      wTable([{ cells:[{ xml:a }, { xml:b }] }, { cells:[{ xml:c }, { xml:e }] }], [{ w:6658 }, { w:3543 }], { sz:S, top:1, ind:-431 });
+    return docxBlob(body, memoSet.garuda, { top:851, right:1440, bottom:567, left:1440 });
+  }
+  function ryExport(){
+    var d = ryState.d, g = d ? ryGroup(d.no) : null; if(!g) return;
+    var k = ryKind(d), rows = ryRows(g, d), name, blob;
+    var safe = (String(rows[0] ? rows[0].name : '').replace(/^[_\s]+/, '').split(/[\s(]/)[0] || d.company || '').replace(/[\\\/:*?"<>|]/g, '').slice(0, 40);
+    function head(no){ return String(no || '').split('/')[0].trim(); }
+    try{
+      blob = buildMemoR(g, d);
+      name = k.r + '.' + head(d.rNo) + (d.kNo ? '-(' + k.y + '.' + head(d.kNo) + ')' : '') + ' ' + safe + '.docx';
+      memoBump(k.r, d.rNo);
+    }catch(err){ ryState.msg = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err); document.getElementById('ry-sum').innerHTML = rySumHtml(g, d); return; }
+    saveBlob(blob, name);
+    d.done = true;
+    memoSet.ry = memoSet.ry || {}; memoSet.ry[d.no] = JSON.parse(JSON.stringify(d));
+    memoSet.pick = memoSet.pick || {}; memoSet.pick.committee = d.committee.slice();
+    memoSaveSet();
+    ryState.msg = 'ส่งออกแล้ว: ' + name + ' · เลขถัดไป ' + k.r + '. ' + memoNextNo(k.r, Number(String(d.rNo).split('/')[1]) || memoFY(d.inspect));
+    renderRy();
+  }
+  (function wireRy(){
+    var box = document.getElementById('ry-box');
+    function keep(){
+      var d = ryState.d; if(!d || !d.done) return;
+      memoSet.ry[d.no] = JSON.parse(JSON.stringify(d));
+      clearTimeout(ryTimer); ryTimer = setTimeout(memoSaveSet, 400);
+    }
+    function sum(){ var d = ryState.d, g = d ? ryGroup(d.no) : null, el = document.getElementById('ry-sum'); if(g && el) el.innerHTML = rySumHtml(g, d); }
+    box.addEventListener('input', function(e){
+      var t = e.target;
+      if(t.id === 'ry-q'){ ryState.q = t.value; document.getElementById('ry-list').innerHTML = ryListHtml(); return; }
+      if(t.hasAttribute('data-rf') && t.getAttribute('data-rf') !== 'kind'){ ryState.d[t.getAttribute('data-rf')] = t.value; keep(); sum(); }
+    });
+    box.addEventListener('change', function(e){
+      var t = e.target, d = ryState.d; if(!d) return;
+      if(t.getAttribute('data-rf') === 'kind'){
+        var was = ryKind(d); d.kind = t.value;
+        if(ryKind(d) !== was && !d.done) d.rNo = memoNextNo(ryKind(d).r, memoFY(d.inspect));
+        keep(); renderRy();
+      } else if(t.hasAttribute('data-rt')){
+        if(t.checked) delete d.skip[t.getAttribute('data-rt')]; else d.skip[t.getAttribute('data-rt')] = 1;
+        keep(); sum();
+      } else if(t.hasAttribute('data-rc')){
+        var id = t.getAttribute('data-rc'), at = d.committee.indexOf(id);
+        if(t.checked && at < 0 && d.committee.length >= 3){ t.checked = false; ryState.msg = 'เลือกกรรมการได้ 3 คน — เอาติ๊กคนเดิมออกก่อน'; sum(); return; }
+        if(t.checked && at < 0) d.committee.push(id); else if(!t.checked && at >= 0) d.committee.splice(at, 1);
+        ryState.msg = ''; keep(); renderRy();
+      } else if(t.hasAttribute('data-rhist') && t.value){
+        var doc = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.no === t.value; })[0], m = doc && doc.memo;
+        if(m){ d.kNo = m.kNo || ''; d.kDate = m.kDate || ''; if(m.committee && m.committee.filter(Boolean).length) d.committee = m.committee.filter(Boolean).slice(0, 3); keep(); renderRy(); }
+      }
+    });
+    box.addEventListener('click', function(e){
+      var b = e.target.closest('[data-rp],[data-ract]'); if(!b) return;
+      if(b.hasAttribute('data-rp')) ryPick(b.getAttribute('data-rp'));
+      else if(b.getAttribute('data-ract') === 'close'){ ryState.open = false; ryState.d = null; renderRy(); }
+      else if(b.getAttribute('data-ract') === 'export') ryExport();
+    });
+    document.getElementById('quote-ry').addEventListener('click', function(){
+      if(!memoSet) memoSet = memoSeed();
+      ryState.open = true; renderRy();
+      document.getElementById('ry-box').scrollIntoView({ behavior:'smooth', block:'start' });
     });
   })();
 

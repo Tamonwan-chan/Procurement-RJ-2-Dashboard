@@ -45,7 +45,7 @@ Local-only, never commit: `สรุปบทบาทและงานที�
 ## Version status
 **v1.0 closed on 5 Nov 2026** (issues #1–#20, git tag `v1.0`). His last answer closed #16: hide nothing more. The scope freeze of 2 Nov is over.
 
-**v2.0 is in progress** (milestone "v2.0"). Scope she set on 5 Nov: the รย. ตรวจรับ memo (#34) and a few minor requests from พี่โอม, after which he starts using the program in real procurement. รย. is waiting on his form answers, a sample document and his latest PO_inven (Q&A items 15 and 18): the 26 Oct PO_inven has `pono` and `invdate` empty on every row, so don't assume a PO number link exists.
+**v2.0 is in progress** (milestone "v2.0"). Scope she set on 5 Nov: the รย. ตรวจรับ memo (#34) and a few minor requests from พี่โอม, after which he starts using the program in real procurement. รย. from a single delivery is built; #34 stays open for his testing, a sample รยว., multi-delivery ย., and his latest PO_inven (Q&A items 15 and 18). `pono` and `invdate` are empty in HIS (no ERP link), so no PO number link exists: the user picks a delivery by `minpno`.
 
 **Handling a request.** Before writing or changing any program code, say which category it falls in:
 - **A. Bug: fix now.** Something already built fails: an existing HIS file type is not recognised or fails to import; figures differ from HIS or his slides; a broken layout; wrong output in quote Excel or Word memos; IndexedDB loses data; the UI crashes. Follow the Workflow below (`bug` issue, headless tests, `Fixes #n`).
@@ -78,4 +78,5 @@ Local-only, never commit: `สรุปบทบาทและงานที�
 - planfin: latest year drives "ห้ามซื้อเกิน", quote prices (cost per box) and the GPU chart; up to 5 years kept; the ranking has a free year / compare-year picker.
 - Quotes: one sheet per distributor, max 8 items; numbers W (drugs) / WM (non-drug supplies, materials, others) / WC (pharmaceutical chemicals), format `W001-70`, rolling to the new fiscal year automatically; reopen-to-edit keeps the same number.
 - Purchase memos (Word): from a quote in the history, ภย./ภว. → ขย./ขว. → ย./ยว. (W / WB / WC → ย-series, WM → ว-series; the memo screen shows plan budget left = planfin − PO_inven 101 received, per pot); committee and signers are picked per memo from a people list kept only in IndexedDB (`_memoset`) — never put staff names in code or the repo; the Garuda comes from an old memo .docx dropped once. Details and the .docx gotchas (Thai line breaking) are in README.
+- Inspection memos (Word): รย. follows ย. (drugs, chemicals), รยว. follows ยว. (non-drug), 1 รย. = 1 ย.; picked from PO_inven 101 by `minpno`, independent of the quote history; details in README.
 - Fiscal year starts in October (พ.ศ.).
