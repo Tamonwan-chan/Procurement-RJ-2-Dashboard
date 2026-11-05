@@ -284,6 +284,17 @@
   .pill.status-normal{ background:var(--good-soft); color:var(--good); }
   .table-note{ font-size:12px; color:var(--ink-faint); margin-top:8px; }
   .field-select{ width:auto; max-width:100%; cursor:pointer; }
+  /* ช่องเลือกที่พิมพ์ค้นหาได้ (หน้าทำใบเสนอราคา) */
+  .combo{ position:relative; display:inline-block; width:min(340px,100%); }
+  .combo select{ display:none; }
+  .combo::after{ content:''; position:absolute; right:12px; top:50%; margin-top:-2px; border:5px solid transparent; border-top-color:var(--ink-muted); border-bottom:0; pointer-events:none; }
+  .combo .combo-in{ width:100%; box-sizing:border-box; padding-right:28px; text-overflow:ellipsis; }
+  .combo-list{ position:absolute; z-index:20; top:calc(100% + 2px); left:0; min-width:100%; width:max-content; max-width:min(560px,86vw); max-height:320px; overflow:auto; background:var(--surface); border:1px solid var(--border-strong); border-radius:8px; box-shadow:var(--shadow); padding:4px 0; }
+  .combo-list div{ font-size:13px; color:var(--ink); padding:6px 12px; cursor:pointer; }
+  .combo-list div:hover, .combo-list div.cur{ background:var(--accent-soft); }
+  .combo-list div[aria-selected="true"]{ font-weight:600; }
+  .combo-list div.head{ font-size:11.5px; color:var(--ink-muted); cursor:default; background:none; border-top:1px solid var(--border); margin-top:4px; padding-top:8px; }
+  .combo-list div.none{ color:var(--ink-muted); cursor:default; background:none; }
   .check{ display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--ink); cursor:pointer; user-select:none; }
   .check input{ width:16px; height:16px; accent-color:var(--accent); margin:0; cursor:pointer; }
   tr.grp td{ background:var(--surface-2); font-weight:600; font-size:12.5px; padding:8px 12px; border-top:2px solid var(--border-strong); }
@@ -2003,7 +2014,7 @@
   var QUOTE_MAX = 8, QUOTE_ITEM_ROW = 7, QUOTE_LAST_COL = 12;
   var EXCELJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
   var QUOTE_NO_KEY = 'rj2-quote-next-no';
-  var quoteState = { open:false, company:'all', mfr:'all', mfrFree:false, onlyOut:false, search:'', sel:{}, edits:{}, nos:{ W:'', WM:'', WC:'' }, date:'', editing:null, note:'' };
+  var quoteState = { open:false, company:'all', mfr:'all', mfrFree:false, distFree:false, autoLock:{}, onlyOut:false, search:'', sel:{}, edits:{}, nos:{ W:'', WM:'', WC:'' }, date:'', editing:null, note:'' };
   /* เลขที่แยก 3 ชุด (พี่โอมกำหนด, ใช้ Template เดียวกัน) · เลขถัดไปจำไว้ในเครื่องนี้และไม่ย้อนกลับ
      W  = ทะเบียนยา · WC = ทะเบียนเภสัชเคมีภัณฑ์ · WM = ทะเบียนเวชภัณฑ์ที่มิใช่ยา / วัสดุเภสัชกรรม / อื่น ๆ */
   var QUOTE_SERIES = ['W', 'WM', 'WC'], QUOTE_HIST_SLOT = '_quotes', quoteHist = null;
@@ -2455,10 +2466,13 @@
     quoteState.editing = { no:doc.no, series:ser };
     quoteState.nos[ser] = doc.no;
     quoteState.date = doc.date;
-    quoteState.company = 'all'; quoteState.search = ''; document.getElementById('quote-search').value = '';
-    /* ล็อกผู้ผลิตตามใบเดิม · ใบเดิมมีหลายผู้ผลิตอยู่แล้ว = ปลดล็อก */
-    var mfrs = doc.lines.filter(function(l){ return byId[l.id]; }).map(function(l){ return byId[l.id].manufact || NO_MFR; }).filter(function(m, i, a){ return a.indexOf(m) === i; });
+    quoteState.search = ''; document.getElementById('quote-search').value = '';
+    /* ล็อกบริษัทและผู้ผลิตตามใบเดิม · ใบเดิมมีหลายบริษัท / หลายผู้ผลิตอยู่แล้ว = ปลดล็อกช่องนั้น */
+    function uniq(f){ return doc.lines.filter(function(l){ return byId[l.id]; }).map(function(l){ return f(byId[l.id]); }).filter(function(m, i, a){ return a.indexOf(m) === i; }); }
+    var dists = uniq(function(it){ return it.distribute || NO_COMPANY; }), mfrs = uniq(function(it){ return it.manufact || NO_MFR; });
+    quoteState.company = dists.length === 1 ? dists[0] : 'all'; quoteState.distFree = dists.length > 1;
     quoteState.mfr = mfrs.length === 1 ? mfrs[0] : 'all'; quoteState.mfrFree = mfrs.length > 1;
+    quoteState.autoLock = {};
     quoteState.note = gone.length ? 'ไม่พบในข้อมูลที่นำเข้าตอนนี้: ' + gone.join(', ') : '';
     renderQuote();
   }
@@ -3206,8 +3220,9 @@
     var comps = {}; pool.forEach(function(it){ var k = it.distribute || NO_COMPANY; comps[k] = (comps[k] || 0) + 1; });
     var names = Object.keys(comps).sort(function(a, b){ return a.localeCompare(b, 'th'); });
     if(quoteState.company !== 'all' && !comps[quoteState.company]) quoteState.company = 'all';
-    fillSelect('quote-company', [['all', 'ทุกบริษัท (' + fmt(pool.length) + ' รายการ)']].concat(names.map(function(k){ return [k, k + ' (' + comps[k] + ')']; })), quoteState.company);
     mfrSelects(null, 'quote-mfr', pool, quoteState, 'company', 'mfr');
+    fillSelect('quote-company', quoteCompanyOpts(pool, comps, names), quoteState.company);
+    quoteCombos.forEach(function(c){ c.sync(); });
     var q = quoteState.search.trim().toLowerCase();
     var rows = pool.filter(function(it){
       if(quoteState.sel[it.hospcode]) return true;
@@ -3224,7 +3239,7 @@
       var l = quoteLine(it), on = !!quoteState.sel[it.hospcode], hc = esc(it.hospcode), total = (+l.qty || 0) * (+l.price || 0);
       return '<tr data-hc="' + hc + '"' + (on ? ' class="on"' : '') + '>' +
         '<td><input type="checkbox" data-k="sel"' + (on ? ' checked' : '') + ' aria-label="เลือก ' + esc(l.name) + '"></td>' +
-        '<td>' + hc + '</td><td>' + esc(l.name) + (seriesOf(it) !== 'W' ? ' <span class="pill">' + SERIES_LABEL[seriesOf(it)] + ' · ' + seriesOf(it) + '</span>' : '') + (quoteState.company === 'all' ? '<br><small class="rate-inv">' + esc(it.distribute || NO_COMPANY) + '</small>' : '') + '</td>' +
+        '<td>' + hc + '</td><td>' + esc(l.name) + (seriesOf(it) !== 'W' ? ' <span class="pill">' + SERIES_LABEL[seriesOf(it)] + ' · ' + seriesOf(it) + '</span>' : '') + (quoteState.company === 'all' || (it.distribute || NO_COMPANY) !== quoteState.company ? '<br><small class="rate-inv">' + esc(it.distribute || NO_COMPANY) + '</small>' : '') + '</td>' +
         '<td class="mono plan"' + (it.plan ? ' title="แผนจัดซื้อ ฿' + fmt(it.plan.value) + '"' : '') + '>' + (it.plan ? fmt1(it.plan.qty) : '–') + '</td>' +
         boughtCell(it) +
         hospCell(it) +
@@ -3280,12 +3295,102 @@
     return '<td class="mono" title="' + esc(parts.join(' · ')) + '"><b>' + (total > 0 && total < 0.05 ? '&lt;0.1' : fmt1(total)) + '</b>' + (isOut(it) ? '<br>' + OUT_PILL : '') + '</td>';
   }
   /* แยกใบตามผู้ผลิต — พี่โอม (3 พ.ย. 69): ติ๊กยาตัวแรกแล้ว ช่องผู้ผลิตล็อกเป็นผู้ผลิตของยาตัวนั้น รายการถัดไปจึงเห็นเฉพาะผู้ผลิตเดียวกัน
-     ถ้าผู้ผลิตใน HIS ยังไม่ได้แก้ เลือก "ทุกผู้ผลิต" เพื่อปลดล็อก แล้วออกใบรวมได้ (มีคำเตือน) · ล้างรายการที่เลือก = ล็อกใหม่ */
-  function quoteMfrLock(hc){
-    if(quoteState.mfr !== 'all' || quoteState.mfrFree) return false;
+     ถ้าผู้ผลิตใน HIS ยังไม่ได้แก้ เลือก "ทุกผู้ผลิต" เพื่อปลดล็อก แล้วออกใบรวมได้ (มีคำเตือน) · ล้างรายการที่เลือก = ล็อกใหม่
+     พี่โอม (5 พ.ย. 69): ล็อกบริษัท (distribute) ด้วย · เลือก "ทุกบริษัท" เพื่อปลดล็อก · เอาติ๊กออกจนหมด = ปล่อยช่องที่ล็อกให้อัตโนมัติ */
+  function quoteLockFirst(hc){
     var it = state.items.filter(function(x){ return x.hospcode === hc; })[0]; if(!it) return false;
-    quoteState.mfr = it.manufact || NO_MFR;
-    return true;
+    var changed = false;
+    if(quoteState.company === 'all' && !quoteState.distFree){ quoteState.company = it.distribute || NO_COMPANY; quoteState.autoLock.company = 1; changed = true; }
+    if(quoteState.mfr === 'all' && !quoteState.mfrFree){ quoteState.mfr = it.manufact || NO_MFR; quoteState.autoLock.mfr = 1; changed = true; }
+    return changed;
+  }
+  function quoteUnlockAuto(){
+    var a = quoteState.autoLock, changed = !!(a.company || a.mfr);
+    if(a.company) quoteState.company = 'all';
+    if(a.mfr) quoteState.mfr = 'all';
+    quoteState.autoLock = {}; quoteState.mfrFree = false; quoteState.distFree = false;
+    return changed;
+  }
+  /* ช่องบริษัท: ปกติแสดงทุกบริษัท · เมื่อล็อกผู้ผลิตแล้ว แถวบนสุดคือบริษัทที่ล็อก ถัดลงมาคือบริษัทอื่นที่จำหน่ายผู้ผลิตเดียวกัน
+     (ผู้ผลิต 1 รายมีได้หลายผู้แทนจำหน่าย) จำนวนในวงเล็บนับเฉพาะรายการของผู้ผลิตนั้น */
+  function quoteCompanyOpts(pool, comps, names){
+    var all = ['all', 'ทุกบริษัท (' + fmt(pool.length) + ' รายการ)'], m = quoteState.mfr, cur = quoteState.company;
+    if(m === 'all' || !Object.keys(quoteState.sel).length) return [all].concat(names.map(function(k){ return [k, k + ' (' + comps[k] + ')']; }));
+    var mc = {};
+    pool.forEach(function(it){ if((it.manufact || NO_MFR) === m){ var k = it.distribute || NO_COMPANY; mc[k] = (mc[k] || 0) + 1; } });
+    var others = names.filter(function(k){ return mc[k] && k !== cur; }).map(function(k){ return [k, k + ' (' + mc[k] + ')']; });
+    var head = others.length ? [[COMBO_HEAD, 'บริษัทอื่นที่จำหน่าย ' + m]] : [];
+    if(cur === 'all') return [all].concat(head, others);
+    return [[cur, cur + ' (' + (mc[cur] || 0) + ')']].concat(head, others, [['all', 'ทุกบริษัท (ปลดล็อก)']]);
+  }
+  /* พี่โอม (5 พ.ย. 69): พิมพ์ค้นหาในช่องเลือกได้ — บริษัทราว 300 ราย ผู้ผลิตเกือบ 1,000 ราย
+     <select> เดิมซ่อนไว้ ยังเก็บค่าและส่ง change เหมือนเดิม · ตัวเลือกค่า COMBO_HEAD คือหัวข้อคั่น กดไม่ได้ · hint = คำค้นเพิ่มของตัวเลือกนั้น */
+  var COMBO_HEAD = '__head';
+  function searchableSelect(id, hint){
+    var sel = document.getElementById(id), wrap = document.createElement('span'), input = document.createElement('input'), list = document.createElement('div');
+    var hits = [], cur = -1;
+    wrap.className = 'combo';
+    input.type = 'text'; input.className = 'search combo-in'; input.autocomplete = 'off'; input.placeholder = 'พิมพ์เพื่อค้นหา';
+    input.setAttribute('role', 'combobox'); input.setAttribute('aria-expanded', 'false'); input.setAttribute('aria-label', sel.getAttribute('aria-label'));
+    list.className = 'combo-list'; list.hidden = true; list.setAttribute('role', 'listbox');
+    sel.parentNode.insertBefore(wrap, sel); wrap.appendChild(sel); wrap.appendChild(input); wrap.appendChild(list);
+    function label(){ var o = sel.options[sel.selectedIndex]; return o ? o.textContent : ''; }
+    function close(){ list.hidden = true; input.setAttribute('aria-expanded', 'false'); input.value = label(); cur = -1; }
+    function mark(i){
+      var els = list.querySelectorAll('[data-i]'); if(cur >= 0 && els[cur]) els[cur].classList.remove('cur');
+      cur = i; if(cur >= 0 && els[cur]){ els[cur].classList.add('cur'); if(els[cur].scrollIntoView) els[cur].scrollIntoView({ block:'nearest' }); }
+    }
+    function draw(q){
+      var words = q.trim().toLowerCase().split(/\s+/).filter(Boolean), html = '';
+      hits = [];
+      [].forEach.call(sel.options, function(o){
+        var head = o.value === COMBO_HEAD, hay = (o.textContent + ' ' + (hint ? hint(o.value) : '')).toLowerCase();
+        if(words.length && (head || !words.every(function(w){ return hay.indexOf(w) >= 0; }))) return;
+        if(head){ html += '<div class="head">' + esc(o.textContent) + '</div>'; return; }
+        html += '<div role="option" data-i="' + hits.length + '" aria-selected="' + (o.value === sel.value ? 'true' : 'false') + '">' + esc(o.textContent) + '</div>';
+        hits.push(o.value);
+      });
+      list.innerHTML = html || '<div class="none">ไม่พบ</div>';
+      list.hidden = false; list.scrollTop = 0; input.setAttribute('aria-expanded', 'true'); cur = -1;
+    }
+    function pick(v){
+      var changed = v !== sel.value;
+      sel.value = v; close(); input.blur();
+      if(changed) sel.dispatchEvent(new Event('change', { bubbles:true }));
+    }
+    input.addEventListener('focus', function(){ draw(''); input.select(); });
+    input.addEventListener('click', function(){ if(list.hidden) draw(''); });
+    input.addEventListener('input', function(){ draw(input.value); });
+    input.addEventListener('blur', close);
+    input.addEventListener('keydown', function(e){
+      if(e.key === 'Escape'){ close(); input.blur(); return; }
+      if(list.hidden) return;
+      if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+        e.preventDefault();
+        if(hits.length) mark(e.key === 'ArrowDown' ? Math.min(cur + 1, hits.length - 1) : Math.max(cur - 1, 0));
+      } else if(e.key === 'Enter'){
+        e.preventDefault();
+        if(hits.length) pick(hits[cur >= 0 ? cur : 0]);
+      }
+    });
+    list.addEventListener('mousedown', function(e){ e.preventDefault(); });   /* กดรายการหรือแถบเลื่อนแล้วช่องไม่หลุดโฟกัส */
+    list.addEventListener('click', function(e){
+      var d = e.target.closest('[data-i]'); if(d) pick(hits[+d.getAttribute('data-i')]);
+    });
+    return { sync:function(){ if(list.hidden) input.value = label(); } };
+  }
+  /* คำค้นเพิ่มของบริษัท: ชื่อใน HIS เป็นภาษาไทย พิมพ์ zuellig / dksh ก็เจอ */
+  function companyHint(name){ return { zuellig:'zuellig ซิลลิค', dksh:'dksh ดีเคเอสเอช ดีทแฮล์ม' }[memoLayoutOf(name)] || ''; }
+  var quoteCombos = [searchableSelect('quote-company', companyHint), searchableSelect('quote-mfr')];
+  /* ล้างทั้งหน้าให้เริ่มใบใหม่ได้ทันที (พี่โอม 5 พ.ย. 69): รายการที่เลือก จำนวน / ราคาที่แก้ ตัวกรอง และคำค้น · เลขที่ใบและวันที่คงไว้ */
+  function quoteReset(){
+    clearTimeout(quoteTimer);
+    quoteState.sel = {}; quoteState.edits = {}; quoteState.note = ''; quoteState.search = ''; quoteState.onlyOut = false;
+    quoteState.company = 'all'; quoteState.mfr = 'all'; quoteState.mfrFree = false; quoteState.distFree = false; quoteState.autoLock = {};
+    document.getElementById('quote-search').value = '';
+    document.getElementById('quote-only-out').checked = false;
+    if(quoteState.editing){ quoteState.editing = null; QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = savedNo(s); }); }
+    renderQuote();
   }
   function quoteMixedMfr(sheets){
     return sheets.filter(function(s){
@@ -3296,7 +3401,7 @@
     var g = quoteGroups();
     var ed = quoteState.editing, over = [], mixed = quoteMixedMfr(g.sheets);
     if(mixed.length) extra = '⚠ ใบ ' + mixed.join(', ') + ' มีหลายผู้ผลิต (ปลดล็อกผู้ผลิตแล้ว) ตรวจก่อนส่งออก' + (extra ? ' · ' + extra : '');
-    else if(g.count && quoteState.mfr !== 'all') extra = 'ผู้ผลิตล็อกเป็น ' + quoteState.mfr + ' ตามรายการแรก (เลือก "ทุกผู้ผลิต" เพื่อปลดล็อก)' + (extra ? ' · ' + extra : '');
+    else if(g.count && (quoteState.mfr !== 'all' || quoteState.company !== 'all')) extra = 'ล็อกตามรายการแรก: ' + [quoteState.company !== 'all' ? quoteState.company : '', quoteState.mfr !== 'all' ? 'ผู้ผลิต ' + quoteState.mfr : ''].filter(Boolean).join(' · ') + ' (เลือก "ทุกบริษัท" / "ทุกผู้ผลิต" เพื่อปลดล็อก)' + (extra ? ' · ' + extra : '');
     g.sheets.forEach(function(s){ s.items.forEach(function(it){ var l = quoteLine(it), r = refPick(it.hospcode); if(r && (+l.price || 0) > r.r.price * (l.pack || 1) + 0.005) over.push(l.name); }); });
     if(over.length) extra = '⚠ ราคาเกินราคากลาง ' + over.length + ' รายการ: ' + over.slice(0, 3).join(', ') + (over.length > 3 ? ' …' : '') + (extra ? ' · ' + extra : '');
     document.getElementById('quote-summary').textContent = (ed ? 'กำลังแก้ไขใบ ' + ed.no + ' — เพิ่ม / ลบ / แก้จำนวนได้ แล้วกดส่งออก จะได้ไฟล์เลขเดิม (เลขถัดไปไม่เปลี่ยน) · ' : '') + (g.count
@@ -3306,10 +3411,18 @@
 
   document.getElementById('btn-quote').addEventListener('click', function(){ quoteState.open = !quoteState.open; renderQuote(); var qb = document.getElementById('quote-box'); if(quoteState.open && qb.scrollIntoView) qb.scrollIntoView({ block:'nearest' }); });
   document.getElementById('quote-close').addEventListener('click', function(){ quoteState.open = false; renderQuote(); });
-  document.getElementById('quote-company').addEventListener('change', function(e){ quoteState.company = e.target.value; quoteState.mfr = 'all'; renderQuote(); });
+  document.getElementById('quote-company').addEventListener('change', function(e){
+    var has = Object.keys(quoteState.sel).length > 0;
+    quoteState.company = e.target.value;
+    quoteState.distFree = has && quoteState.company === 'all';   /* เลือก "ทุกบริษัท" ระหว่างมีรายการ = ปลดล็อก */
+    delete quoteState.autoLock.company;
+    if(!has){ quoteState.mfr = 'all'; delete quoteState.autoLock.mfr; }   /* มีรายการแล้ว: คงผู้ผลิตไว้ เปลี่ยนไปดูบริษัทอื่นที่จำหน่ายผู้ผลิตเดียวกัน */
+    renderQuote();
+  });
   document.getElementById('quote-mfr').addEventListener('change', function(e){
     quoteState.mfr = e.target.value;
     quoteState.mfrFree = quoteState.mfr === 'all' && Object.keys(quoteState.sel).length > 0;   /* เลือก "ทุกผู้ผลิต" ระหว่างมีรายการ = ปลดล็อก */
+    delete quoteState.autoLock.mfr;
     renderQuote();
   });
   document.getElementById('quote-only-out').addEventListener('change', function(e){ quoteState.onlyOut = e.target.checked; renderQuote(); });
@@ -3319,17 +3432,9 @@
     document.getElementById('quote-no-' + s).addEventListener('input', function(e){ quoteState.nos[s] = e.target.value.trim(); quoteSummary(''); });
   });
   document.getElementById('quote-reopen').addEventListener('click', function(){ var v = document.getElementById('quote-hist').value; if(v) reopenQuote(v); });
-  document.getElementById('quote-cancel-edit').addEventListener('click', function(){
-    quoteState.editing = null; quoteState.sel = {}; quoteState.note = ''; quoteState.mfrFree = false;
-    QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = savedNo(s); });
-    renderQuote();
-  });
+  document.getElementById('quote-cancel-edit').addEventListener('click', quoteReset);
   document.getElementById('quote-date').addEventListener('change', function(e){ quoteState.date = e.target.value; });
-  document.getElementById('quote-clear').addEventListener('click', function(){
-    quoteState.sel = {}; quoteState.note = ''; quoteState.mfrFree = false;
-    if(quoteState.editing){ quoteState.editing = null; QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = savedNo(s); }); }
-    renderQuote();
-  });
+  document.getElementById('quote-clear').addEventListener('click', quoteReset);
   document.getElementById('quote-export').addEventListener('click', exportQuotes);
   var quoteBody = document.getElementById('quote-table');
   quoteBody.addEventListener('change', function(e){
@@ -3337,8 +3442,8 @@
     var hc = tr.getAttribute('data-hc'), k = e.target.getAttribute('data-k');
     if(k === 'sel'){
       if(e.target.checked) quoteState.sel[hc] = 1; else delete quoteState.sel[hc];
-      if(!Object.keys(quoteState.sel).length) quoteState.mfrFree = false;
-      if(e.target.checked && quoteMfrLock(hc)){ renderQuote(); return; }
+      if(!Object.keys(quoteState.sel).length && quoteUnlockAuto()){ renderQuote(); return; }
+      if(e.target.checked && quoteLockFirst(hc)){ renderQuote(); return; }
       tr.classList.toggle('on', e.target.checked); quoteSummary('');
     }
     if(k === 'ref'){
@@ -3356,7 +3461,11 @@
     ed[k] = k === 'qty' || k === 'price' ? e.target.value : e.target.value.trim();
     if(k === 'qty' && +e.target.value > 0 && !quoteState.sel[hc]){
       quoteState.sel[hc] = 1; tr.classList.add('on'); tr.querySelector('[data-k="sel"]').checked = true;
-      if(quoteMfrLock(hc)) document.getElementById('quote-mfr').value = quoteState.mfr;   /* รายการกรองตามผู้ผลิตตอนแสดงครั้งถัดไป */
+      if(quoteLockFirst(hc)){   /* รายการกรองตามบริษัท / ผู้ผลิตตอนแสดงครั้งถัดไป */
+        document.getElementById('quote-company').value = quoteState.company;
+        document.getElementById('quote-mfr').value = quoteState.mfr;
+        quoteCombos.forEach(function(c){ c.sync(); });
+      }
     }
     var qty = +(tr.querySelector('[data-k="qty"]').value) || 0, price = +(tr.querySelector('[data-k="price"]').value) || 0;
     tr.querySelector('[data-total]').textContent = qty * price ? fmt2(qty * price) : '–';
