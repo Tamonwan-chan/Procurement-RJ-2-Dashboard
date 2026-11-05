@@ -14,3 +14,6 @@
 # Headless test tooling
 tests/node_modules/
 tests/out/
+
+# ไฟล์สำรองข้อมูลจากโปรแกรม: มีข้อมูลจริงและรายชื่อ
+สำรองข้อมูล*.json

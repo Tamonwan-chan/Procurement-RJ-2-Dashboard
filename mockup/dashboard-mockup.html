@@ -390,6 +390,9 @@
     <span class="fs-title">ข้อมูลที่ใช้อยู่ (นำเข้าครั้งล่าสุดของแต่ละไฟล์)<span class="fs-missing-count" id="fs-missing"></span></span>
     <span class="fs-actions">
       <button class="btn-ghost" id="btn-export" type="button">ส่งออก Excel (รายการต้องจัดซื้อ)</button>
+      <button class="btn-ghost" id="btn-backup" type="button">สำรองข้อมูล</button>
+      <button class="btn-ghost" id="btn-restore" type="button">กู้คืนข้อมูล</button>
+      <input type="file" id="backup-file" accept=".json" hidden>
       <button class="btn-ghost" id="btn-clear" type="button">ล้างข้อมูลที่บันทึกไว้</button>
     </span>
   </div>
@@ -1442,6 +1445,73 @@
     var done = function(){ state.datasets = {}; state.prev = null; state.fresh = []; showNote(''); hideError(); rebuild(); resetFilters(); renderAll(); };
     dbClear().then(function(){ return dbPut([kpiStore, quoteHist, stockHist, memoSet].filter(Boolean)); }).then(done, done);
   });
+
+  /* ---------------- สำรอง / กู้คืนข้อมูลที่พิมพ์เอง (#38) ----------------
+     ข้อมูลเหล่านี้อยู่ในเบราว์เซอร์เครื่องเดียว ลากไฟล์ใหม่ก็กู้คืนไม่ได้: ตารางเดือนสำรอง · ประวัติใบเสนอราคา + ค่าในบันทึก · รายชื่อ / เลขที่ถัดไป / ตราครุฑ · คงคลังย้อนหลัง
+     เลือกเฉพาะ slot ในรายการ: ไม่สำรองไฟล์ HIS (ลากใหม่ได้) และห้ามสำรอง quoteTpl เพราะ DATA Template มีลายเซ็นหัวหน้ากลุ่มงาน
+     เลขใบเสนอราคาอยู่ใน _quotes.next และ localStorage (rj2-quote-next-*) จึงเก็บทั้งคู่ */
+  var BACKUP_APP = 'rj2-procurement-backup', BACKUP_SLOTS = ['_kpi', '_quotes', '_memoset', '_stockhist'], BACKUP_AT_KEY = 'rj2-backup-at', BACKUP_LS = /^rj2-quote-next-/;
+  function bkIsBin(v){ var t = Object.prototype.toString.call(v); return t === '[object ArrayBuffer]' || t === '[object Uint8Array]'; }
+  function bkEncode(v){
+    if(bkIsBin(v)){
+      var u = new Uint8Array(v), parts = [], i;
+      for(i = 0; i < u.length; i += 0x8000) parts.push(String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)));
+      return { __b64:btoa(parts.join('')) };
+    }
+    if(Array.isArray(v)) return v.map(bkEncode);
+    if(v && typeof v === 'object'){ var o = {}; Object.keys(v).forEach(function(k){ o[k] = bkEncode(v[k]); }); return o; }
+    return v;
+  }
+  function bkDecode(v){
+    if(Array.isArray(v)) return v.map(bkDecode);
+    if(v && typeof v === 'object'){
+      if(typeof v.__b64 === 'string'){ var b = atob(v.__b64), u = new Uint8Array(b.length); for(var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
+      var o = {}; Object.keys(v).forEach(function(k){ o[k] = bkDecode(v[k]); }); return o;
+    }
+    return v;
+  }
+  function bkLabel(){
+    var at = ''; try{ at = localStorage.getItem(BACKUP_AT_KEY) || ''; }catch(e){}
+    document.getElementById('btn-backup').textContent = at ? 'สำรองข้อมูล (ล่าสุด ' + memoDateTh(at) + ')' : 'สำรองข้อมูล';
+  }
+  function backupSave(){
+    dbAll().then(function(recs){
+      var ls = {}, today = todayIso();
+      try{ for(var i = 0; i < localStorage.length; i++){ var k = localStorage.key(i); if(BACKUP_LS.test(k)) ls[k] = localStorage.getItem(k); } }catch(e){}
+      var data = { app:BACKUP_APP, version:1, savedAt:new Date().toISOString(), localStorage:ls,
+        records:recs.filter(function(r){ return BACKUP_SLOTS.indexOf(r.slot) >= 0; }).map(bkEncode) };
+      saveBlob(new Blob([JSON.stringify(data)], { type:'application/json' }), 'สำรองข้อมูลโปรแกรมจัดซื้อ ' + today + '.json');
+      try{ localStorage.setItem(BACKUP_AT_KEY, today); }catch(e){}
+      bkLabel(); hideError();
+      showNote('สำรองข้อมูลแล้ว: ตารางเดือนสำรอง ประวัติใบเสนอราคา รายชื่อ เลขที่ถัดไป คงคลังย้อนหลัง · ไฟล์นี้มีข้อมูลจริงและรายชื่อ เก็บไว้กับหน่วยงาน อย่าเผยแพร่ · ไฟล์ HIS และ DATA Template ไม่อยู่ในไฟล์นี้ ต้องลากใหม่เมื่อเปลี่ยนเครื่อง');
+    }).catch(function(err){ showError('สำรองข้อมูลไม่สำเร็จ: ' + (err && err.message ? err.message : err)); });
+  }
+  function backupRestore(text){
+    var data, recs;
+    try{ data = JSON.parse(text); }catch(e){ data = null; }
+    recs = data && data.app === BACKUP_APP && Array.isArray(data.records) ? data.records.filter(function(r){ return r && BACKUP_SLOTS.indexOf(r.slot) >= 0; }) : null;
+    if(!recs || !recs.length){ showError('ไฟล์นี้ไม่ใช่ไฟล์สำรองข้อมูลของโปรแกรมจัดซื้อ จึงไม่ได้กู้คืน'); return; }
+    var q = recs.filter(function(r){ return r.slot === '_quotes'; })[0], m = recs.filter(function(r){ return r.slot === '_memoset'; })[0];
+    if(!window.confirm('กู้คืนจากไฟล์สำรองวันที่ ' + memoDateTh(String(data.savedAt || '').slice(0, 10)) + '?\n\nใบเสนอราคา ' + (q && q.docs ? q.docs.length : 0) + ' ใบ · รายชื่อ ' + (m && m.people ? m.people.length : 0) + ' คน\n\nข้อมูลเหล่านี้ในเครื่องนี้จะถูกแทนด้วยของในไฟล์ · ถ้าไฟล์เก่ากว่าเอกสารที่ออกไปแล้ว เลขที่ถัดไปจะย้อนกลับ ตรวจเลขก่อนออกเอกสารใบต่อไป')) return;
+    recs = recs.map(bkDecode);
+    dbPut(recs).then(function(){
+      Object.keys(data.localStorage || {}).forEach(function(k){ if(BACKUP_LS.test(k)){ try{ localStorage.setItem(k, data.localStorage[k]); }catch(e){} } });
+      recs.forEach(function(r){ if(r.slot === '_kpi') kpiStore = r; else if(r.slot === '_quotes') quoteHist = r; else if(r.slot === '_memoset') memoSet = r; else if(r.slot === '_stockhist') stockHist = r; });
+      memoState.no = ''; renderMemo(); ryState.open = false; ryState.d = null; renderRy();
+      rebuild(); renderAll(); hideError();
+      showNote('กู้คืนข้อมูลแล้ว · ถ้าเปลี่ยนเครื่อง ลากไฟล์ HIS และ DATA Template เข้ามาอีกครั้ง');
+    }).catch(function(err){ showError('กู้คืนข้อมูลไม่สำเร็จ: ' + (err && err.message ? err.message : err)); });
+  }
+  document.getElementById('btn-backup').addEventListener('click', backupSave);
+  document.getElementById('btn-restore').addEventListener('click', function(){ document.getElementById('backup-file').click(); });
+  document.getElementById('backup-file').addEventListener('change', function(){
+    var input = this, f = input.files && input.files[0]; if(!f) return;
+    var rd = new FileReader();
+    rd.onload = function(){ backupRestore(String(rd.result)); input.value = ''; };
+    rd.onerror = function(){ showError('อ่านไฟล์สำรองไม่สำเร็จ'); input.value = ''; };
+    rd.readAsText(f);
+  });
+  bkLabel();
 
   var dz = document.getElementById('dropzone');
   var fileInput = document.getElementById('file-input');
