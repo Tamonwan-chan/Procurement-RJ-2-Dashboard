@@ -375,7 +375,7 @@
       <div class="sub">คลังยา/เวชภัณฑ์และการจัดซื้อห้องยา</div>
     </div>
   </div>
-  <div class="mock-badge" id="mode-badge"><span class="dot"></span>ข้อมูลตัวอย่าง — ลากไฟล์จริงมาวางเพื่อแทนที่</div>
+  <div class="mock-badge" id="mode-badge"><span class="dot"></span>ยังไม่มีข้อมูล — ลากไฟล์จาก HIS มาวางด้านล่าง</div>
 </div>
 
 <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือกไฟล์">
@@ -841,43 +841,7 @@
   function fmt1(n){ return n.toLocaleString('th-TH',{ maximumFractionDigits:1 }); }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]; }); }
 
-  /* ---------------- sample data ---------------- */
-  var SAMPLE_ITEMS = (function(){
-    function it(hospcode, generic, tradename, reg, ised, cQty, cVal, gQty, oneQty, costrate, rate, distribute){
-      var stock = {
-        central:{ qty:cQty, value:cVal },
-        G:{ qty:gQty, value:gQty*costrate },
-        '1':{ qty:oneQty, value:oneQty*costrate }
-      };
-      return { hospcode:hospcode, generic:generic, tradename:tradename, regType:reg, isedRaw:ised, acct:acctKey(ised),
-        distribute:distribute, stock:stock,
-        proc: rate ? { lowrate:rate[0], highrate:rate[1], userate:rate[2], sumqty:rate[3] != null ? rate[3] : rate[2] } : null };
-    }
-    var D='ทะเบียนยา', C='ทะเบียนเภสัชเคมีภัณฑ์', N='ทะเบียนเวชภัณฑ์ที่มิใช่ยา', S='ทะเบียนยาตัวอย่าง (SAMPLE)';
-    var items = [
-      it('1012110','bupivacaine','MARCAINE SPINAL HEAVY 0.5% 4 ML',D,'b:basic list (EDข)',180,25923,0,142,144.02,[40,160,52],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
-      it('2131822','doxazosin','CARDURA XL 4 MG TABLET',D,'NED',0,0,14,591,23.5,[300,1200,410],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
-      it('2251286','paracetamol','PARACETAMOL 500 MG TABLET',D,'b:basic list (EDก)',80,36000,1223,1201,0.45,[5000,20000,15200],'องค์การเภสัชกรรม'),
-      it('2263090','acetylcysteine','ACETYLCYSTEINE 100 MG SACHET',D,'b:basic list (EDก)',400,25680,4077,1432,1.28,[900,3600,2400],'บริษัท เบอร์ลินฟาร์มาซูติคอลอินดัสตรี้ จำกัด'),
-      it('2272210','sodium acetate','ACETAR 1000 ML',D,'s:supplemental list (EDค)',120,5160,40,85,43,[232.5,930,232.5],'บริษัท วี.แอนด์.วี. จำกัด'),
-      it('2306697','abacavir + lamivudine','ABACAVIR 600 + LAMIVUDINE 300 TABLET',D,'ex:exclusive list (EDง)',0,0,28,0,28.67,null,'องค์การเภสัชกรรม'),
-      it('2307015','ammonia aromatic','แอมโมเนียหอม 15 ml',D,'b:basic list (EDก)',0,0,12,20,15,null,'องค์การเภสัชกรรม'),
-      it('2307349','ceftriaxone','CEFTRIAXONE 1 G INJ',D,'R2:restricted list (EDจ(2))',20,9600,82,842,48,[600,2400,700],'บริษัท โรช ไทยแลนด์ จำกัด'),
-      it('2307517','molnupiravir','MOLNUPIRAVIR (GPO) 200 MG CAPSULE',D,'ยา Covid 19',0,0,0,40,11.77,null,'องค์การเภสัชกรรม'),
-      it('2307967','risedronate','ACTONEL FCT 150 MG ONCE-A-MONTH',D,'NED',6,5136,0,4,856,[30,90,8.4,0],'บริษัท ซิลลิค ฟาร์มา จำกัด'),
-      it('2308001','andrographis','ฟ้าทะลายโจร แคปซูล',D,'บัญชียาสมุนไพร',0,0,300,120,1.1,null,'องค์การเภสัชกรรม'),
-      it('2309120','hq cream','HQ 5% IN CREAM BASE 500 GM (HF)',D,'สูตรตำรับ รพ.',0,0,0,2,3035,null,'ผลิตใน รพ.'),
-      it('160044','formalin','10% NEUTRAL BUFFERED FORMALIN 1000 ML',C,'ไม่ระบุ',0,0,0,2,140,null,'บริษัท เมดิทอป จำกัด'),
-      it('4381089','abdominal support','ABDOMINAL SUPPORT L 39-47"',N,'เวชภัณฑ์มิใช่ยา',0,0,1,0,360,null,'บริษัท เมดิทอป จำกัด'),
-      it('2131856','pravastatin','MEVALOTIN PROTECT 40 MG',S,'NED',0,0,0,0,11.5,[20,80,3],'บริษัท ซิลลิค ฟาร์มา จำกัด')
-    ];
-    items[2].lots = [{ loc:'central', lot:'P2401', exp:'31/03/2027', qty:60, unit:'กล่อง', price:450 }, { loc:'central', lot:'P2409', exp:'30/09/2027', qty:20, unit:'กล่อง', price:450 }];
-    items[2].multiLot = true;
-    items[4].plan = { qty:1480, value:63640, year:2570 };
-    return items;
-  })();
-
-  var state = { mode:'sample', items:SAMPLE_ITEMS, room:'all', reg:'all', acct:'all', search:'', searchField:'all', stockFilter:'pos', groupByCompany:false, rateSearch:'', rateStatus:'all', rateDist:'all', rateMfr:'all', rateSel:null, datasets:{}, prev:null, openLots:{}, gpsAll:false, gpuAll:false, meta:null, regList:REG_TYPES.slice() };
+  var state = { mode:'empty', items:[], room:'all', reg:'all', acct:'all', search:'', searchField:'all', stockFilter:'pos', groupByCompany:false, rateSearch:'', rateStatus:'all', rateDist:'all', rateMfr:'all', rateSel:null, datasets:{}, prev:null, openLots:{}, gpsAll:false, gpuAll:false, meta:null, regList:REG_TYPES.slice() };
 
   /* ---------------- Excel import (ไฟล์ HIS หลายไฟล์) ---------------- */
   function norm(h){ return String(h == null ? '' : h).replace(/\s+/g,' ').trim().toLowerCase(); }
@@ -1177,7 +1141,7 @@
       var b = buildItems(state.lookups);
       state.mode = 'real'; state.items = b.items; state.regList = b.regList; state.noPack = b.noPack;
     } else {
-      state.mode = 'sample'; state.items = SAMPLE_ITEMS; state.regList = REG_TYPES.slice(); state.noPack = 0;
+      state.mode = 'empty'; state.items = []; state.regList = REG_TYPES.slice(); state.noPack = 0;
     }
     updateSourceUI();
   }
@@ -1409,7 +1373,7 @@
       badge.innerHTML = '<span class="dot"></span>ข้อมูลจริงจากไฟล์ HIS ที่นำเข้า';
     } else {
       badge.classList.remove('real');
-      badge.innerHTML = '<span class="dot"></span>ข้อมูลตัวอย่าง — ลากไฟล์จริงมาวางเพื่อแทนที่';
+      badge.innerHTML = '<span class="dot"></span>ยังไม่มีข้อมูล — ลากไฟล์จาก HIS มาวางด้านล่าง';
     }
     var fresh = state.fresh || [];
     document.getElementById('file-slots').innerHTML = FILE_SLOTS.map(function(s){
@@ -1999,7 +1963,7 @@
             var total = centralQty(it); FLOOR_LOCS.forEach(function(l){ total += it.stock[l.id] ? it.stock[l.id].qty : 0; });
             return '<b>' + esc(it.hospcode) + '</b> ' + esc((LM[it.hospcode] || {}).name || it.tradename) + ' · ยอดรวมใน รพ ' + fmt1(total) + ' กล่อง';
           }).join(' · ') + (other.length > 5 ? ' · … อีก ' + (other.length - 5) + ' รายการ' : '') + ' — ดูคงคลังและทำใบเสนอราคาได้ที่ปุ่ม "ทำใบเสนอราคา"'
-        : 'ไม่พบรายการตามที่เลือก') + '</td></tr>';
+        : state.mode === 'empty' ? 'ยังไม่มีข้อมูล — ลากไฟล์จาก HIS มาวาง' : 'ไม่พบรายการตามที่เลือก') + '</td></tr>';
       return;
     }
     body.innerHTML = rows.map(function(r){ return rateRow(r.it, r.status); }).join('');
@@ -3840,7 +3804,7 @@
     var body = document.getElementById('item-table');
     var countText = 'แสดง ' + fmt(rows.length) + ' รายการ' + (q ? ' (จาก ' + fmt(visible.length) + ')' : '');
     if(!rows.length){
-      body.innerHTML = '<tr><td colspan="' + TABLE_COLS + '" class="table-note" style="padding:14px">ไม่พบรายการตามตัวกรอง/คำค้นหา</td></tr>';
+      body.innerHTML = '<tr><td colspan="' + TABLE_COLS + '" class="table-note" style="padding:14px">' + (state.mode === 'empty' ? 'ยังไม่มีข้อมูล — ลากไฟล์จาก HIS มาวาง' : 'ไม่พบรายการตามตัวกรอง/คำค้นหา') + '</td></tr>';
     } else if(state.groupByCompany){
       var groups = {}, names = [];
       rows.forEach(function(it){
