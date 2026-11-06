@@ -2792,7 +2792,7 @@
     return wPara((g ? wGaruda(g) : '') + wRun('\tบันทึกข้อความ', { b:1, sz:58 }), { tabs:[['center', 4513]] }) +
       wPara(wRun('ส่วนราชการ', L20) + wRun('  ' + lineOrg + '\t', U), { before:60, tabs:[['right', 9026]] }) +
       wPara(wRun('ที่', L20) + wRun('  ' + no + '\t', U) + wRun('วันที่', L20) + wRun('  ' + date + '\t', U), { tabs:[['left', 4536], ['right', 9026]] }) +
-      wPara(wRun('เรื่อง', L20) + wRun('  ' + subj + (right ? '\t' + right : '\t'), U), { tabs:[['right', 9026]] }) +
+      wPara(wRun('เรื่อง', L20) + wRun('  ' + subj + '\t', U) + (right ? wRun(right, { b:1, u:1 }) : ''), { tabs:[['right', 9026]] }) +
       wPara(wRun('เรียน    ผู้อำนวยการ' + memoSet.org.hosp), { before:120 });
   }
   /* "ตำแหน่ง" ต่อท้ายชื่อเลย แล้วแท็บไปหน้าที่ (พี่โอม 30 ต.ค. 69: เลื่อนตำแหน่งเข้ามาชิดชื่อ) */
@@ -3246,7 +3246,8 @@
   function buildMemoR(g, d){
     var k = ryKind(d), rows = ryRows(g, d), t = ryTotal(g, d), hosp = memoSet.org.hosp, fy = memoFY(d.kDate || d.inspect), S = 28;
     function nm(i){ var p = memoPerson(d.committee[i]); return '(' + (p ? p.name : '..............................') + ')'; }
-    var SIGN = { left:4320 }, ROW = { tabs:[['left', 709], ['left', 4650]] }, ROW2 = { tabs:[['left', 709], ['left', 1134], ['left', 4320]] }, NAME = { tabs:[['left', 4650]] };
+    /* ตำแหน่งตามตัวอย่าง (พี่โอม 6 พ.ย. 69 #40): เจ้าหน้าที่งานคลัง / เรียน ชิดซ้าย · เพื่อโปรดทราบ 620 · ลงชื่อ 4320 · ชื่อกรรมการ 5040 · หัวหน้ากลุ่มงาน 3360 */
+    var SIGN = { left:4320 }, ROW = { tabs:[['left', 5040]] }, ROW2 = { tabs:[['left', 620], ['left', 4320]] }, NAME = { tabs:[['left', 5040]] };
     function P(s, o){ return wPara(wRun(s, { sz:S, b:o && o.b }), { before:120, jc:o && o.jc, left:o && o.left }); }
     /* เลขช่อง 2–5 ในกรอบเล็ก และช่องติ๊กการจ่ายเงิน ตามตัวอย่าง (ในตัวอย่างเป็นกล่องลอย) */
     function NUM(n){ return '<w:r><w:rPr><w:rFonts w:ascii="' + DOCX_FONT + '" w:hAnsi="' + DOCX_FONT + '" w:cs="' + DOCX_FONT + '"/><w:sz w:val="' + S + '"/><w:szCs w:val="' + S + '"/><w:bdr w:val="single" w:sz="4" w:space="0" w:color="auto"/></w:rPr><w:t xml:space="preserve"> ' + n + ' </w:t></w:r>'; }
@@ -3276,12 +3277,12 @@
         ' ลงวันที่ ' + (memoDateTh(d.billDate) || '.............') + ' ณ ' + hosp), { before:120, first:1418, jc:'thaiDistribute' }) +
       wPara(wRun('คณะกรรมการฯ ได้ทำการตรวจรับพัสดุดังกล่าวแล้ว ปรากฏว่า ถูกต้องครบถ้วนทุกประการ เมื่อวันที่  ' + memoDateTh(d.inspect) + ' จึงได้ลงลายมือไว้เป็นหลักฐาน ดังนี้'), { before:120, first:1418, jc:'thaiDistribute' }) +
       wPara(wRun('ลงชื่อ .........................................ประธานคณะกรรมการ'), { before:360, left:SIGN.left }) +
-      wPara(wRun('\t(ลงชื่อ).............................(เจ้าหน้าที่งานคลัง)\t' + nm(0)), ROW) +
+      wPara(wRun('(ลงชื่อ).............................(เจ้าหน้าที่งานคลัง)\t' + nm(0)), ROW) +
       wPara(wRun('ลงชื่อ .........................................คณะกรรมการ'), SIGN) +
-      wPara(wRun('\tเรียน   ผู้อำนวยการ\t' + nm(1)), ROW) +
-      wPara(wRun('\t\tเพื่อโปรดทราบรายงานผลการตรวจรับ\tลงชื่อ .........................................คณะกรรมการ'), ROW2) +
+      wPara(wRun('เรียน   ผู้อำนวยการ\t' + nm(1)), ROW) +
+      wPara(wRun('\tเพื่อโปรดทราบรายงานผลการตรวจรับ\tลงชื่อ .........................................คณะกรรมการ'), ROW2) +
       wPara(wRun('\t' + nm(2)), NAME) +
-      wPara(wRun('(ลงชื่อ).........................หัวหน้ากลุ่มงานเภสัชกรรม/หัวหน้าเจ้าหน้าที่'), { before:240, left:2160 }) +
+      wPara(wRun('(ลงชื่อ).........................หัวหน้ากลุ่มงานเภสัชกรรม/หัวหน้าเจ้าหน้าที่'), { before:240, left:3360 }) +
       wPara('', { before:60 }) +
       wTable([{ cells:[{ xml:a }, { xml:b }] }, { cells:[{ xml:c }, { xml:e }] }], [{ w:6658 }, { w:3543 }], { sz:S, top:1, ind:-431 });
     return docxBlob(body, memoSet.garuda, { top:851, right:1440, bottom:567, left:1440 });
