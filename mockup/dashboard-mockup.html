@@ -964,7 +964,7 @@
       else if(slot === 'drugcat') out.push({ id:id, generic:txt(g(r,'generic')), tradename:txt(g(r,'tradename')), content:txt(g(r,'content')),
         packsize:num(g(r,'packsize')), distribute:clean(g(r,'distribute')), manufact:clean(g(r,'manufact')), ndc24:clean(g(r,'ndc24')),
         strength:txt(g(r,'strength')), dosageform:txt(g(r,'dosageform')) });
-      else if(slot === 'inventory') out.push({ id:id, name:txt(g(r,invName)), qty:num(g(r,invQty)),
+      else if(slot === 'inventory') out.push({ id:id, name:txt(g(r,invName)), qty:num(g(r,invQty)), pack:num(g(r,'packqty')),
         value:num(g(r,'รวมมูลค่า')) || num(g(r,invQty)) * num(g(r,invPrice)), price:num(g(r,invPrice)),
         lot:clean(g(r, lotCol)), exp:dateText(g(r, expCol)), asof:'tdate' in c ? expKey(g(r,'tdate')) : null });
       else if(slot === 'dispense'){
@@ -1044,6 +1044,21 @@
     });
     L.planYears = Object.keys(L.planByYear).map(Number).sort();
     L.plan = L.planByYear[L.planYear] || {};
+    /* ขนาดบรรจุที่ใช้จริงจากไฟล์ที่มีการเคลื่อนไหว เรียงตามลำดับที่เชื่อถือ: คลังยา (lot ที่ยังมีของ) → รับจากการสั่งซื้อ (101) ครั้งล่าสุด → จ่ายครั้งล่าสุด (ดู packOf)
+       ไม่ใช้การรับประเภทอื่น เพราะของยืม / รับคืนบางรายการลงเป็นชิ้นเดี่ยว (ขนาดบรรจุ 1) ทั้งที่ซื้อจริงเป็นกล่อง */
+    function lastPack(rows, whenOf){
+      var pack = {}, at = {};
+      rows.forEach(function(r){
+        var w = whenOf(r);
+        if(r.pack > 0 && !(at[r.id] > w)){ at[r.id] = w; pack[r.id] = r.pack; }
+      });
+      return pack;
+    }
+    L.packs = [
+      lastPack(rowsOf('inventory'), function(r){ return r.qty > 0 ? 1 : 0; }),
+      lastPack(L.po, function(r){ return r.date || r.ym * 100; }),
+      lastPack(L.disp, function(r){ return r.ym * 100; })
+    ];
     /* Meditem เก็บหน่วยเป็นรหัส — เรียนชื่อหน่วยจาก planfin / dispen_inven ของยาตัวเดียวกัน */
     L.unitOf = {}; var votes = {};
     function vote(id, name){
@@ -1079,7 +1094,10 @@
   function regTypeOf(L, id){ var r = L.reg[id], m = L.med[id]; return (r && r.rgtName) || (m && RGT_LABEL[m.rgt]) || ''; }
   function accNameOf(L, id){ var r = L.reg[id], m = L.med[id]; return (r && r.accName) || (m && ACC_LABEL[m.acc]) || ''; }
   function acctOf(L, id){ var r = L.reg[id], m = L.med[id]; return r && r.accName ? acctKey(r.accName) : (m && ACC_KEY[m.acc]) || 'other'; }
+  /* จำนวนต่อกล่อง: Meditem / DrugCatNow บางรายการไม่ตรงกับกล่องที่คลังยาใช้จริง (เช่น เก็บ 1 ทั้งที่กล่องละ 100)
+     จึงยึดไฟล์ที่มีการเคลื่อนไหวก่อน ให้ตรงกับ "ขนาดบรรจุ" ในหน้าปริมาณคงคลังของ HIS และตรงกับหน่วยกล่องที่คลังยานับจริง */
   function packOf(L, id){
+    for(var i = 0; i < L.packs.length; i++){ if(L.packs[i][id] > 0) return L.packs[i][id]; }
     var d = L.dc[id], m = L.med[id];
     return m && m.packqty > 0 ? m.packqty : d && d.packsize > 0 ? d.packsize : 0;
   }

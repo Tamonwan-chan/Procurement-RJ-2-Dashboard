@@ -71,7 +71,7 @@ Local-only, never commit: `สรุปบทบาทและงานที�
 7. Days worked on the project = distinct commit dates (weekend dates are hospital shifts and count): `git log --format=%ad --date=short | sort -u | wc -l`. After every push, rerun it; each time it reaches a multiple of **20** (20 reached 2026-11-02; next 40, 60, …), tell her plainly in that reply (she asked to be notified, on whichever PC she is using).
 
 ## Key business rules (details in the .md and README)
-- Items join on meditem = hospcode = รหัสเวชภัณฑ์ = hospdrugid. Central stock (inventory_exp) is in boxes; dispensing rooms are in units ÷ packqty.
+- Items join on meditem = hospcode = รหัสเวชภัณฑ์ = hospdrugid. Central stock (inventory_exp) is in boxes; dispensing rooms are in units ÷ packqty, taken from inventory_exp, then the latest PO_inven type 101, the latest dispen_inven, Meditem, DrugCatNow (`packOf`; Meditem and DrugCatNow are wrong for some items, #41).
 - Dispensing (dispen_inven) counts by dispense type, column H `name`: every type except เบิกฉุกเฉิน (115, clears borrowed drugs), จ่ายทั่วไป (101), ปรับยอดคงคลัง (120) and จำหน่ายออก; แลกเปลี่ยน (returns to the supplier) is counted; value = payqty × unitcost.
 - PO_inven counts only `minptype` 101 รับจากการสั่งซื้อ (the real export has five columns all named `name`; supplier = `company_dspname`, else `note`).
 - Stock history: every inventory_exp and Inventory_status import is stored per month (`_stockhist` in IndexedDB, current fiscal year + 2 before, so two full years stay comparable early in a new year) for the year-comparison report; a file dated older than the current one is kept as history only. Inventory_status files (Feb 68 – Sep 69) live in `เก็บไว้/Inventory_status/`.
