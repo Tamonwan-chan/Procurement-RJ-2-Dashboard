@@ -2932,7 +2932,7 @@
       planRef:s.planRef != null ? s.planRef : memoSet.planRef[memoFY(s.pDate || today)] || '',
       kNo:s.kNo || memoNextNo(k.k, memoFY(today)), kDate:s.kDate || '', yDate:s.yDate || '',
       bill:s.bill || '', billDate:s.billDate || '', days:s.days || 5, layout:s.layout || memoLayoutOf(doc.company),
-      committee:(s.committee || pick.committee || ['', '', '']).slice(), officer:s.officer || pick.officer || '', head:s.head || pick.head || '',
+      committee:memoSeats(s.committee || pick.committee), officer:s.officer || pick.officer || '', head:s.head || pick.head || '',
       exec:s.exec || pick.exec || '', director:s.director || pick.director || '',
       lines:s.lines ? s.lines.map(function(l){ var o = {}; Object.keys(l).forEach(function(x){ o[x] = l[x]; }); return o; }) : memoLinesFrom(doc) };
     renderMemo();
@@ -2944,6 +2944,8 @@
     clearTimeout(memoTimer);
     memoTimer = setTimeout(function(){ dbPut([quoteHist]).catch(function(){ storageOk = false; }); }, 400);
   }
+  /* กรรมการ 3 ช่อง: คนที่ไม่มีหน้าที่กรรมการแล้วให้ช่องว่าง ไม่ให้หน้าจอว่างแต่ Word ยังพิมพ์ชื่อเดิม */
+  function memoSeats(c){ return [0, 1, 2].map(function(i){ var p = memoPerson((c || [])[i]); return p && p.roles && p.roles.committee ? p.id : ''; }); }
   function memoOpts(role, cur){
     var list = (memoSet.people || []).filter(function(p){ return p.roles && p.roles[role]; });
     return '<option value="">' + (list.length ? '— เลือก —' : '— ยังไม่มีรายชื่อ (ตั้งค่ารายชื่อ) —') + '</option>' +
@@ -3131,7 +3133,7 @@
      พี่โอม 5–6 พ.ย. 69 (#34, ตัวอย่าง รย.1314, รยว.0044): รย. ต่อจาก ย. (ยา, เภสัชเคมีภัณฑ์) · รยว. ต่อจาก ยว. (เวชภัณฑ์มิใช่ยา) · 1 รย. = 1 ย.
      รายการดึงจาก PO_inven รับจากการสั่งซื้อ (101) ที่รับเข้า HIS แล้ว · ช่อง pono / invdate ใน HIS ว่าง (ไม่มี ERP เชื่อม) จึงเลือก "การรับ 1 ครั้ง" ตามเลขที่รับ minpno
      ดึงจากไฟล์: จำนวนรายการ · จำนวนเงิน (ผลรวม unitcost) · ผู้จำหน่าย · เลขที่เอกสาร (invno) · วันที่ตรวจรับ (minpdate)
-     กรอกเอง: เลขที่ รย. (รันต่อตามปีงบ เหมือน ขย.) · วันที่ · เลขที่ / วันที่ ขย. · วันที่เอกสารส่งของ · ติ๊กกรรมการ 3 คน
+     กรอกเอง: เลขที่ รย. (รันต่อตามปีงบ เหมือน ขย.) · วันที่ · เลขที่ / วันที่ ขย. · วันที่เอกสารส่งของ · เลือกกรรมการ 3 ช่อง (พี่โอม 6 พ.ย. 69: ช่องเลือกเหมือนหน้า ภย. ตั้งต้นจากชุดล่าสุด)
      พี่โอมยืนยัน 6 พ.ย. 69: ย. 1 ใบส่งรอบเดียว จึงไม่ต้องรวมหลายการรับ */
   var RY_LINE = 'โรงพยาบาลราชวิถี 2 (รังสิต)  กลุ่มงานเภสัชกรรม  โทร   02-592-9550  ต่อ   70006', RY_LIST_MAX = 100;
   var ryState = { open:false, q:'', d:null, msg:'' }, ryTimer;
@@ -3158,11 +3160,11 @@
   function ryPick(no){
     var g = ryGroup(no); if(!g) return;
     var saved = memoSet.ry && memoSet.ry[no];
-    if(saved) ryState.d = JSON.parse(JSON.stringify(saved));
+    if(saved){ ryState.d = JSON.parse(JSON.stringify(saved)); ryState.d.committee = memoSeats(ryState.d.committee); }
     else {
       var iso = ryIso(g.date), key = ryKindKey(g).key, k = key === 'non' ? MEMO_KIND.non : MEMO_KIND.drug;
       ryState.d = { no:no, kind:key, rNo:memoNextNo(k.r, memoFY(iso)), rDate:'', kNo:'', kDate:'', company:g.company, bill:g.inv || '', billDate:'', inspect:iso,
-        subj:'รายงานผลการตรวจรับยาและเวชภัณฑ์', cat:'หมวดค่าวัสดุ', committee:((memoSet.pick || {}).committee || []).filter(Boolean).slice(0, 3), skip:{}, done:false };
+        subj:'รายงานผลการตรวจรับยาและเวชภัณฑ์', cat:'หมวดค่าวัสดุ', committee:memoSeats((memoSet.pick || {}).committee), skip:{}, done:false };
     }
     ryState.msg = ''; renderRy();
   }
@@ -3172,7 +3174,8 @@
     if(!d.kNo) w.push('ยังไม่ได้กรอกเลขที่ ' + ryKind(d).k + '.');
     if(!d.kDate) w.push('ยังไม่ได้กรอกวันที่ ' + ryKind(d).k + '.');
     if(!d.billDate) w.push('ยังไม่ได้กรอกวันที่ของเอกสารส่งของ');
-    if(d.committee.length < 3) w.push('ยังติ๊กกรรมการตรวจรับไม่ครบ 3 คน');
+    if(d.committee.filter(Boolean).length < 3) w.push('ยังเลือกกรรมการตรวจรับไม่ครบ 3 คน');
+    else if(d.committee[0] === d.committee[1] || d.committee[0] === d.committee[2] || d.committee[1] === d.committee[2]) w.push('กรรมการตรวจรับซ้ำกัน');
     if(!ryRows(g, d).length) w.push('ยังไม่ได้เลือกรายการ');
     if(ryKindKey(g).mixed) w.push('การรับครั้งนี้มีทั้งยาและเวชภัณฑ์มิใช่ยา ตรวจรายการที่ติ๊กและชนิดเอกสาร');
     if(!memoSet.garuda) w.push('ยังไม่มีตราครุฑ — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าด้านบน');
@@ -3216,7 +3219,7 @@
       '<div class="table-tools"><input class="search" id="ry-q" type="search" placeholder="ค้นหาบริษัท / เลขที่เอกสาร / เลขที่รับ / ชื่อยา" value="' + esc(ryState.q) + '" aria-label="ค้นหาการรับ" style="min-width:320px"></div>' +
       '<div class="table-scroll" id="ry-list" style="max-height:280px">' + ryListHtml() + '</div>';
     if(d && g){
-      var k = ryKind(d), people = (memoSet.people || []).filter(function(p){ return p.roles && p.roles.committee; });
+      var k = ryKind(d);
       var hist = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.memo && x.memo.kNo && memoKindOf(x) === k; });
       html += '<div class="memo-step">2. รายการที่รับ (ติ๊กออกได้ ถ้าไม่ได้อยู่ใน ' + k.y + '. ใบนี้)</div>' +
         '<div class="table-scroll" style="max-height:220px"><table style="min-width:700px"><thead><tr><th></th><th>รายการ</th><th class="mono">จำนวนรับ</th><th class="mono">มูลค่า</th></tr></thead><tbody>' +
@@ -3230,11 +3233,11 @@
           F(k.k + '. เลขที่', 'kNo', ' style="width:100px" placeholder="0627/2569"') + F(k.k + '. ลงวันที่', 'kDate', ' type="date"') + '</div>' +
         '<div class="table-tools">' + F('ผู้จำหน่าย', 'company', ' style="width:320px"') + F('เอกสารเลขที่', 'bill', ' style="width:150px"') + F('เอกสารลงวันที่', 'billDate', ' type="date"') + F('วันที่ตรวจรับ', 'inspect', ' type="date"') + '</div>' +
         '<div class="table-tools">' + F('เรื่อง', 'subj', ' style="width:300px"') + F('หมวด', 'cat', ' style="width:120px"') + '</div>' +
-        '<div class="memo-step">4. กรรมการตรวจรับ (ติ๊ก 3 คน คนแรกเป็นประธาน)</div>' +
-        '<div class="table-tools">' + (people.length ? people.map(function(p){
-          var at = d.committee.indexOf(p.id);
-          return '<label class="q-field"><input type="checkbox" data-rc="' + esc(p.id) + '"' + (at >= 0 ? ' checked' : '') + '> ' + esc(p.name) + (at === 0 ? ' <b>(ประธานกรรมการ)</b>' : at > 0 ? ' <b>(กรรมการ)</b>' : '') + '</label>';
-        }).join('') : '<span class="table-note" style="margin:0">ยังไม่มีรายชื่อกรรมการ — เพิ่มได้ที่ปุ่ม ออกบันทึก ภย. / ขย. / ย. → ตั้งค่ารายชื่อ แล้วติ๊กหน้าที่ กรรมการตรวจรับ</span>') + '</div>' +
+        '<div class="memo-step">4. กรรมการตรวจรับ (ตั้งต้นจากชุดที่ใช้ล่าสุด เปลี่ยนคนได้)</div>' +
+        '<div class="table-tools"><label class="q-field">ประธานกรรมการ <select class="search field-select" data-rw="0">' + memoOpts('committee', d.committee[0]) + '</select></label>' +
+          '<label class="q-field">กรรมการ <select class="search field-select" data-rw="1">' + memoOpts('committee', d.committee[1]) + '</select></label>' +
+          '<label class="q-field">กรรมการ <select class="search field-select" data-rw="2">' + memoOpts('committee', d.committee[2]) + '</select></label></div>' +
+        '<div class="table-note" style="margin:2px 0 0">เพิ่มคนใหม่ได้ที่ปุ่ม ออกบันทึก ภย. / ขย. / ย. → ตั้งค่ารายชื่อ แล้วติ๊กหน้าที่ กรรมการตรวจรับ</div>' +
         '<div class="table-note" id="ry-sum" style="margin:8px 0 0">' + rySumHtml(g, d) + '</div>' +
         '<div class="table-tools" style="margin:10px 0 0"><button type="button" class="btn-solid" data-ract="export">ส่งออก ' + k.r + '. (.docx)</button></div>';
     }
@@ -3296,7 +3299,7 @@
     saveBlob(blob, name);
     d.done = true;
     memoSet.ry = memoSet.ry || {}; memoSet.ry[d.no] = JSON.parse(JSON.stringify(d));
-    memoSet.pick = memoSet.pick || {}; memoSet.pick.committee = d.committee.slice();
+    memoSet.pick = memoSet.pick || {}; if(d.committee.filter(Boolean).length === 3) memoSet.pick.committee = d.committee.slice();
     memoSaveSet();
     ryState.msg = 'ส่งออกแล้ว: ' + name + ' · เลขถัดไป ' + k.r + '. ' + memoNextNo(k.r, Number(String(d.rNo).split('/')[1]) || memoFY(d.inspect));
     renderRy();
@@ -3323,14 +3326,11 @@
       } else if(t.hasAttribute('data-rt')){
         if(t.checked) delete d.skip[t.getAttribute('data-rt')]; else d.skip[t.getAttribute('data-rt')] = 1;
         keep(); sum();
-      } else if(t.hasAttribute('data-rc')){
-        var id = t.getAttribute('data-rc'), at = d.committee.indexOf(id);
-        if(t.checked && at < 0 && d.committee.length >= 3){ t.checked = false; ryState.msg = 'เลือกกรรมการได้ 3 คน — เอาติ๊กคนเดิมออกก่อน'; sum(); return; }
-        if(t.checked && at < 0) d.committee.push(id); else if(!t.checked && at >= 0) d.committee.splice(at, 1);
-        ryState.msg = ''; keep(); renderRy();
+      } else if(t.hasAttribute('data-rw')){
+        d.committee[Number(t.getAttribute('data-rw'))] = t.value; ryState.msg = ''; keep(); sum();
       } else if(t.hasAttribute('data-rhist') && t.value){
         var doc = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.no === t.value; })[0], m = doc && doc.memo;
-        if(m){ d.kNo = m.kNo || ''; d.kDate = m.kDate || ''; if(m.committee && m.committee.filter(Boolean).length) d.committee = m.committee.filter(Boolean).slice(0, 3); keep(); renderRy(); }
+        if(m){ d.kNo = m.kNo || ''; d.kDate = m.kDate || ''; if(m.committee && m.committee.filter(Boolean).length) d.committee = memoSeats(m.committee); keep(); renderRy(); }
       }
     });
     box.addEventListener('click', function(e){
