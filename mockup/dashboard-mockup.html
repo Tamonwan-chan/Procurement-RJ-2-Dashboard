@@ -2533,7 +2533,7 @@
 
   /* ---------------- บันทึก ภย. / ภว. → ขย. / ขว. → ย. / ยว. (Word) ----------------
      พี่โอม 26–28 ต.ค. 69: ออกต่อจากใบขอใบเสนอราคาในประวัติ · ทุกช่องที่ไฮไลต์แก้ได้ก่อนส่งออก · เลือกกรรมการก่อนสร้าง
-     ภย. / ขย. / ย. = ใบ W (ยา) · ภว. / ขว. / ยว. = ใบ WM, WC · ไม่แปะลายเซ็นในบันทึก (ลงนามจริงบนกระดาษ)
+     ภย. / ขย. / ย. = ใบ W (ยา) · ภว. / ขว. / ยว. = ใบ WM, WC (9 พ.ย. 69) · ไม่แปะลายเซ็นในบันทึก (ลงนามจริงบนกระดาษ)
      รายชื่อ / ตำแหน่ง / ตราครุฑ เก็บใน IndexedDB ของเครื่องนี้เท่านั้น — เว็บเปิดสาธารณะ ห้ามใส่ชื่อคนในโค้ด
      ไฟล์ .docx สร้างเองด้วยตัวเขียน zip ของ SheetJS (ไม่ต้องโหลดไลบรารีเพิ่ม) */
   var MEMO_SLOT = '_memoset', memoSet = null;
@@ -2545,8 +2545,13 @@
     non:{ p:'ภว', k:'ขว', y:'ยว', r:'รยว', what:'วัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช)', col:'รายการเวชภัณฑ์ที่มิใช่ยา', need:'เพื่อใช้ในทางการแพทย์',
       subjP:'ขออนุมัติหลักการซื้อวัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช) โดยวิธีเฉพาะเจาะจง', subjK:'ขออนุมัติซื้อวัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช) โดยวิธีเฉพาะเจาะจง' }
   };
-  /* W / WB / WC (เภสัชเคมีภัณฑ์) → ภย. / ขย. / ย. · WM → ภว. / ขว. / ยว. — พี่โอมยืนยัน 3 พ.ย. 69 (เดิม WC ไปชุด ภว.) */
-  function memoKindOf(doc){ return doc.series === 'WM' ? MEMO_KIND.non : MEMO_KIND.drug; }
+  /* W / WB → ภย. / ขย. / ย. · WM / WC (เภสัชเคมีภัณฑ์) → ภว. / ขว. / ยว. — พี่โอม 9 พ.ย. 69 ตามหมวดในแผน (ข้อ 2.32 ข้อ 2)
+     WC เปลี่ยนชุดมาแล้ว 3 ครั้ง (22 ต.ค. ภว. → 3 พ.ย. ภย. → 9 พ.ย. ภว.) จึงจำชุดไว้กับบันทึก (kind): ใบ WC ที่ออกเลขไปแล้วก่อนหน้านี้ยังเปิดเป็น ภย. ตามที่พิมพ์ไป */
+  function memoKindRule(doc){ return doc.series === 'WM' || doc.series === 'WC' ? 'non' : 'drug'; }
+  function memoKindOf(doc){
+    var s = memoState.d && doc.no === memoState.no ? memoState.d : doc.memo;
+    return MEMO_KIND[s && s.kind || memoKindRule(doc)];
+  }
   function memoSeed(){
     return { slot:MEMO_SLOT, people:[], planRef:{}, next:{}, pick:{}, garuda:null,
       org:{ hosp:'โรงพยาบาลราชวิถี 2 (รังสิต)', dept:'กลุ่มงานเภสัชกรรม',
@@ -2948,9 +2953,9 @@
   function memoOpen(no){
     var doc = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.no === no; })[0]; if(!doc) return;
     if(!memoSet) memoSet = memoSeed();
-    var k = memoKindOf(doc), s = doc.memo || {}, pick = memoSet.pick || {}, today = todayIso();
+    var s = doc.memo || {}, kind = s.kind || (s.pNo && doc.series === 'WC' ? 'drug' : memoKindRule(doc)), k = MEMO_KIND[kind], pick = memoSet.pick || {}, today = todayIso();
     memoState.no = no; memoState.msg = '';
-    memoState.d = {
+    memoState.d = { kind:kind,
       pNo:s.pNo || memoNextNo(k.p, memoBE(today)), pDate:s.pDate || today,
       planRef:s.planRef != null ? s.planRef : memoSet.planRef[memoFY(s.pDate || today)] || '',
       kNo:s.kNo || memoNextNo(k.k, memoFY(today)), kDate:s.kDate || '', yDate:s.yDate || '',
@@ -2985,7 +2990,7 @@
     return w;
   }
   /* วงเงินแผนคงเหลือ = วงเงินแผน (planfin ปีงบ) − PO_inven รับจากการสั่งซื้อแล้ว (101) ของกองนั้น — พี่โอม 3 พ.ย. 69 (#4)
-     กองยา = W / WB / WC (planfin + planfin_C) · กองเวชภัณฑ์มิใช่ยา = WM (planfin_M) · ยังไม่หักใบที่สั่งแล้วแต่ยังไม่ได้รับของ */
+     กองยา = W / WB (planfin) · กองเวชภัณฑ์มิใช่ยา = WM + WC (planfin_M + planfin_C · 9 พ.ย. 69) · ยังไม่หักใบที่สั่งแล้วแต่ยังไม่ได้รับของ */
   function memoBudgetHtml(doc, t){
     var d = memoState.d, fy = memoFY(d.kDate || d.pDate), pot = memoKindOf(doc) === MEMO_KIND.drug ? 'drug' : 'nondrug';
     var name = pot === 'drug' ? 'ยา' : 'เวชภัณฑ์มิใช่ยา', sums = planPotSums(fy);
@@ -3510,8 +3515,16 @@
       if(quoteState.mfr !== 'all' && (it.manufact || NO_MFR) !== quoteState.mfr) return false;
       if(quoteState.onlyOut && !isOut(it)) return false;
       return !q || (it.hospcode + ' ' + it.tradename + ' ' + it.generic + ' ' + ((state.lookups && state.lookups.med[it.hospcode]) || {}).name).toLowerCase().indexOf(q) >= 0;   /* ชื่อใน Meditem ด้วย (อาจต่างจาก DrugCatNow) */
-    }).sort(function(a, b){
-      return (quoteState.sel[b.hospcode] ? 1 : 0) - (quoteState.sel[a.hospcode] ? 1 : 0) || (isOut(b) ? 1 : 0) - (isOut(a) ? 1 : 0) ||
+    });
+    /* ชื่อขึ้นต้นด้วย "_" = ออกจากบัญชี รพ. แล้ว เก็บไว้เผื่อกลับมาใช้: ยังแสดงและเลือกได้ แต่อยู่ท้ายสุด (พี่โอม ก่อน 9 พ.ย. 69 · ข้อ 2.32 ข้อ 8) */
+    var dropped = {};
+    rows.forEach(function(it){
+      var e = quoteState.edits[it.hospcode], nm = e && e.name != null ? e.name : ((state.lookups && state.lookups.med[it.hospcode]) || {}).name || it.tradename || it.generic;
+      if(/^\s*_/.test(nm || '')) dropped[it.hospcode] = 1;
+    });
+    rows.sort(function(a, b){
+      return (quoteState.sel[b.hospcode] ? 1 : 0) - (quoteState.sel[a.hospcode] ? 1 : 0) ||          /* ที่เลือกแล้วอยู่บนสุดเสมอ (ไม่ให้หลุดเกิน 150 แถว) */
+        (dropped[a.hospcode] ? 1 : 0) - (dropped[b.hospcode] ? 1 : 0) || (isOut(b) ? 1 : 0) - (isOut(a) ? 1 : 0) ||
         a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true });
     });
     var LIMIT = 150, shown = rows.slice(0, LIMIT);
@@ -4232,21 +4245,20 @@
 
   /* ---------------- ซื้อจริงเทียบวงเงินแผนทั้งปีงบ ----------------
      แจ้งเมื่อยอดซื้อจริง (PO_inven รับจากการสั่งซื้อ 101) ของปีงบเกินยอด planfin ปีงบนั้น
-     แยก 2 กองตามที่ขออนุมัติแผน (พี่โอม 26 ต.ค. 69): ยา = planfin + planfin_C · เวชภัณฑ์มิใช่ยา = planfin_M
+     แยก 2 กองตามหมวดในแผน (พี่โอม 9 พ.ย. 69 · ข้อ 2.32 ข้อ 2 · เดิม 26 ต.ค. planfin_C อยู่กองยา): ยา = planfin (W) · วัสดุเวชภัณฑ์ไม่ใช่ยา = planfin_M + planfin_C (WM + WC)
      รายการที่ไม่มีในแผนแยกกองตามทะเบียน · นับทุกรายการ ไม่ขึ้นกับตัวกรองทะเบียน / ประเภทบัญชี */
-  var PLAN_POTS = [['drug', 'ยา', 'planfin + planfin_C'], ['nondrug', 'เวชภัณฑ์มิใช่ยา', 'planfin_M']];
+  var PLAN_POTS = [['drug', 'ยา', 'planfin'], ['nondrug', 'เวชภัณฑ์มิใช่ยา', 'planfin_M + planfin_C']];
   var PLAN_NEAR_PCT = 90;
   function planPotOf(L, id, plan){
     var g = plan && plan[id] && plan[id].grp;
-    if(g) return g === '2/1' ? 'nondrug' : 'drug';
-    var t = regTypeOf(L, id);
-    return t === 'ทะเบียนยา' || t === 'ทะเบียนเภสัชเคมีภัณฑ์' ? 'drug' : 'nondrug';
+    if(g) return g === '1/1' ? 'drug' : 'nondrug';
+    return regTypeOf(L, id) === 'ทะเบียนยา' ? 'drug' : 'nondrug';
   }
   /* ยอดแผนและซื้อจริงแยกกองของปีงบ (ใช้ทั้งแถบวงเงินในตารางแผน และวงเงินคงเหลือในหน้าออกบันทึก) */
   function planPotSums(cur){
     var L = state.lookups, plan = L && cur ? L.planByYear[cur] : null; if(!plan) return null;
     var P = {}; PLAN_POTS.forEach(function(o){ P[o[0]] = { plan:0, buy:0 }; });
-    Object.keys(plan).forEach(function(id){ P[plan[id].grp === '2/1' ? 'nondrug' : 'drug'].plan += plan[id].value; });
+    Object.keys(plan).forEach(function(id){ P[planPotOf(L, id, plan)].plan += plan[id].value; });
     var poN = 0, lastYm = 0;
     (L.po || []).forEach(function(r){
       if(fiscalOf(r.ym) !== cur) return; poN++; if(r.ym > lastYm) lastYm = r.ym;
@@ -4527,11 +4539,15 @@
     hline(KPI_GOOD, 'var(--critical)', 'KPI THIP = 1.33', dyK);
     if(mean !== null) hline(mean, 'var(--accent)', 'mean = ' + mean.toFixed(2), dyM);
     /* ปีงบที่เทียบ: สีตามช่วงเดียวกันแต่จาง เส้นบางกว่า ไม่มีป้ายตัวเลข (ชี้ที่จุดเพื่อดูค่า) วาดก่อนให้อยู่ใต้ปีปัจจุบัน
-       ป้ายปีงบ (เช่น 68 / 69) ท้ายเส้นแต่ละปี */
+       ป้ายปีงบ "ปีงบ 68" / "ปีงบ 69" ท้ายเส้นแต่ละปี (พี่โอม 9 พ.ย. 69 · ข้อ 2.32 ข้อ 3)
+       ป้ายที่ล้นเข้าขอบขวา (เดือนท้าย ๆ) ขยับขึ้น / ลงให้ห่างป้าย KPI / mean อย่างน้อย 15px */
+    var sideY = [y(KPI_GOOD) + 4 + dyK].concat(mean !== null ? [y(mean) + 4 + dyM] : []);
     function yearTag(rs, color, opacity){
       for(var k = rs.length - 1; k >= 0; k--){
         if(rs[k].ratio === null) continue;
-        s += '<text class="k-val" x="' + (x(k) + 12) + '" y="' + (y(rs[k].ratio) + 4) + '" font-size="13" style="fill:' + color + '" opacity="' + opacity + '">' + String(fiscalOf(rs[k].ym) % 100) + '</text>';
+        var tx = x(k) + 12, ty = y(rs[k].ratio) + 4;
+        if(tx + 48 > W - R0 + 4) sideY.forEach(function(ly){ if(Math.abs(ty - ly) < 15) ty = ty <= ly ? ly - 15 : ly + 15; });
+        s += '<text class="k-val" x="' + tx + '" y="' + ty + '" font-size="13" style="fill:' + color + '" opacity="' + opacity + '">ปีงบ ' + String(fiscalOf(rs[k].ym) % 100) + '</text>';
         return;
       }
     }
