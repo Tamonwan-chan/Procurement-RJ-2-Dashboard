@@ -2537,8 +2537,20 @@
      รายชื่อ / ตำแหน่ง / ตราครุฑ เก็บใน IndexedDB ของเครื่องนี้เท่านั้น — เว็บเปิดสาธารณะ ห้ามใส่ชื่อคนในโค้ด
      ไฟล์ .docx สร้างเองด้วยตัวเขียน zip ของ SheetJS (ไม่ต้องโหลดไลบรารีเพิ่ม) */
   var MEMO_SLOT = '_memoset', memoSet = null;
-  /* หน้าจอเรียก head ว่า หัวหน้ากลุ่มงานเภสัชกรรม (คุณธมลวรรณ 4 พ.ย. 69) · ใน ขย. / ขว. / ย. / ยว. ยังพิมพ์ ลงชื่อ…(หัวหน้าเจ้าหน้าที่พัสดุ) ตามเอกสารจริง */
-  var MEMO_ROLES = [['committee', 'กรรมการตรวจรับ'], ['officer', 'เจ้าหน้าที่พัสดุ'], ['head', 'หัวหน้ากลุ่มงานเภสัชกรรม'], ['exec', 'ผู้บริหารเสนอความเห็น'], ['director', 'ผู้อำนวยการ']];
+  /* head = หัวหน้ากลุ่มงานเภสัชกรรม (คุณธมลวรรณ 4 พ.ย. 69) ลงนาม ภย. / ภว. · ขย. / ขว. / ย. / ยว. ลงชื่อ…(หัวหน้าเจ้าหน้าที่พัสดุ) ใช้คนในช่อง supHead (9 พ.ย. 69) */
+  /* 2 หน้าที่ใหม่ "เพราะมีโอกาสเปลี่ยน" (พี่โอม 9 พ.ย. 69 · ข้อ 2.32 ข้อ 4): ประธานกรรมการตรวจรับ = ช่องประธานกรรมการ · หัวหน้าเจ้าหน้าที่พัสดุ = ผู้ลงนาม ขย. / ขว. / ย. / ยว.
+     หัวหน้ากลุ่มงานเภสัชกรรมลงนาม ภย. / ภว. (ข้อ 24 รอยืนยัน) */
+  var MEMO_ROLES = [['committee', 'กรรมการตรวจรับ'], ['chair', 'ประธานกรรมการตรวจรับ'], ['officer', 'เจ้าหน้าที่พัสดุ'], ['supHead', 'หัวหน้าเจ้าหน้าที่พัสดุ'], ['head', 'หัวหน้ากลุ่มงานเภสัชกรรม'], ['exec', 'ผู้บริหารเสนอความเห็น'], ['director', 'ผู้อำนวยการ']];
+  /* ตั้งต้นครั้งเดียวจากคนเดิม เอกสารจะได้ไม่ว่าง: คนที่ติ๊กหัวหน้ากลุ่มงานได้ติ๊กหัวหน้าเจ้าหน้าที่พัสดุ · ประธานในชุดล่าสุดและในบันทึกที่เก็บไว้ได้ติ๊กประธาน */
+  function memoRolesUp(){
+    if(!memoSet || memoSet.rolesV >= 2) return;
+    var people = memoSet.people || [], chairs = {};
+    [(memoSet.pick || {}).committee].concat((quoteHist && quoteHist.docs || []).map(function(x){ return x.memo && x.memo.committee; }),
+      Object.keys(memoSet.ry || {}).map(function(n){ return memoSet.ry[n].committee; })).forEach(function(c){ if(c && c[0]) chairs[c[0]] = 1; });
+    people.forEach(function(q){ q.roles = q.roles || {}; if(q.roles.head) q.roles.supHead = true; if(chairs[q.id]) q.roles.chair = true; });
+    if(memoSet.pick && memoSet.pick.head && !memoSet.pick.supHead) memoSet.pick.supHead = memoSet.pick.head;
+    memoSet.rolesV = 2; memoSaveSet();
+  }
   var MEMO_KIND = {
     drug:{ p:'ภย', k:'ขย', y:'ย', r:'รย', what:'ยา', col:'รายการยา', need:'เพื่อใช้รักษาผู้ป่วย',
       subjP:'ขออนุมัติหลักการซื้อยาโดยวิธีเฉพาะเจาะจง', subjK:'ขออนุมัติซื้อยา โดยวิธีเฉพาะเจาะจง' },
@@ -2859,7 +2871,7 @@
   }
   function buildMemoK(doc, d){
     var k = memoKindOf(doc), t = memoTotals(d), fy = memoFY(d.kDate || d.pDate), n = d.lines.length, I = { left:0, first:1418, jc:'thaiDistribute' };
-    var off = memoPerson(d.officer), head = memoPerson(d.head), ex = memoPerson(d.exec), dir = memoPerson(d.director);
+    var off = memoPerson(d.officer), head = memoPerson(d.supHead), ex = memoPerson(d.exec), dir = memoPerson(d.director);   /* ลงนามช่อง หัวหน้าเจ้าหน้าที่พัสดุ */
     /* ข้อ 1–8 ตาม ขย.0450 ของพี่โอม: เลขเริ่มที่ 1 tab บรรทัดถัดไปชิดขอบซ้าย (พี่โอมเขียนแก้ 4 พ.ย. 69) */
     var NUM = { first:720, jc:'thaiDistribute' };
     var body = memoHead(memoSet.org.lineK, k.k + '.' + d.kNo, memoDateTh(d.kDate), k.subjK, 'หมวดค่าวัสดุ') +
@@ -2901,7 +2913,7 @@
   }
   function buildMemoY(doc, d){
     var k = memoKindOf(doc), t = memoTotals(d), n = d.lines.length, S = 28, drug = k === MEMO_KIND.drug;
-    var off = memoPerson(d.officer), head = memoPerson(d.head), dir = memoPerson(d.director);
+    var off = memoPerson(d.officer), head = memoPerson(d.supHead), dir = memoPerson(d.director);
     function P(text, o){ o = o || {}; return wPara(wRun(text, { sz:S, b:o.b }), o); }
     var cols = drug
       ? [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:2650, flex:1 }, { h:'รหัส GPU', w:900, jc:'center', num:1 }, { h:'รหัส TPU', w:900, jc:'center', num:1 }, { h:'รหัส\nUNSPSC', w:1100, jc:'center', num:1 },
@@ -2953,6 +2965,7 @@
   function memoOpen(no){
     var doc = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.no === no; })[0]; if(!doc) return;
     if(!memoSet) memoSet = memoSeed();
+    memoRolesUp();
     var s = doc.memo || {}, kind = s.kind || (s.pNo && doc.series === 'WC' ? 'drug' : memoKindRule(doc)), k = MEMO_KIND[kind], pick = memoSet.pick || {}, today = todayIso();
     memoState.no = no; memoState.msg = '';
     memoState.d = { kind:kind,
@@ -2961,6 +2974,7 @@
       kNo:s.kNo || memoNextNo(k.k, memoFY(today)), kDate:s.kDate || '', yDate:s.yDate || '',
       bill:s.bill || '', billDate:s.billDate || '', days:s.days || 5, layout:s.layout || memoLayoutOf(doc.company),
       committee:memoSeats(s.committee || pick.committee), officer:s.officer || pick.officer || '', head:s.head || pick.head || '',
+      supHead:s.supHead || (s.pNo && s.head) || pick.supHead || '',     /* บันทึกเดิม: หัวหน้ากลุ่มงานคนเดิมลงนาม ขย. ไปแล้ว */
       exec:s.exec || pick.exec || '', director:s.director || pick.director || '',
       lines:s.lines ? s.lines.map(function(l){ var o = {}; Object.keys(l).forEach(function(x){ o[x] = l[x]; }); return o; }) : memoLinesFrom(doc) };
     renderMemo();
@@ -2973,7 +2987,7 @@
     memoTimer = setTimeout(function(){ dbPut([quoteHist]).catch(function(){ storageOk = false; }); }, 400);
   }
   /* กรรมการ 3 ช่อง: คนที่ไม่มีหน้าที่กรรมการแล้วให้ช่องว่าง ไม่ให้หน้าจอว่างแต่ Word ยังพิมพ์ชื่อเดิม */
-  function memoSeats(c){ return [0, 1, 2].map(function(i){ var p = memoPerson((c || [])[i]); return p && p.roles && p.roles.committee ? p.id : ''; }); }
+  function memoSeats(c){ return [0, 1, 2].map(function(i){ var p = memoPerson((c || [])[i]); return p && p.roles && p.roles[i ? 'committee' : 'chair'] ? p.id : ''; }); }
   function memoOpts(role, cur){
     var list = (memoSet.people || []).filter(function(p){ return p.roles && p.roles[role]; });
     return '<option value="">' + (list.length ? '— เลือก —' : '— ยังไม่มีรายชื่อ (ตั้งค่ารายชื่อ) —') + '</option>' +
@@ -2983,7 +2997,8 @@
     var w = [];
     if(d.committee.filter(Boolean).length < 3) w.push('ยังเลือกคณะกรรมการตรวจรับไม่ครบ 3 คน');
     else if(d.committee[0] === d.committee[1] || d.committee[0] === d.committee[2] || d.committee[1] === d.committee[2]) w.push('คณะกรรมการตรวจรับซ้ำกัน');
-    if(!d.head) w.push('ยังไม่ได้เลือกหัวหน้ากลุ่มงานเภสัชกรรม');
+    if(!d.supHead) w.push('ยังไม่ได้เลือกหัวหน้าเจ้าหน้าที่พัสดุ (ลงนาม ขย. / ขว. / ย. / ยว.)');
+    if(!d.head) w.push('ยังไม่ได้เลือกหัวหน้ากลุ่มงานเภสัชกรรม (ลงนาม ภย. / ภว.)');
     if(d.kDate && d.pDate && d.kDate <= d.pDate) w.push('วันที่ ขย. / ขว. ควรอยู่หลังวันที่ ภย. / ภว.');
     if(!memoSet.garuda) w.push('ยังไม่มีตราครุฑ — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าด้านบน');
     if(!d.planRef) w.push('ยังไม่ได้ใส่หนังสืออ้างอิงแผน');
@@ -3033,11 +3048,12 @@
     /* วาดใหม่ทั้งกล่อง (เช่น ติ๊กหน้าที่) แล้วตารางเลื่อนกลับซ้ายสุด — จำตำแหน่งเลื่อนของตารางรายชื่อ / รายการไว้คืน (คุณธมลวรรณ 3 พ.ย. 69) */
     var keep = {}; Array.prototype.forEach.call(box.querySelectorAll("[data-keep]"), function(el){ keep[el.getAttribute("data-keep")] = [el.scrollLeft, el.scrollTop]; });
     function F(label, key, attrs){ return '<label class="q-field">' + label + ' <input class="q-in" data-f="' + key + '" value="' + esc(d[key] == null ? '' : d[key]) + '"' + (attrs || '') + '></label>'; }
-    var who = '<label class="q-field">ประธานกรรมการ <select class="search field-select" data-who="c0">' + memoOpts('committee', d.committee[0]) + '</select></label>' +
+    var who = '<label class="q-field">ประธานกรรมการ <select class="search field-select" data-who="c0">' + memoOpts('chair', d.committee[0]) + '</select></label>' +
       '<label class="q-field">กรรมการ <select class="search field-select" data-who="c1">' + memoOpts('committee', d.committee[1]) + '</select></label>' +
       '<label class="q-field">กรรมการ <select class="search field-select" data-who="c2">' + memoOpts('committee', d.committee[2]) + '</select></label>' +
       '<label class="q-field">เจ้าหน้าที่พัสดุ <select class="search field-select" data-who="officer">' + memoOpts('officer', d.officer) + '</select></label>' +
-      '<label class="q-field">หัวหน้ากลุ่มงานเภสัชกรรม <select class="search field-select" data-who="head">' + memoOpts('head', d.head) + '</select></label>' +
+      '<label class="q-field">หัวหน้าเจ้าหน้าที่พัสดุ (' + k.k + '. / ' + k.y + '.) <select class="search field-select" data-who="supHead">' + memoOpts('supHead', d.supHead) + '</select></label>' +
+      '<label class="q-field">หัวหน้ากลุ่มงานเภสัชกรรม (' + k.p + '.) <select class="search field-select" data-who="head">' + memoOpts('head', d.head) + '</select></label>' +
       '<label class="q-field">ผู้บริหารเสนอความเห็น (ขย.) <select class="search field-select" data-who="exec">' + memoOpts('exec', d.exec) + '</select></label>' +
       '<label class="q-field">ผู้อำนวยการ <select class="search field-select" data-who="director">' + memoOpts('director', d.director) + '</select></label>';
     var NUMK = { stock:1, rate:1, qty:1, ref:1, last:1, price:1 };
@@ -3066,7 +3082,7 @@
       (memoState.setOpen ?
         '<div class="memo-set"><div class="table-note" style="margin:0 0 8px">รายชื่อเก็บไว้ในเครื่องนี้เท่านั้น (ไม่อยู่ในโปรแกรมบนเว็บ) · ติ๊กว่าแต่ละคนอยู่ในหน้าที่ไหนได้หลายช่อง · ช่อง "ใช้ลงนาม" = บรรทัดใต้ชื่อตอนลงนาม (ว่างไว้ = ใช้ตำแหน่ง)</div>' +
         '<div class="table-scroll" data-keep="people" style="max-height:300px"><table style="min-width:1100px"><thead><tr><th>ชื่อ – นามสกุล</th><th>ตำแหน่ง</th><th>ใช้ลงนาม</th>' + MEMO_ROLES.map(function(r){ return '<th>' + r[1] + '</th>'; }).join('') + '<th></th></tr></thead><tbody>' +
-        (people || '<tr><td colspan="9" class="table-note" style="padding:10px">ยังไม่มีรายชื่อ — กด "เพิ่มรายชื่อ"</td></tr>') + '</tbody></table></div>' +
+        (people || '<tr><td colspan="' + (MEMO_ROLES.length + 4) + '" class="table-note" style="padding:10px">ยังไม่มีรายชื่อ — กด "เพิ่มรายชื่อ"</td></tr>') + '</tbody></table></div>' +
         '<div class="table-tools" style="margin:8px 0 0"><button type="button" class="btn-ghost" data-act="add-person">เพิ่มรายชื่อ</button></div>' +
         '<div class="table-tools" style="margin:10px 0 0">' +
           '<label class="q-field">ส่วนราชการ (ภย. / ภว.) <input class="q-in" data-org="lineP" value="' + esc(set.org.lineP) + '" style="width:420px"></label>' +
@@ -3106,7 +3122,7 @@
     }catch(err){ memoState.msg = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err); document.getElementById('memo-sum').innerHTML = memoSumHtml(); return; }
     saveBlob(blob, name);
     /* จำค่าที่เลือกไว้เป็นค่าเริ่มต้นของใบถัดไป และหนังสืออ้างอิงแผนของปีงบนั้น */
-    memoSet.pick = { committee:d.committee.slice(), officer:d.officer, head:d.head, exec:d.exec, director:d.director };
+    memoSet.pick = { committee:d.committee.slice(), officer:d.officer, supHead:d.supHead, head:d.head, exec:d.exec, director:d.director };
     if(d.planRef) memoSet.planRef[memoFY(d.pDate)] = d.planRef;
     memoSaveSet(); memoKeep();
     memoState.msg = 'ส่งออกแล้ว: ' + name + ' · เลขถัดไป ' + k.p + '. ' + memoNextNo(k.p, memoBE(todayIso())) + ' / ' + k.k + '. ' + memoNextNo(k.k, memoFY(todayIso()));
@@ -3262,7 +3278,7 @@
         '<div class="table-tools">' + F('ผู้จำหน่าย', 'company', ' style="width:320px"') + F('เอกสารเลขที่', 'bill', ' style="width:150px"') + F('เอกสารลงวันที่', 'billDate', ' type="date"') + F('วันที่ตรวจรับ', 'inspect', ' type="date"') + '</div>' +
         '<div class="table-tools">' + F('เรื่อง', 'subj', ' style="width:300px"') + F('หมวด', 'cat', ' style="width:120px"') + '</div>' +
         '<div class="memo-step">4. กรรมการตรวจรับ (ตั้งต้นจากชุดที่ใช้ล่าสุด เปลี่ยนคนได้)</div>' +
-        '<div class="table-tools"><label class="q-field">ประธานกรรมการ <select class="search field-select" data-rw="0">' + memoOpts('committee', d.committee[0]) + '</select></label>' +
+        '<div class="table-tools"><label class="q-field">ประธานกรรมการ <select class="search field-select" data-rw="0">' + memoOpts('chair', d.committee[0]) + '</select></label>' +
           '<label class="q-field">กรรมการ <select class="search field-select" data-rw="1">' + memoOpts('committee', d.committee[1]) + '</select></label>' +
           '<label class="q-field">กรรมการ <select class="search field-select" data-rw="2">' + memoOpts('committee', d.committee[2]) + '</select></label></div>' +
         '<div class="table-note" style="margin:2px 0 0">เพิ่มคนใหม่ได้ที่ปุ่ม ออกบันทึก ภย. / ขย. / ย. → ตั้งค่ารายชื่อ แล้วติ๊กหน้าที่ กรรมการตรวจรับ</div>' +
@@ -3370,6 +3386,7 @@
     });
     document.getElementById('quote-ry').addEventListener('click', function(){
       if(!memoSet) memoSet = memoSeed();
+      memoRolesUp();
       ryState.open = true; renderRy();
       document.getElementById('ry-box').scrollIntoView({ behavior:'smooth', block:'start' });
     });
