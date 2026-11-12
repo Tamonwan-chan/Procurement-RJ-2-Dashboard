@@ -2731,7 +2731,14 @@
   }
   function memoLinesFrom(doc){
     var L = state.lookups || { med:{} }, byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
-    var drug = memoKindOf(doc) === MEMO_KIND.drug;
+    var drug = memoKindOf(doc) === MEMO_KIND.drug, idx = null, fixed = false;
+    /* ใบจากไฟล์ที่ลากก่อนไฟล์ HIS (หน้าว่าง) ยังจับรหัสไม่ได้ → จับคู่ชื่ออีกครั้งตอนออกบันทึก แล้วจำไว้ในประวัติ (ข้อ 2.32 ข้อ 5) */
+    doc.lines.forEach(function(l){
+      if(l.id || !state.items.length) return;
+      idx = idx || quoteNameIndex();
+      var hit = idx[quoteNameKey(l.name)]; if(hit && hit.ids.length === 1){ l.id = hit.id; fixed = true; }
+    });
+    if(fixed && quoteHist) dbPut([quoteHist]).catch(function(){ storageOk = false; });
     return doc.lines.map(function(l){
       var it = byId[l.id] || {}, m = L.med[l.id] || {}, r = refPick(l.id), pack = l.pack || 1, unit = l.unitP || 'กล่อง';
       var st = it.stock && it.stock.central ? it.stock.central.qty : null, rate = it.proc ? it.proc.userate : null, gps = String(m.gpscode || '');
