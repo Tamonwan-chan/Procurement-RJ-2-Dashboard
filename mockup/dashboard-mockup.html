@@ -91,6 +91,8 @@
     border-radius:99px; padding:5px 12px; cursor:pointer;
   }
   .btn-ghost:hover{ border-color:var(--accent); color:var(--accent); }
+  .btn-ghost.memo-mv{ padding:1px 7px; margin-left:2px; font-size:12px; line-height:1.3; }
+  .btn-ghost.memo-mv:disabled{ opacity:.3; cursor:default; border-color:var(--border); color:var(--ink-muted); }
   .filestatus{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:16px; }
   .fs-head{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px 16px; margin-bottom:12px; }
   .fs-title{ font-size:13.5px; font-weight:600; color:var(--ink-muted); }
@@ -3105,7 +3107,9 @@
     var planFy = memoFY(d.kDate || d.pDate);
     var table = '<table style="min-width:1620px"><thead><tr><th>#</th>' + lineCols.map(function(c){ return '<th>' + c[1] + '</th>' + (c[0] === 'rate' ? '<th data-plan-head>ใช้ × 12 เทียบแผนปีงบ ' + (planFy % 100) + '</th>' : ''); }).join('') + '<th class="mono">วงเงิน</th></tr></thead><tbody>' +
       d.lines.map(function(l, i){
-        return '<tr><td class="mono">' + (i + 1) + '</td>' + lineCols.map(function(c){
+        /* ↑ / ↓ เลื่อนลำดับรายการ ใช้กับ ภย. / ขย. / ย. ชุดเดียวกัน จำไว้กับบันทึก — พี่โอม ส่งมาก่อน 9 พ.ย. (ข้อ 2.32 ข้อ 9 · ข้อ 28) */
+        var mv = function(dir, lab, off){ return '<button type="button" class="btn-ghost memo-mv" data-act="mv" data-dir="' + dir + '" data-i="' + i + '" aria-label="' + lab + ' รายการที่ ' + (i + 1) + '" title="' + lab + '"' + (off ? ' disabled' : '') + '>' + (dir < 0 ? '↑' : '↓') + '</button>'; };
+        return '<tr><td class="mono" style="white-space:nowrap">' + (i + 1) + ' ' + mv(-1, 'เลื่อนขึ้น', i === 0) + mv(1, 'เลื่อนลง', i === d.lines.length - 1) + '</td>' + lineCols.map(function(c){
           return '<td><input class="q-in' + (NUMK[c[0]] ? ' num' : '') + '" data-l="' + c[0] + '" data-i="' + i + '" value="' + esc(l[c[0]] == null ? '' : l[c[0]]) + '" style="width:' + c[2] + 'px"' + (NUMK[c[0]] ? ' inputmode="decimal"' : '') + '></td>' +
             (c[0] === 'rate' ? '<td data-plan="' + i + '" style="white-space:nowrap">' + memoPlanCheck(l, planFy) + '</td>' : '');
         }).join('') + '<td class="mono" data-v="' + i + '">' + fmt2((+l.qty || 0) * (+l.price || 0)) + '</td></tr>';
@@ -3207,6 +3211,11 @@
       else if(act === 'set'){ memoState.setOpen = !memoState.setOpen; renderMemo(); }
       else if(act === 'add-person'){ memoSet.people.push({ id:'p' + Date.now().toString(36), name:'', pos:'', sign:'', roles:{} }); memoSaveSet(); renderMemo(); }
       else if(act === 'del-person'){ memoSet.people.splice(Number(b.getAttribute('data-i')), 1); memoSaveSet(); renderMemo(); }
+      else if(act === 'mv'){
+        var L = memoState.d.lines, i = Number(b.getAttribute('data-i')), j = i + Number(b.getAttribute('data-dir'));
+        if(j >= 0 && j < L.length){ var x = L[i]; L[i] = L[j]; L[j] = x; memoKeep(); renderMemo();
+          var nb = box.querySelector('[data-act="mv"][data-i="' + j + '"][data-dir="' + b.getAttribute('data-dir') + '"]'); if(nb && !nb.disabled) nb.focus(); }
+      }
       else if(act === 'reset-lines'){ var doc = memoDoc(); if(doc){ memoState.d.lines = memoLinesFrom(doc); memoKeep(); renderMemo(); } }
       else if(/^exp-/.test(act)) memoExport(act.slice(4));
     });
