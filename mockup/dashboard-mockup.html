@@ -353,9 +353,9 @@
   .credit-info{ border:0; background:none; color:var(--accent); font:inherit; font-size:15px; line-height:1; padding:2px 4px; cursor:pointer; border-radius:4px; }
   .credit-info:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   #credit-notice{ flex-basis:100%; max-width:62ch; margin:4px auto 0; color:var(--ink-muted); line-height:1.6; }
-  .rock-on{ position:fixed; right:16px; bottom:12px; width:84px; height:auto; opacity:.7; pointer-events:none; user-select:none; z-index:0; color:var(--ink); }
-  .rock-on .fill{ fill:var(--surface); }
-  .rock-on .fill path{ fill:var(--surface); }
+  .rock-on{ position:fixed; right:16px; bottom:12px; width:84px; height:auto; opacity:.85; pointer-events:none; user-select:none; z-index:0; }
+  .icon-credit{ font-size:11px; color:var(--ink-faint); }
+  .icon-credit a{ color:inherit; }
   @media (max-width:700px){ .rock-on{ width:56px; } }
   #tooltip{
     position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:12px; padding:6px 10px; border-radius:6px;
@@ -732,8 +732,11 @@
     <p id="credit-notice" hidden>ผู้พัฒนา: ภญ.ธมลวรรณ จันทร์แก้ว · ผู้ได้รับอนุญาตใช้งาน: ภก.สุทธิพงษ์ เดชก้อง<br>"ระบบนี้ถือเป็นทรัพย์สินทางปัญญาของผู้พัฒนา ห้ามคัดลอก ดัดแปลง หรือนำไปใช้โดยไม่ได้รับอนุญาต" · ผู้ที่ได้รับอนุญาตให้ใช้หรือดัดแปลง ต้องคงเครดิตนี้ไว้ แม้จะเปลี่ยนชื่อโปรแกรมหรือโลโก้</p>
   </div>
   <!-- /CREDIT -->
+  <!-- ไอคอนมุมขวาล่าง: Flaticon "inventory" 10469240 ใช้ไฟล์ตามที่ได้รับ ไม่วาดใหม่ · ไอคอนฟรีต้องให้เครดิตบนหน้าเว็บ (คุณธมลวรรณ 10 พ.ย. 69 · ข้อ 2.32 ข้อ 10)
+       ยังไม่มีชื่อผู้ออกแบบ (เปิดหน้า Flaticon อัตโนมัติไม่ได้): ใส่ "created by ชื่อผู้ออกแบบ" ก่อน merge เข้า master -->
+  <div class="icon-credit"><a href="https://www.flaticon.com/free-icon/inventory_10469240" target="_blank" rel="noopener" title="inventory icon">Inventory icon</a> · <a href="https://www.flaticon.com/" target="_blank" rel="noopener">Flaticon</a></div>
 </footer>
-<svg class="rock-on" viewBox="0 0 200 240" aria-hidden="true" focusable="false"><circle cx="100" cy="138" r="84" fill="none" stroke="currentColor" stroke-width="18"/><g class="fill" stroke="currentColor" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"><path d="M68 236 L64 198 Q52 178 56 154 L50 104 L38 46 Q34 22 53 19 Q71 17 75 38 L90 100 L128 98 L140 34 Q146 13 165 18 Q181 25 174 47 L158 118 Q166 152 154 180 Q144 200 142 236 Z"/><path d="M80 112 Q78 88 100 88 Q118 88 118 108 Q118 126 100 128 Q82 128 80 112 Z"/><path d="M110 108 Q110 86 131 86 Q150 88 150 108 Q150 126 132 128 Q112 128 110 108 Z"/><path d="M156 150 Q146 134 122 136 L84 140 Q66 142 70 154 Q74 164 92 160 L120 158 Q132 160 136 176"/></g><path d="M86 186 Q98 196 116 190" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg>
+<img class="rock-on" src="icon-inventory.png" alt="" aria-hidden="true" width="84" height="84">
 
 <script>
 (function(){
