@@ -96,6 +96,15 @@
   .filestatus{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:16px; }
   .fs-head{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px 16px; margin-bottom:12px; }
   .fs-title{ font-size:13.5px; font-weight:600; color:var(--ink-muted); }
+  .fs-toggle{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; display:inline-flex; align-items:center; gap:6px; text-align:left; }
+  .fs-toggle:hover{ color:var(--accent); }
+  .fs-caret{ display:inline-block; transition:transform .15s; }
+  .fs-toggle[aria-expanded="false"] .fs-caret{ transform:rotate(-90deg); }
+  .fs-summary{ font-size:12.5px; color:var(--ink-muted); margin:-4px 0 10px; }
+  .fs-summary:empty{ display:none; }
+  .fs-summary b{ color:var(--ink); font-weight:600; }
+  .filestatus.closed .fs-head{ margin-bottom:6px; }
+  .filestatus.closed .fs-summary{ margin-bottom:0; }
   .fs-actions{ display:flex; flex-wrap:wrap; gap:8px; }
   .fs-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:8px; }
   .fs-slot{ border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:12.5px; display:flex; flex-direction:column; gap:2px; }
@@ -383,13 +392,13 @@
 <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือกไฟล์">
   <div class="dz-title">ลากไฟล์ Excel ที่ export จาก HIS มาวางที่นี่ (เลือกได้หลายไฟล์พร้อมกัน) หรือคลิกเพื่อเลือกไฟล์</div>
   <div class="dz-hint">Meditem · DrugCatNow · gpsc · inventory · ห้องจ่ายยา ชั้น G · ห้องจ่ายยา ชั้น 1 · list — โปรแกรมดูจากหัวคอลัมน์ ไม่ต้องตั้งชื่อไฟล์ให้ตรง ไฟล์ที่ไม่ได้นำเข้าใหม่จะใช้ข้อมูลครั้งล่าสุดที่บันทึกไว้</div>
-  <input type="file" id="file-input" accept=".xlsx,.xls,.docx" multiple>
+  <input type="file" id="file-input" accept=".xlsx,.xls,.docx,.zip" multiple>
 </div>
 <div class="errorbar" id="errorbar"></div>
 <div class="importnote" id="importnote" hidden></div>
 <div class="filestatus">
   <div class="fs-head">
-    <span class="fs-title">ข้อมูลที่ใช้อยู่ (นำเข้าครั้งล่าสุดของแต่ละไฟล์)<span class="fs-missing-count" id="fs-missing"></span></span>
+    <span class="fs-title"><button type="button" class="fs-toggle" id="fs-toggle" aria-expanded="true" aria-controls="fs-body"><span class="fs-caret" aria-hidden="true">▾</span>ข้อมูลที่ใช้อยู่ (นำเข้าครั้งล่าสุดของแต่ละไฟล์)</button><span class="fs-missing-count" id="fs-missing"></span></span>
     <span class="fs-actions">
       <button class="btn-ghost" id="btn-export" type="button">ส่งออก Excel (รายการต้องจัดซื้อ)</button>
       <button class="btn-ghost" id="btn-backup" type="button">สำรองข้อมูล</button>
@@ -398,8 +407,11 @@
       <button class="btn-ghost" id="btn-clear" type="button">ล้างข้อมูลที่บันทึกไว้</button>
     </span>
   </div>
-  <div class="fs-grid" id="file-slots"></div>
-  <div class="table-note" id="fs-note" style="margin-top:10px"></div>
+  <div class="fs-summary" id="fs-summary"></div>
+  <div id="fs-body">
+    <div class="fs-grid" id="file-slots"></div>
+    <div class="table-note" id="fs-note" style="margin-top:10px"></div>
+  </div>
 </div>
 
 <div class="filters">
@@ -1231,6 +1243,7 @@
     document.getElementById('rate-search').value = '';
   }
 
+  var fsOpen = null;   /* ช่องข้อมูลที่ใช้อยู่: null = ตามข้อมูล (ไม่มีข้อมูล = เปิด) · true / false = ผลการนำเข้าหรือผู้ใช้กด */
   function readFile(file){
     return new Promise(function(resolve, reject){
       var fr = new FileReader();
@@ -1253,15 +1266,50 @@
     }).filter(function(x){ return Object.keys(x.value).length; }) };
   }
 
+  /* ไฟล์รวม .zip (#39 · พี่โอม 6 พ.ย. 69 "มีแต่พี่ทำข้อมูล ก็จะ update เป็น file เดียวไว้ลง"): แตกไฟล์ในเบราว์เซอร์ด้วย SheetJS (CFB อ่าน zip ได้)
+     รวมโฟลเดอร์ย่อย แล้วนำเข้าเหมือนลากทีละไฟล์ · ชื่อไทยใน zip: PowerShell / Windows ใหม่เก็บ UTF-8 · โปรแกรมเก่าเก็บ windows-874 → ถอดเอง (ชื่อห้องจ่ายยาใช้จับประเภทไฟล์)
+     .rar เปิดในเบราว์เซอร์ไม่ได้ → บอกวิธีแก้แทน "ไม่รู้จักไฟล์" */
+  function zipName(s){
+    var b = new Uint8Array(s.length);
+    for(var i = 0; i < s.length; i++){ var c = s.charCodeAt(i); if(c > 255) return s; b[i] = c; }
+    try{ return new TextDecoder('utf-8', { fatal:true }).decode(b); }catch(e){}
+    try{ return new TextDecoder('windows-874').decode(b); }catch(e2){ return s; }
+  }
+  function expandZips(files){
+    var out = [], pre = { unknown:[], zips:[], rar:[] }, chain = Promise.resolve();
+    files.forEach(function(f){
+      if(/\.rar$/i.test(f.name)){ pre.rar.push(f.name); return; }
+      if(!/\.zip$/i.test(f.name)){ chain = chain.then(function(){ out.push(f); }); return; }
+      chain = chain.then(function(){ return readFile(f); }).then(function(buf){
+        var z = XLSX.CFB.read(new Uint8Array(buf), { type:'array' }), n = 0;
+        z.FileIndex.forEach(function(e, i){
+          if(e.type !== 2 || !e.content || !e.content.length) return;
+          var name = zipName(z.FullPaths[i]).split(/[\\\/]/).pop();
+          if(!name || name.charAt(0) === '\u0001' || /^(~\$|\.)|^(thumbs\.db|desktop\.ini)$/i.test(name)) return;   /* รายการภายในของ CFB / ไฟล์ล็อกของ Excel / ไฟล์ซ่อน */
+          if(!/\.(xlsx?|docx)$/i.test(name)){ pre.unknown.push(f.name + ' > ' + name); return; }
+          var u = new Uint8Array(e.content.length); u.set(e.content);
+          out.push({ name:name, zip:f.name, zipBuf:u.buffer }); n++;
+        });
+        pre.zips.push(f.name + ' (' + n + ' ไฟล์)');
+      }).catch(function(err){ pre.unknown.push(f.name + ' (เปิดไฟล์ zip ไม่ได้: ' + (err && err.message ? err.message : err) + ')'); });
+    });
+    return chain.then(function(){ return { files:out, pre:pre }; });
+  }
+  function rarMsg(pre){
+    return pre.rar.length ? 'ไฟล์ .rar เปิดในเบราว์เซอร์ไม่ได้ (' + pre.rar.join(', ') + ') — บีบอัดเป็น .zip แทน: เลือกไฟล์ทั้งหมด คลิกขวา > บีบอัดเป็นไฟล์ ZIP (Compress to ZIP file) หรือแตก .rar แล้วลากไฟล์ข้างในมาวาง' : '';
+  }
   function handleFiles(fileList){
     var files = Array.prototype.slice.call(fileList || []);
     if(!files.length) return;
     hideError();
     showNote('กำลังอ่านไฟล์ ' + files.length + ' ไฟล์…');
-    var found = {}, unknown = [], dup = [], keptLot = false, statusFiles = [], docxHit = [], quoteFiles = [];
+    expandZips(files).then(function(x){ importFiles(x.files, x.pre); });
+  }
+  function importFiles(files, pre){
+    var found = {}, unknown = pre.unknown.slice(), dup = [], keptLot = false, statusFiles = [], docxHit = [], quoteFiles = [], zipTpl = [];
     var chain = Promise.resolve();
     files.forEach(function(f){
-      chain = chain.then(function(){ return readFile(f); }).then(function(buf){
+      chain = chain.then(function(){ return f.zipBuf ? f.zipBuf : readFile(f); }).then(function(buf){
         /* ไฟล์ Word (.docx) = บันทึกข้อความเดิม ใช้เฉพาะรูปตราครุฑสำหรับบันทึกที่ออกจากโปรแกรม (เก็บในเครื่องนี้) */
         if(/\.docx$/i.test(f.name)){
           var gimg = garudaFromDocx(buf, f.name);
@@ -1283,6 +1331,7 @@
         var qSheets = /template/i.test(f.name) ? [] : quoteFileSheets(wb);
         if(qSheets.length){ quoteFiles.push({ file:f.name, sheets:qSheets.map(function(sn){ return wb.Sheets[sn]; }) }); return; }
         var tplSheet = quoteSheetName(wb);
+        if(tplSheet && f.zip){ zipTpl.push(f.name); return; }   /* DATA Template มีลายเซ็น: ไม่รับจากไฟล์รวม ลากแยกในเครื่องที่ออกใบเสนอราคาเท่านั้น (#39) */
         if(tplSheet){
           found.quoteTpl = { slot:'quoteTpl', fileName:f.name, sheetName:tplSheet.trim(), importedAt:new Date().toISOString(), rowCount:1, buf:buf };
           return;
@@ -1342,8 +1391,9 @@
       var save = recs.length ? dbPut(recs).catch(function(){ storageOk = false; }) : Promise.resolve();
       return save.then(function(){
         if(!recs.length && !oldInv && !statusFiles.length && !docxHit.length && !quoteFiles.length){
-          showNote('');
-          showError('ไม่รู้จักไฟล์ที่นำเข้า: ' + unknown.join(', ') + ' — ต้องเป็นไฟล์ที่ export จาก HIS ที่มีหัวคอลัมน์เดิม');
+          fsOpen = true; updateSourceUI();
+          showNote(zipTpl.length ? 'ไม่นำเข้า DATA Template จากไฟล์ .zip (มีลายเซ็น) ลากไฟล์ Template แยกเองในเครื่องที่ออกใบเสนอราคา' : '');
+          showError(rarMsg(pre) + (unknown.length ? (pre.rar.length ? ' · ' : '') + 'ไม่รู้จักไฟล์ที่นำเข้า: ' + unknown.join(', ') + ' — ต้องเป็นไฟล์ที่ export จาก HIS ที่มีหัวคอลัมน์เดิม' : ''));
           return;
         }
         recs = recs.filter(function(r){ return r.slot !== PREV_SLOT; });
@@ -1371,8 +1421,11 @@
             (qi.updated ? ' · ปรับใบเดิมตามไฟล์ ' + qi.updated + ' ใบ' : '') + (qi.same ? ' · ' + qi.same + ' ใบตรงกับประวัติอยู่แล้ว' : '') +
             (qi.miss.length ? ' · ไม่พบรหัสยาจากชื่อ (ไม่มียอดคงเหลือ / อัตราการใช้ให้ แก้ในบันทึกได้): ' + qi.miss.slice(0, 5).join(', ') + (qi.miss.length > 5 ? ' …' : '') : '') : 'ไฟล์ใบเสนอราคาไม่มีรายการ') : '') +
           (docxHit.length ? ' · ตราครุฑสำหรับบันทึก (Word) จาก ' + docxHit.join(', ') + ' เก็บไว้ในเครื่องนี้แล้ว' : '') +
+          (pre.zips.length ? ' · จากไฟล์รวม ' + pre.zips.join(', ') : '') +
+          (zipTpl.length ? ' · ไม่นำเข้า DATA Template จากไฟล์ .zip (มีลายเซ็น) ลากไฟล์ Template แยกเองในเครื่องที่ออกใบเสนอราคา' : '') +
           (storageOk ? '' : ' · บันทึกลงเครื่องไม่ได้ ข้อมูลจะหายเมื่อปิดหน้า'));
-        if(unknown.length) showError('ไม่รู้จักไฟล์: ' + unknown.join(', ') + ' — ไฟล์นี้ไม่ได้ถูกนำเข้า');
+        if(unknown.length || pre.rar.length) showError(rarMsg(pre) + (unknown.length ? (pre.rar.length ? ' · ' : '') + 'ไม่รู้จักไฟล์: ' + unknown.join(', ') + ' — ไฟล์นี้ไม่ได้ถูกนำเข้า' : ''));
+        fsOpen = !!(unknown.length || pre.rar.length); updateSourceUI();          /* นำเข้าสำเร็จ = พับช่องข้อมูลที่ใช้อยู่ · มีไฟล์ไม่รู้จัก = เปิดไว้ (#39) */
       });
     });
   }
@@ -1407,6 +1460,17 @@
         '<span class="fs-meta' + (r ? '' : ' fs-empty') + '" title="' + esc(r ? r.fileName : '') + '">' +
           (r ? esc(fmtDate(r.importedAt)) + (s.slot === 'quoteTpl' ? ' · ' + esc(r.sheetName || '') : s.slot === 'invstatus' ? ' · ' + (r.months || []).map(monthLabel).join(', ') : ' · ' + fmt(r.rowCount) + ' แถว') + (s.slot === 'plan' ? ' · ปีงบ ' + planYearsText(r.rows) : '') : 'ยังไม่มีข้อมูล') + '</span></div>';
     }).join('');
+    /* พับ / เปิดช่องข้อมูลที่ใช้อยู่ (#39): ตั้งต้นพับเมื่อมีข้อมูลแล้ว · นำเข้าสำเร็จ = พับ · มีไฟล์ไม่รู้จัก = เปิด · กดหัวข้อเพื่อเปิดดูวันที่อัปเดต */
+    var hasData = FILE_SLOTS.some(function(s){ return ds[s.slot]; }), open = fsOpen == null ? !hasData : fsOpen;
+    document.getElementById('fs-body').parentNode.classList.toggle('closed', !open);
+    document.getElementById('fs-body').hidden = !open;
+    document.getElementById('fs-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+    var latest = FILE_SLOTS.map(function(s){ return ds[s.slot] && ds[s.slot].importedAt; }).filter(Boolean).sort().pop();
+    /* ช่องที่ไม่ได้อัปเดตจากไฟล์รอบนี้ (ไม่นับ Inventory Status / DATA Template ที่ลากปีละครั้ง / ครั้งเดียว และห้องจ่ายยา IPD) */
+    var stale = fresh.length ? FILE_SLOTS.filter(function(s){ return fresh.indexOf(s.slot) < 0 && s.slot !== 'invstatus' && s.slot !== 'quoteTpl' && s.slot !== 'room:IPD1'; }) : [];   /* IPD ไม่ต้อง export (พี่โอม ข้อ 2.29) */
+    document.getElementById('fs-summary').innerHTML = !hasData ? '' :
+      (fresh.length ? 'รอบนี้อัปเดต <b>' + fresh.length + '</b> ไฟล์' + (stale.length ? ' · <b>ไม่ได้อัปเดตจากไฟล์รอบนี้:</b> ' + stale.map(function(s){ return esc(s.label) + (ds[s.slot] ? ' (' + esc(fmtDate(ds[s.slot].importedAt)) + ')' : ' (ยังไม่มี)'); }).join(', ') : ' · ไฟล์ที่ลากประจำครบ')
+        : 'นำเข้าล่าสุด ' + esc(fmtDate(latest))) + (open ? '' : ' · <button type="button" class="btn-ghost" data-fs-open style="padding:1px 10px">ดูวันที่อัปเดตทุกไฟล์</button>');
     var missingSlots = FILE_SLOTS.filter(function(s){ return !ds[s.slot]; });
     document.getElementById('fs-missing').textContent = missingSlots.length ? '· ยังไม่มี ' + missingSlots.length + ' ไฟล์' : '';
     var notes = [];
@@ -1427,6 +1491,8 @@
   }
 
   document.getElementById('btn-export').addEventListener('click', exportExcel);
+  document.getElementById('fs-toggle').addEventListener('click', function(){ fsOpen = this.getAttribute('aria-expanded') !== 'true'; updateSourceUI(); });
+  document.getElementById('fs-summary').addEventListener('click', function(e){ if(e.target.closest('[data-fs-open]')){ fsOpen = true; updateSourceUI(); document.getElementById('fs-toggle').focus(); } });
   document.getElementById('btn-clear').addEventListener('click', function(){
     if(!window.confirm('ล้างข้อมูลที่นำเข้าไว้ทั้งหมดในเบราว์เซอร์นี้? (ไฟล์ Excel ในเครื่องไม่ถูกลบ · ตารางเดือนสำรองคงคลัง ประวัติคงคลังรายเดือน และประวัติใบเสนอราคายังเก็บไว้)')) return;
     var done = function(){ state.datasets = {}; state.prev = null; state.fresh = []; showNote(''); hideError(); rebuild(); resetFilters(); renderAll(); };
