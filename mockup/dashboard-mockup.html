@@ -2694,12 +2694,46 @@
     (state.lookups && state.lookups.po || []).forEach(function(r){ if(r.id === id && r.price > 0 && (!best || (r.date || r.ym * 100) >= (best.date || best.ym * 100))) best = r; });
     return best ? best.price : '';
   }
+  /* ชื่อรายการในตาราง ภย. / ขย. / ย.: GENERIC ความแรง (ชื่อการค้า) ตัวพิมพ์ใหญ่ ตามแบบ ภย.0616 — พี่โอม (ข้อ 2.32 ข้อ 6 · ข้อ 26)
+     ชื่อสามัญ + ความแรงจาก DrugCatNow: ยาผสมจับคู่ตัวยากับความแรงตามลำดับ " + " แล้วคั่นด้วย ", " (ERGOTAMINE TARTRATE 1 MG, CAFFEINE 100 MG (TOFAGO))
+     จำนวนไม่เท่ากัน = ชื่อสามัญทั้งหมดตามด้วยความแรงทั้งก้อน · ไม่มี generic (เวชภัณฑ์มิใช่ยา) = '' → ใช้ชื่อเดิม · พี่โอมแก้ในช่องได้ก่อนส่งออก */
+  var MEMO_NOTE_RX = /[฀-๿]|^(HF|RPP|GPO|\d.*)$/i;
+  function memoTradeOf(dc, m, gen){
+    var src = String(dc.tradename || m.name || '').replace(/^[_\s]+/, '').trim(), br = '', x, re = /\(([^()]+)\)/g, G = String(gen).toUpperCase();
+    while(!br && (x = re.exec(src))){                                                   /* วงเล็บแรกที่เป็นชื่อ (TOFAGO · MST · MEZAVANT XL) */
+      var t = x[1].trim();
+      if(t.length > 2 && !MEMO_NOTE_RX.test(t) && G.indexOf(t.toUpperCase()) < 0) br = t;   /* ไม่ใช่หมายเหตุ รพ. / ภาษาไทย / ตัวเลข / ส่วนของชื่อสามัญ */
+    }
+    if(!br){
+      br = src.replace(/\(.*$/, '').split(/\s(?=[\d.]|TAB|CAP|INJ|SYR|SUSP|CREAM|OINT|GEL|EYE|EAR|NASAL|SOL|DROP|SR\b|MR\b|XR\b)/i)[0].replace(/[\s,\-]+$/, '').trim();
+      var g = {}; String(gen).toUpperCase().split(/[^A-Z]+/).forEach(function(w){ if(w.length > 2) g[w] = 1; });
+      if(g[(br.toUpperCase().match(/[A-Z]+/) || [''])[0]]) br = '';                       /* ขึ้นต้นด้วยชื่อสามัญ (MORPHINE SULFATE 10 MG) = ไม่มีชื่อการค้า */
+    }
+    return br.toUpperCase();
+  }
+  function memoGenericName(id){
+    var L = state.lookups || {}, dc = (L.dc || {})[id] || {}, m = (L.med || {})[id] || {};
+    var gen = String(dc.generic || '').replace(/\s+/g, ' ').trim(); if(!gen) return '';
+    var gs = gen.split(/\s*\+\s*/), str = String(dc.strength || '').replace(/\s+/g, ' ').trim(), ss = str ? str.split(/\s*\+\s*/) : [];
+    var parts = ss.length === gs.length ? gs.map(function(g, i){ return g + ' ' + ss[i]; }) : null;
+    if(parts && parts.length > 1){                                                      /* DrugCatNow เรียงตัวยาตามตัวอักษร → เรียงตามที่ปรากฏในชื่อการค้า (ERGOTAMINE ก่อน CAFFEINE) */
+      var tn = String(dc.tradename || m.name || '').toUpperCase();
+      var at = gs.map(function(g, i){ var k = tn.indexOf(g.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5)); return { p:parts[i], k:k < 0 ? 1e6 + i : k }; });
+      parts = at.sort(function(a, b){ return a.k - b.k; }).map(function(a){ return a.p; });
+    }
+    var body = (parts ? parts.join(', ') : gs.join(', ') + (str ? ' ' + str : '')).toUpperCase();
+    var br = memoTradeOf(dc, m, gen);
+    if(!str && body === String(dc.tradename || m.name || '').replace(/^[_\s]+/, '').trim().toUpperCase()) return '';   /* เวชภัณฑ์ที่ generic = ชื่อเดิม */
+    function words(s){ return ' ' + s.replace(/[^A-Z0-9]+/g, ' ').trim() + ' '; }
+    return body + (br && words(body).indexOf(words(br)) < 0 ? ' (' + br + ')' : '');   /* ชื่อการค้าซ้ำชื่อสามัญทั้งคำ = ไม่ใส่วงเล็บ */
+  }
   function memoLinesFrom(doc){
     var L = state.lookups || { med:{} }, byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
+    var drug = memoKindOf(doc) === MEMO_KIND.drug;
     return doc.lines.map(function(l){
       var it = byId[l.id] || {}, m = L.med[l.id] || {}, r = refPick(l.id), pack = l.pack || 1, unit = l.unitP || 'กล่อง';
       var st = it.stock && it.stock.central ? it.stock.central.qty : null, rate = it.proc ? it.proc.userate : null, gps = String(m.gpscode || '');
-      return { id:l.id, name:l.name, unit:unit,
+      return { id:l.id, name:(drug && l.id && memoGenericName(l.id)) || l.name, qname:l.name, unit:unit,   /* qname = ชื่อในใบเสนอราคา ใช้ตั้งชื่อไฟล์ */
         stock:st == null ? '' : Math.round(st * 10) / 10,                        /* ยอดคงเหลือจากคลังยา (พี่โอม 28 ต.ค.: ดึงจากคงคลังแล้วแก้ได้) */
         rate:rate == null ? '' : Math.round(rate),                                   /* userate จากไฟล์ list (แก้ได้) */
         pack:pack > 1 ? '1 ' + unit + ' (' + fmt1(pack) + ' ' + (l.unitS || '') + ')' : '1 ' + unit,
@@ -3113,7 +3147,7 @@
   }
   function memoExport(which){
     var doc = memoDoc(), d = memoState.d; if(!doc || !d) return;
-    var k = memoKindOf(doc), blob, name, first = d.lines[0] ? String(d.lines[0].name || '') : '';
+    var k = memoKindOf(doc), blob, name, first = d.lines[0] ? String(d.lines[0].qname || d.lines[0].name || '') : '';
     var safe = (first.replace(/^[_\s]+/, '').split(/[\s(]/)[0] || String(doc.company || '')).replace(/[\\\/:*?"<>|]/g, '').slice(0, 40);
     try{
       if(which === 'p'){ blob = buildMemoP(doc, d); name = k.p + d.pNo.replace('/', '-') + ' ' + safe + '.docx'; memoBump(k.p, d.pNo); }
