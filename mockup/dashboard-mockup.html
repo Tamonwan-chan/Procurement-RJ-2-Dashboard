@@ -2949,16 +2949,25 @@
     var k = memoKindOf(doc), t = memoTotals(d), n = d.lines.length, S = 28, drug = k === MEMO_KIND.drug;
     var off = memoPerson(d.officer), head = memoPerson(d.supHead), dir = memoPerson(d.director);
     function P(text, o){ o = o || {}; return wPara(wRun(text, { sz:S, b:o.b }), o); }
-    var cols = drug
+    /* ย. (ยา) ใช้คอลัมน์ราคาตามบริษัทเหมือน ภย. / ขย. (`layout`) — พี่โอม ส่งมาก่อน 9 พ.ย. (ข้อ 2.32 ข้อ 7 · ข้อ 27): DKSH เพิ่มราคาต่อหน่วย (ไม่รวม VAT) ก่อนวงเงิน
+       Zuellig ชุดเดียวกับ ภย. (วงเงินไม่รวม VAT) · บริษัทอื่นและ ยว. เหมือนเดิม — ทำตามแบบในวงเล็บระหว่างรอคำตอบ */
+    var lay = drug ? d.layout || 'other' : 'other', exCol = lay !== 'other';
+    var cols = drug && exCol
+      ? [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:2346, flex:1 }, { h:'รหัส GPU', w:850, jc:'center', num:1 }, { h:'รหัส TPU', w:850, jc:'center', num:1 }, { h:'รหัส\nUNSPSC', w:1000, jc:'center', num:1 },
+         { h:'จำนวน', w:1200, jc:'center' }, { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1050, jc:'right', num:1 }, { h:'ราคาต่อ\nหน่วย\n(ไม่รวม VAT)', w:1050, jc:'right', num:1 },
+         { h:'วงเงิน\n(' + (lay === 'zuellig' ? 'ไม่รวม' : 'รวม') + ' VAT)', w:1300, jc:'right', num:1 }]
+      : drug
       ? [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:2650, flex:1 }, { h:'รหัส GPU', w:900, jc:'center', num:1 }, { h:'รหัส TPU', w:900, jc:'center', num:1 }, { h:'รหัส\nUNSPSC', w:1100, jc:'center', num:1 },
          { h:'จำนวน', w:1300, jc:'center' }, { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1300, jc:'right', num:1 }, { h:'วงเงิน\n(รวม VAT)', w:1496, jc:'right', num:1 }]
       : [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:3600, flex:1 }, { h:'จำนวน', w:1000, jc:'center', num:1 }, { h:'หน่วย', w:900, jc:'center' }, { h:'รหัส\nUNSPSC', w:1300, jc:'center', num:1 },
          { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1300, jc:'right', num:1 }, { h:'ราคารวม\n(รวม VAT)', w:1546, jc:'right', num:1 }];
     var rows = [{ head:true, cells:cols.map(function(c){ return { t:c.h }; }) }];
     d.lines.forEach(function(l, i){
-      var v = fmt2(Math.round((+l.qty || 0) * (+l.price || 0) * 100) / 100);
+      var q = +l.qty || 0, exP = memoExPrice(l.price);
+      var v = fmt2(lay === 'zuellig' ? Math.round(q * exP * 100) / 100 : Math.round(q * (+l.price || 0) * 100) / 100);   /* เหมือน memoItemTable */
       rows.push({ cells:drug
-        ? [{ t:(i + 1) + '.' }, { t:l.name }, { t:l.gpu }, { t:l.tpu }, { t:l.unspsc }, { t:memoQty(l.qty, l.unit) + memoPackShort(l) }, { t:fmt2(+l.price || 0) }, { t:v }]
+        ? [{ t:(i + 1) + '.' }, { t:l.name }, { t:l.gpu }, { t:l.tpu }, { t:l.unspsc }, { t:memoQty(l.qty, l.unit) + memoPackShort(l) }, { t:fmt2(+l.price || 0) }]
+            .concat(exCol ? [{ t:fmt2(exP) }] : []).concat([{ t:v }])
         : [{ t:(i + 1) + '.' }, { t:l.name }, { t:memoQty(l.qty, '') }, { t:l.unit }, { t:l.unspsc }, { t:fmt2(+l.price || 0) }, { t:v }] });
     });
     var nc = cols.length;
@@ -3133,7 +3142,7 @@
       '<div class="table-tools">' + F(k.y + '. (หนังสือสั่งซื้อ) วันที่', 'yDate', ' type="date"') +
         F('เลขที่ใบเสนอราคา / บิลของบริษัท', 'bill', ' style="width:140px"') + F('ลงวันที่', 'billDate', ' type="date"') + F('กำหนดส่ง (วันทำการ)', 'days', ' style="width:50px" inputmode="numeric"') + '</div>' +
       '<div class="memo-step">3. รายการ (ยอดคงเหลือจากคลังยา · อัตราการใช้จาก userate · ราคากลางจาก DATA Template · ราคาซื้อครั้งสุดท้ายจาก PO_inven — แก้ได้ทุกช่อง)</div>' +
-      '<div class="table-tools"><label class="q-field">คอลัมน์ราคาในตาราง ' + k.p + '. / ' + k.k + '. <select class="search field-select" data-f="layout">' +
+      '<div class="table-tools"><label class="q-field">คอลัมน์ราคาในตาราง ' + k.p + '. / ' + k.k + '.' + (k === MEMO_KIND.drug ? ' / ' + k.y + '.' : '') + ' <select class="search field-select" data-f="layout">' +
         MEMO_LAYOUTS.map(function(o){ return '<option value="' + o[0] + '"' + (d.layout === o[0] ? ' selected' : '') + '>' + o[1] + (o[0] === memoLayoutOf(doc.company) ? ' (ตามบริษัท)' : '') + '</option>'; }).join('') +
         '</select></label><span class="table-note" style="margin:0">' + esc({ zuellig:'ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (ไม่รวม VAT)', dksh:'ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (รวม VAT)', other:'ราคาต่อหน่วย (รวม VAT) · วงเงิน (รวม VAT)' }[d.layout] || '') + '</span></div>' +
       '<div class="table-scroll" data-keep="lines" style="max-height:360px">' + table + '</div>' +
