@@ -330,6 +330,7 @@
   .quote-box .q-in.num{ width:84px; text-align:right; font-family:'IBM Plex Mono', monospace; }
   .quote-box .q-in.unit{ width:76px; }
   .quote-box tr.on td{ background:var(--accent-soft); }
+  .q-ord{ font-size:12px; font-weight:600; color:var(--accent); }
   /* ออกบันทึก ภย. / ขย. / ย. (Word) */
   .quote-box .memo-step{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:14px 0 6px; font-size:13px; font-weight:600; color:var(--ink); }
   .quote-box .memo-set{ border:1px dashed var(--border-strong); border-radius:8px; padding:10px 12px; margin:4px 0 8px; background:var(--surface-2); }
@@ -2137,6 +2138,9 @@
      Template เก็บใน IndexedDB ของเครื่องนี้เท่านั้น (มีลายเซ็นหัวหน้ากลุ่มงาน) — ห้ามนำขึ้นเว็บ / git
      ใบละ 1 บริษัท (distribute) ไม่เกิน 8 รายการ · สูตรในใบคงไว้ตาม Template (G = I/1.07, J = G*E, K = 7%, L = E*I) */
   var QUOTE_MAX = 8, QUOTE_ITEM_ROW = 7, QUOTE_LAST_COL = 12;
+  /* quoteState.sel[hc] = ลำดับที่ติ๊ก (1, 2, 3 …) ไม่ใช่แค่ 1: ติ๊กตัวแรก = รายการที่ 1 ในใบเสนอราคาและบันทึกทุกใบที่ออกต่อ (พี่โอม 15 พ.ย. 69 · ตอบข้อ 28) */
+  var quoteTick = 0;
+  function quoteTickOn(hc){ quoteState.sel[hc] = ++quoteTick; }
   var EXCELJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
   var QUOTE_NO_KEY = 'rj2-quote-next-no';
   var quoteState = { open:false, company:'all', mfr:'all', mfrFree:false, distFree:false, autoLock:{}, onlyOut:false, search:'', sel:{}, edits:{}, nos:{ W:'', WM:'', WC:'' }, date:'', editing:null, note:'' };
@@ -2406,8 +2410,11 @@
       comps[k] = 1; (groups[key] || (groups[key] = { series:s, company:k, items:[] })).items.push(it);
     });
     var sheets = [];
-    Object.keys(groups).sort(function(a, b){ return a.localeCompare(b, 'th'); }).forEach(function(key){
-      var g = groups[key], list = g.items.sort(function(a, b){ return a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
+    /* เรียงตามลำดับที่ติ๊ก (เดิมเรียงตาม hospcode) · ใบของชุดเลขเดียวกันเรียงตามรายการแรกที่ติ๊ก */
+    function tick(it){ return +quoteState.sel[it.hospcode] || 0; }
+    Object.keys(groups).forEach(function(key){ groups[key].items.sort(function(a, b){ return tick(a) - tick(b); }); });
+    Object.keys(groups).sort(function(a, b){ var A = groups[a], B = groups[b]; return A.series.localeCompare(B.series) || tick(A.items[0]) - tick(B.items[0]); }).forEach(function(key){
+      var g = groups[key], list = g.items;
       for(var i = 0; i < list.length; i += QUOTE_MAX) sheets.push({ series:g.series, company:g.company, items:list.slice(i, i + QUOTE_MAX) });
     });
     var next = {};
@@ -2584,7 +2591,7 @@
     quoteState.sel = {};
     doc.lines.forEach(function(l){
       if(!byId[l.id]){ gone.push(l.name); return; }
-      quoteState.sel[l.id] = 1;
+      quoteTickOn(l.id);   /* ลำดับเดิมในใบ */
       quoteState.edits[l.id] = { qty:String(l.qty), price:String(l.price), unitS:l.unitS, unitP:l.unitP };
     });
     var ser = doc.series === 'WB' ? 'W' : doc.series === 'WV' ? 'WM' : doc.series;
@@ -3669,6 +3676,7 @@
     });
     rows.sort(function(a, b){
       return (quoteState.sel[b.hospcode] ? 1 : 0) - (quoteState.sel[a.hospcode] ? 1 : 0) ||          /* ที่เลือกแล้วอยู่บนสุดเสมอ (ไม่ให้หลุดเกิน 150 แถว) */
+        (+quoteState.sel[a.hospcode] || 0) - (+quoteState.sel[b.hospcode] || 0) ||                   /* ตามลำดับที่ติ๊ก */
         (dropped[a.hospcode] ? 1 : 0) - (dropped[b.hospcode] ? 1 : 0) || (isOut(b) ? 1 : 0) - (isOut(a) ? 1 : 0) ||
         a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true });
     });
@@ -3676,7 +3684,7 @@
     document.getElementById('quote-table').innerHTML = shown.length ? shown.map(function(it){
       var l = quoteLine(it), on = !!quoteState.sel[it.hospcode], hc = esc(it.hospcode), total = (+l.qty || 0) * (+l.price || 0);
       return '<tr data-hc="' + hc + '"' + (on ? ' class="on"' : '') + '>' +
-        '<td><input type="checkbox" data-k="sel"' + (on ? ' checked' : '') + ' aria-label="เลือก ' + esc(l.name) + '"></td>' +
+        '<td style="white-space:nowrap"><input type="checkbox" data-k="sel"' + (on ? ' checked' : '') + ' aria-label="เลือก ' + esc(l.name) + '"> <span class="q-ord" data-ord></span></td>' +
         '<td>' + hc + '</td><td>' + esc(l.name) + (seriesOf(it) !== 'W' ? ' <span class="pill">' + SERIES_LABEL[seriesOf(it)] + ' · ' + seriesOf(it) + '</span>' : '') + (quoteState.company === 'all' || (it.distribute || NO_COMPANY) !== quoteState.company ? '<br><small class="rate-inv">' + esc(it.distribute || NO_COMPANY) + '</small>' : '') + '</td>' +
         '<td class="mono plan"' + (it.plan ? ' title="แผนจัดซื้อ ฿' + fmt(it.plan.value) + '"' : '') + '>' + (it.plan ? fmt1(it.plan.qty) : '–') + '</td>' +
         boughtCell(it) +
@@ -3823,7 +3831,7 @@
   /* ล้างทั้งหน้าให้เริ่มใบใหม่ได้ทันที (พี่โอม 5 พ.ย. 69): รายการที่เลือก จำนวน / ราคาที่แก้ ตัวกรอง และคำค้น · เลขที่ใบและวันที่คงไว้ */
   function quoteReset(){
     clearTimeout(quoteTimer);
-    quoteState.sel = {}; quoteState.edits = {}; quoteState.note = ''; quoteState.search = ''; quoteState.onlyOut = false;
+    quoteState.sel = {}; quoteTick = 0; quoteState.edits = {}; quoteState.note = ''; quoteState.search = ''; quoteState.onlyOut = false;
     quoteState.company = 'all'; quoteState.mfr = 'all'; quoteState.mfrFree = false; quoteState.distFree = false; quoteState.autoLock = {};
     document.getElementById('quote-search').value = '';
     document.getElementById('quote-only-out').checked = false;
@@ -3837,6 +3845,11 @@
   }
   function quoteSummary(extra){
     var g = quoteGroups();
+    /* เลขลำดับข้างช่องติ๊ก = ลำดับในใบเสนอราคาใบนั้น (หลายใบ = บอกเลขใบด้วย) */
+    var ord = {}; g.sheets.forEach(function(s){ s.items.forEach(function(it, i){ ord[it.hospcode] = (g.sheets.length > 1 ? s.no + ' · ' : '') + (i + 1); }); });
+    Array.prototype.forEach.call(document.querySelectorAll('#quote-table tr[data-hc]'), function(tr){
+      var sp = tr.querySelector('[data-ord]'); if(sp) sp.textContent = ord[tr.getAttribute('data-hc')] || '';
+    });
     var ed = quoteState.editing, over = [], mixed = quoteMixedMfr(g.sheets);
     if(mixed.length) extra = '⚠ ใบ ' + mixed.join(', ') + ' มีหลายผู้ผลิต (ปลดล็อกผู้ผลิตแล้ว) ตรวจก่อนส่งออก' + (extra ? ' · ' + extra : '');
     else if(g.count && (quoteState.mfr !== 'all' || quoteState.company !== 'all')) extra = 'ล็อกตามรายการแรก: ' + [quoteState.company !== 'all' ? quoteState.company : '', quoteState.mfr !== 'all' ? 'ผู้ผลิต ' + quoteState.mfr : ''].filter(Boolean).join(' · ') + ' (เลือก "ทุกบริษัท" / "ทุกผู้ผลิต" เพื่อปลดล็อก)' + (extra ? ' · ' + extra : '');
@@ -3879,7 +3892,7 @@
     var tr = e.target.closest('tr[data-hc]'); if(!tr) return;
     var hc = tr.getAttribute('data-hc'), k = e.target.getAttribute('data-k');
     if(k === 'sel'){
-      if(e.target.checked) quoteState.sel[hc] = 1; else delete quoteState.sel[hc];
+      if(e.target.checked) quoteTickOn(hc); else delete quoteState.sel[hc];
       if(!Object.keys(quoteState.sel).length && quoteUnlockAuto()){ renderQuote(); return; }
       if(e.target.checked && quoteLockFirst(hc)){ renderQuote(); return; }
       tr.classList.toggle('on', e.target.checked); quoteSummary('');
@@ -3898,7 +3911,7 @@
     var ed = quoteState.edits[hc] || (quoteState.edits[hc] = {});
     ed[k] = k === 'qty' || k === 'price' ? e.target.value : e.target.value.trim();
     if(k === 'qty' && +e.target.value > 0 && !quoteState.sel[hc]){
-      quoteState.sel[hc] = 1; tr.classList.add('on'); tr.querySelector('[data-k="sel"]').checked = true;
+      quoteTickOn(hc); tr.classList.add('on'); tr.querySelector('[data-k="sel"]').checked = true;
       if(quoteLockFirst(hc)){   /* รายการกรองตามบริษัท / ผู้ผลิตตอนแสดงครั้งถัดไป */
         document.getElementById('quote-company').value = quoteState.company;
         document.getElementById('quote-mfr').value = quoteState.mfr;
