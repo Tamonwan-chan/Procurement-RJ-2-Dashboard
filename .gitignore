@@ -24,3 +24,8 @@ tests/out/
 
 # clasp: ระบุสคริปต์ของบัญชีกลุ่มงาน และ path ของแต่ละเครื่อง (token อยู่ใน ~/.clasprc.json นอก repo)
 .clasp.json
+
+# ไฟล์บีบอัด เช่น ลาก.zip (ไฟล์ HIS จริง) · ผลตรวจเลขซ้ำจากไฟล์สำรอง (ข้อมูลจริง)
+*.zip
+*.rar
+audit-numbers.csv
