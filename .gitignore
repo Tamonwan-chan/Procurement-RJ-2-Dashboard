@@ -21,3 +21,6 @@ tests/out/
 # ลาก / เก็บไว้ อาจเป็น junction ไปยังโฟลเดอร์ OneDrive (git อาจมองเป็น symlink ซึ่งไม่ตรงกับแบบที่มี /)
 ลาก
 เก็บไว้
+
+# clasp: ระบุสคริปต์ของบัญชีกลุ่มงาน และ path ของแต่ละเครื่อง (token อยู่ใน ~/.clasprc.json นอก repo)
+.clasp.json
