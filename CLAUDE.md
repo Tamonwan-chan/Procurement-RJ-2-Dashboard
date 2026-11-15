@@ -3,7 +3,7 @@
 Context for any Claude Code session that opens this repo (the owner works from more than one PC; local memory does not travel with the repo, this file does).
 
 ## People
-- **Owner:** ภญ.ธมลวรรณ จันทร์แก้ว (GitHub `Tamonwan-chan`), pharmacist. She relays requests from and questions to **พี่โอม** (ภก.สุทธิพงษ์ เดชก้อง), the procurement pharmacist who uses the program.
+- **Owner:** ภญ.ธมลวรรณ จันทร์แก้ว (GitHub `Tamonwan-chan`), pharmacist. Nickname **แป้ง**: when พี่โอม writes "น้องแป้ง" he means her, and in LINE drafts she calls herself แป้ง. Address her directly, not as "คุณธมลวรรณ" in the third person. She relays requests from and questions to **พี่โอม** (ภก.สุทธิพงษ์ เดชก้อง), the procurement pharmacist who uses the program.
 - Any Thai text written for her or for พี่โอม uses the feminine particles **ค่ะ / คะ**, never ครับ.
 - Don't guess requirements: if something is ambiguous, ask (in Thai, for her to forward). Record every question and answer in `ประเด็นที่รอยืนยันจากพี่โอม.md`.
 
