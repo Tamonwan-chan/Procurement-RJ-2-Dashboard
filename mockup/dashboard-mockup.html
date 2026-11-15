@@ -1669,6 +1669,18 @@
     }).join('');
   }
 
+  /* shifted line: ชื่อขึ้นต้นด้วย "_" = ไม่มีใช้ใน รพ. แล้ว แต่กลับมาใช้ได้ทุกเมื่อ / ยังดูข้อมูลได้ → ทุกหน้าแสดงไว้ท้ายสุด ไม่ซ่อน
+     ดูชื่อใน Meditem และ tradename ใน DrugCatNow (Meditem ขึ้น "_" ก่อน DrugCatNow หลายรายการ) · name = ชื่อจากไฟล์ของหน้านั้น ใช้ประกอบ */
+  function isShifted(id, name){
+    var L = state.lookups, re = /^\s*_/;
+    if(name && re.test(name)) return true;
+    if(!L) return false;
+    var c = L._shifted || (L._shifted = {});
+    if(!(id in c)) c[id] = re.test((L.med[id] || {}).name || '') || re.test((L.dc[id] || {}).tradename || '');
+    return c[id];
+  }
+  function shiftedLast(idA, idB, nameA, nameB){ return (isShifted(idA, nameA) ? 1 : 0) - (isShifted(idB, nameB) ? 1 : 0); }
+
   var TOP_N = 10;
   function renderTop(){
     var ids = activeLocIds();
@@ -1680,7 +1692,7 @@
     var rows = state.items.filter(function(it){ return matchReg(it) && matchAcct(it); })
       .map(function(it){ return { it:it, q:qtyIn(it, ids) }; })
       .filter(function(x){ return x.q > 0; })
-      .sort(function(a, b){ return b.q - a.q; })
+      .sort(function(a, b){ return shiftedLast(a.it.hospcode, b.it.hospcode) || b.q - a.q; })
       .slice(0, TOP_N);
     if(!rows.length){ box.innerHTML = '<div class="table-note">ไม่มีสต็อกในตัวกรองนี้</div>'; return; }
     rows.forEach(function(x, i){
@@ -2011,7 +2023,7 @@
     mfrSelects('rate-dist', 'rate-mfr', base, state, 'rateDist', 'rateMfr');
     var pool = base.filter(function(it){ return mfrMatch(it, state.rateDist, state.rateMfr); }).map(function(it){
       return { it:it, status:rateStatus(it) };
-    }).sort(function(a, b){ return order[a.status] - order[b.status] || a.it.hospcode.localeCompare(b.it.hospcode, undefined, { numeric:true }); });
+    }).sort(function(a, b){ return shiftedLast(a.it.hospcode, b.it.hospcode) || order[a.status] - order[b.status] || a.it.hospcode.localeCompare(b.it.hospcode, undefined, { numeric:true }); });
 
     document.getElementById('rate-options').innerHTML = pool.map(function(r){ return '<option value="' + esc(rateOptionLabel(r.it)) + '"></option>'; }).join('');
 
@@ -3677,7 +3689,7 @@
     var dropped = {};
     rows.forEach(function(it){
       var e = quoteState.edits[it.hospcode], nm = e && e.name != null ? e.name : ((state.lookups && state.lookups.med[it.hospcode]) || {}).name || it.tradename || it.generic;
-      if(/^\s*_/.test(nm || '')) dropped[it.hospcode] = 1;
+      if(/^\s*_/.test(nm || '') || (!(e && e.name != null) && isShifted(it.hospcode))) dropped[it.hospcode] = 1;
     });
     rows.sort(function(a, b){
       return (quoteState.sel[b.hospcode] ? 1 : 0) - (quoteState.sel[a.hospcode] ? 1 : 0) ||          /* ที่เลือกแล้วอยู่บนสุดเสมอ (ไม่ให้หลุดเกิน 150 แถว) */
@@ -3968,7 +3980,7 @@
     var q = state.search.trim().toLowerCase();
     var rows = visible.filter(function(it){
       return !q || fieldText(it, state.searchField).toLowerCase().indexOf(q) >= 0;
-    }).sort(function(a, b){ return a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
+    }).sort(function(a, b){ return shiftedLast(a.hospcode, b.hospcode) || a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
     var ids = activeLocIds();
     /* เศษกล่องเล็กมาก (เช่น 2 unit จากกล่องละ 1000) ไม่ให้ปัดเป็น "0" จนดูเหมือนไม่มีของ */
     function fmtBox(q){ return q > 0 && q < 0.05 ? '<0.1' : fmt1(q); }
@@ -4194,7 +4206,7 @@
     });
     var list = Object.keys(agg).map(function(k){ return agg[k]; });
     var total = list.reduce(function(s, a){ return s + a.value; }, 0);
-    list.sort(function(a, b){ return dispState.sort === 'qty' ? (b.qty * (b.pack || 1)) - (a.qty * (a.pack || 1)) || b.value - a.value : b.value - a.value; });
+    list.sort(function(a, b){ return shiftedLast(a.id, b.id, a.name, b.name) || (dispState.sort === 'qty' ? (b.qty * (b.pack || 1)) - (a.qty * (a.pack || 1)) || b.value - a.value : b.value - a.value); });
     list.forEach(function(a, i){ a.rank = i + 1; });
     var q = dispState.search.trim().toLowerCase();
     var shown = list.filter(function(a){ return !q || (a.id + ' ' + a.name).toLowerCase().indexOf(q) >= 0; });
@@ -4292,7 +4304,7 @@
     var list = Object.keys(agg).map(function(k){ return agg[k]; });
     var total = list.reduce(function(s, a){ return s + a.value; }, 0);
     list.sort(function(a, b){
-      return poState.sort === 'qty' ? b.qty - a.qty || b.value - a.value : poState.sort === 'code' ? a.id.localeCompare(b.id, undefined, { numeric:true }) : b.value - a.value;
+      return shiftedLast(a.id, b.id, a.name, b.name) || (poState.sort === 'qty' ? b.qty - a.qty || b.value - a.value : poState.sort === 'code' ? a.id.localeCompare(b.id, undefined, { numeric:true }) : b.value - a.value);
     });
     list.forEach(function(a, i){ a.rank = i + 1; });
     var q = poState.search.trim().toLowerCase();
@@ -4383,7 +4395,7 @@
     else legend.innerHTML = '<span><i style="background:var(--cat-1);opacity:.38"></i>แผน (planfin)</span><span><i style="background:var(--critical)"></i>ซื้อจริง เกินแผน</span><span><i style="background:var(--good)"></i>ซื้อจริง ไม่เกินแผน</span><span><i style="background:var(--warning)"></i>ซื้อแต่ไม่มีในแผน</span>';
     var q = planTopState.search.trim().toLowerCase();
     var list = rows.filter(function(r){ return (planTopState.status === 'all' || r.st === planTopState.status) && (!q || [r.id, r.generic, r.name].join(' ').toLowerCase().indexOf(q) >= 0); });
-    list.sort(function(a, b){ return planTopState.status === 'over' ? b.diff - a.diff : Math.max(b.pm, b.bm) - Math.max(a.pm, a.bm); });
+    list.sort(function(a, b){ return shiftedLast(a.id, b.id, a.name, b.name) || (planTopState.status === 'over' ? b.diff - a.diff : Math.max(b.pm, b.bm) - Math.max(a.pm, a.bm)); });
     list.forEach(function(r, i){ r.rank = i + 1; });
     var shown = !q && planTopState.top ? list.slice(0, planTopState.top) : list;
     var COLOR = { over:'var(--critical)', within:'var(--good)', noplan:'var(--warning)', unbought:'var(--ink-faint)' };
@@ -4531,7 +4543,7 @@
         prev:p0 ? (mv ? p0.qty : p0.value) : null };
     });
     function metric(a){ return mv ? a.qty : a.value; }
-    list.sort(function(a, b){ return metric(b) - metric(a) || b.value - a.value; });
+    list.sort(function(a, b){ return shiftedLast(a.id, b.id, a.name, b.name) || metric(b) - metric(a) || b.value - a.value; });
     var total = list.reduce(function(s, a){ return s + a.value; }, 0);
     list.forEach(function(a, i){ a.rank = i + 1; });
     var q = planTopState.search.trim().toLowerCase();
@@ -5007,7 +5019,7 @@
       if(repState.by !== 'gpu' && repState.by !== 'gpsc') return '';
       var ids = {}, src = agg[k] || {}, L = d.L;
       Object.keys(src).forEach(function(m){ Object.keys(src[m]).forEach(function(fy){ Object.keys(src[m][fy].ids || {}).forEach(function(id){ ids[id] = 1; }); }); });
-      var list = Object.keys(ids).sort(function(a, b){ return a.localeCompare(b, undefined, { numeric:true }); }).map(function(id){
+      var list = Object.keys(ids).sort(function(a, b){ return shiftedLast(a, b) || a.localeCompare(b, undefined, { numeric:true }); }).map(function(id){
         var po = src.po || {}, bought = d.fys.map(function(fy){ var c = po[fy]; return c && c.ids[id] ? 'ซื้อปีงบ ' + String(fy).slice(-2) : ''; }).filter(Boolean).join(', ');
         return ((L.dc[id] || {}).tradename || (L.med[id] || {}).name || L.names[id] || id) + ' (' + id + ')' + (bought ? ' · ' + bought : '');
       });
