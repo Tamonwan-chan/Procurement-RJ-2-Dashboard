@@ -33,12 +33,19 @@ ICEBOX.md                      requests parked by the v1.0 freeze
   ไม่ใช้แล้ว/                     Rate_cost, old inventory.xls, duplicates, old drafts
 ```
 Copy `ลาก/` and `เก็บไว้/` by hand between PCs. Keep `ลาก/` flat: a new HIS export goes straight in, replacing the older file of the same type.
-Local-only, never commit: `สรุปบทบาทและงานที่ทำ.md` and the stock image (both in `.git/info/exclude`; add them there on a new PC).
+Local-only, never commit: `สรุปบทบาทและงานที่ทำ.md`, the stock image, the whiteboard photo `S__53878837.jpg` and the original icon `รูปจัดซื้อคลัง.png` (all in `.git/info/exclude`; add them there on a new PC).
+
+**New PC setup.** Work PCs are hospital machines: no personal OneDrive or other personal accounts on them, so everything outside git moves by hand.
+1. Clone, then set the identity for this repo only: `git config --local user.name "Tamonwan-chan"` and `user.email` as in earlier commits (nothing global).
+2. Add the local-only files above to `.git/info/exclude`.
+3. Copy `ลาก/` and `เก็บไว้/` into the repo folder; `cd tests && npm install`; `node smoke.js` should import every file without "ไม่รู้จักไฟล์".
+4. Claude's local memory (`~/.claude/projects/<repo path>/memory/`) is personal and never goes in this public repo. Copy it by hand from the PC used last, in one direction only. Working rules belong in this file instead.
 
 ## Hard rules
 - **Never commit real hospital data.** `.gitignore` blocks `*.xls` / `*.xlsx` / `*.docx` and the whole `ลาก/` folder. Never `git add -f`.
 - **`DATA Template.xlsx` contains the head of department's signature** — it must never be committed, published or embedded in the page. It is dropped into the page once and kept only in that PC's IndexedDB.
 - Keep the **CREDIT** block and the notice at the top of the HTML intact. Change the program name / logo only through `BRAND` in the script.
+- **Pictures and icons she supplies are used as is**: copy the file into the repo and reference it; never redraw it (a hand-drawn SVG of the corner icon looked wrong, 10 Nov). Show the attribution its licence requires (Flaticon free icons need visible credit on the public page).
 - Do not publish the watermarked Adobe Stock image `messageImage_1791257146874.jpg` (left untracked on purpose, excluded locally).
 - No clasp / Apps Script here. (The sibling folder "Dashboard พี่โอม" is a different project, ME-RJ-2-Dashboard, which does use clasp.)
 
