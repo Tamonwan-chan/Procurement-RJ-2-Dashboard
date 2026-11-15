@@ -587,7 +587,7 @@
       <input class="search" id="quote-search" type="search" placeholder="ค้นหา hospcode / ชื่อยา" aria-label="ค้นหารายการในใบเสนอราคา">
     </div>
     <div class="table-scroll" style="max-height:380px">
-      <table style="min-width:1540px"><thead><tr><th>เลือก</th><th>hospcode</th><th>รายการยา</th><th class="mono plan" id="quote-plan-head">planfin</th><th id="quote-bought-head">ซื้อแล้วปีงบนี้</th><th class="mono">ยอดรวมใน รพ<br><small>คลังยา + ห้องจ่ายยา (กล่อง)</small></th><th class="mono">จำนวนต่อกล่อง</th><th class="mono">จำนวนซื้อ</th><th class="mono">ราคารวม VAT / หน่วย</th><th class="mono">ราคากลาง<br><small>ต่อหน่วยซื้อ · ห้ามซื้อเกิน</small></th><th class="mono">มูลค่ารวม VAT</th></tr></thead>
+      <table style="min-width:1680px"><thead><tr><th>เลือก</th><th>hospcode</th><th>รายการยา</th><th class="mono plan" id="quote-plan-head">planfin</th><th id="quote-bought-head">ซื้อแล้วปีงบนี้</th><th class="mono">ยอดรวมใน รพ<br><small>คลังยา + ห้องจ่ายยา (กล่อง)</small></th><th class="mono">จำนวนต่อกล่อง</th><th class="mono">จำนวนซื้อ</th><th class="mono">ราคารวม VAT / หน่วย</th><th class="mono">ราคาไม่รวม VAT / หน่วย<br><small>= รวม VAT ÷ 1.07</small></th><th class="mono">ราคากลาง<br><small>ต่อหน่วยซื้อ · ห้ามซื้อเกิน</small></th><th class="mono">มูลค่ารวม VAT</th></tr></thead>
       <tbody id="quote-table"></tbody></table>
     </div>
     <datalist id="quote-units"></datalist>
@@ -3628,6 +3628,7 @@
     var c = refCandidates(id)[0];
     return c && c.cover && c.score >= 3.5 && c.jac >= 0.5 && (!c.nLen || c.nHit) ? { r:c.r, auto:true } : null;   /* ระบบเลือกให้เฉพาะเมื่อตัวยาครบ (#23) */
   }
+  function quoteExVat(price){ return Math.round((+price || 0) / 1.07 * 100) / 100; }
   function refCellHtml(it, l){
     if(!refRows().length) return '<td class="mono table-note" data-ref>–</td>';
     var id = it.hospcode, p = refPick(id), cands = refCandidates(id).slice(), map = quoteHist && quoteHist.refMap || {};
@@ -3696,9 +3697,10 @@
         '<td class="mono">' + fmt1(l.pack) + ' <input class="q-in unit" data-k="unitS" list="quote-units" value="' + esc(l.unitS) + '" aria-label="หน่วยย่อย"></td>' +
         '<td class="mono"><input class="q-in num" data-k="qty" type="number" min="0" step="any" value="' + esc(l.qty) + '" aria-label="จำนวนซื้อ"> <input class="q-in unit" data-k="unitP" list="quote-units" value="' + esc(l.unitP) + '" aria-label="หน่วยซื้อ"></td>' +
         '<td class="mono"><input class="q-in num" data-k="price" type="number" min="0" step="any" value="' + esc(l.price) + '" title="ราคาตั้งต้นจาก ' + l.priceFrom + '" aria-label="ราคารวม VAT ต่อหน่วย"></td>' +
+        '<td class="mono"><input class="q-in num" data-k="priceEx" type="number" min="0" step="any" value="' + (l.price === '' || l.price == null ? '' : quoteExVat(l.price)) + '" title="ใส่ราคาไม่รวม VAT ได้ ระบบคูณ 1.07 เป็นราคารวม VAT ให้" aria-label="ราคาไม่รวม VAT ต่อหน่วย"></td>' +
         refCellHtml(it, l) +
         '<td class="mono" data-total>' + (total ? fmt2(total) : '–') + '</td></tr>';
-    }).join('') : '<tr><td colspan="11" class="table-note" style="padding:14px">ไม่พบรายการ</td></tr>';
+    }).join('') : '<tr><td colspan="12" class="table-note" style="padding:14px">ไม่พบรายการ</td></tr>';
     document.getElementById('quote-units').innerHTML = quoteUnits().map(function(u){ return '<option value="' + esc(u) + '"></option>'; }).join('');
     QUOTE_SERIES.forEach(function(s){ if(!quoteState.nos[s]) quoteState.nos[s] = savedNo(s); });
     if(!quoteState.date) quoteState.date = todayIso();
@@ -3913,7 +3915,16 @@
     var tr = e.target.closest('tr[data-hc]'); if(!tr) return;
     var hc = tr.getAttribute('data-hc'), k = e.target.getAttribute('data-k'); if(!k || k === 'sel') return;
     var ed = quoteState.edits[hc] || (quoteState.edits[hc] = {});
-    ed[k] = k === 'qty' || k === 'price' ? e.target.value : e.target.value.trim();
+    /* ราคารวม VAT กับไม่รวม VAT แก้ช่องไหนก็ได้ อีกช่องตามให้ (เก็บเฉพาะราคารวม VAT เหมือนเดิม) */
+    if(k === 'priceEx'){
+      var ex = e.target.value.trim();
+      ed.price = ex === '' ? '' : String(Math.round(+ex * 1.07 * 100) / 100);
+      tr.querySelector('[data-k="price"]').value = ed.price;
+      k = 'price';
+    } else {
+      ed[k] = k === 'qty' || k === 'price' ? e.target.value : e.target.value.trim();
+      if(k === 'price') tr.querySelector('[data-k="priceEx"]').value = e.target.value.trim() === '' ? '' : quoteExVat(e.target.value);
+    }
     if(k === 'qty' && +e.target.value > 0 && !quoteState.sel[hc]){
       quoteTickOn(hc); tr.classList.add('on'); tr.querySelector('[data-k="sel"]').checked = true;
       if(quoteLockFirst(hc)){   /* รายการกรองตามบริษัท / ผู้ผลิตตอนแสดงครั้งถัดไป */
