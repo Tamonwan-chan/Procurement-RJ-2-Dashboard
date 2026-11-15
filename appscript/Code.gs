@@ -103,7 +103,7 @@ function out_(o){
 function handle_(req){
   var key = PropertiesService.getScriptProperties().getProperty('ACCESS_KEY');
   if(!key) return { ok:false, error:'not-set-up' };
-  if(!req || String(req.key || '') !== key) return { ok:false, error:'key' };
+  if(!req || String(req.key || '').replace(/\s+/g, '') !== key) return { ok:false, error:'key' };   /* ช่องว่าง / ขึ้นบรรทัดที่ติดมาตอนคัดลอก ไม่นับ */
   var by = String(req.by || '').slice(0, 40) || '(ไม่ระบุ)';
   try{
     if(req.action === 'ping') return { ok:true, api:API_VERSION, now:new Date().toISOString(), sheet:SpreadsheetApp.getActiveSpreadsheet().getName() };
