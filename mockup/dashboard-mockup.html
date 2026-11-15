@@ -91,9 +91,20 @@
     border-radius:99px; padding:5px 12px; cursor:pointer;
   }
   .btn-ghost:hover{ border-color:var(--accent); color:var(--accent); }
+  .btn-ghost.memo-mv{ padding:1px 7px; margin-left:2px; font-size:12px; line-height:1.3; }
+  .btn-ghost.memo-mv:disabled{ opacity:.3; cursor:default; border-color:var(--border); color:var(--ink-muted); }
   .filestatus{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:16px; }
   .fs-head{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px 16px; margin-bottom:12px; }
   .fs-title{ font-size:13.5px; font-weight:600; color:var(--ink-muted); }
+  .fs-toggle{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; display:inline-flex; align-items:center; gap:6px; text-align:left; }
+  .fs-toggle:hover{ color:var(--accent); }
+  .fs-caret{ display:inline-block; transition:transform .15s; }
+  .fs-toggle[aria-expanded="false"] .fs-caret{ transform:rotate(-90deg); }
+  .fs-summary{ font-size:12.5px; color:var(--ink-muted); margin:-4px 0 10px; }
+  .fs-summary:empty{ display:none; }
+  .fs-summary b{ color:var(--ink); font-weight:600; }
+  .filestatus.closed .fs-head{ margin-bottom:6px; }
+  .filestatus.closed .fs-summary{ margin-bottom:0; }
   .fs-actions{ display:flex; flex-wrap:wrap; gap:8px; }
   .fs-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:8px; }
   .fs-slot{ border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:12.5px; display:flex; flex-direction:column; gap:2px; }
@@ -319,6 +330,7 @@
   .quote-box .q-in.num{ width:84px; text-align:right; font-family:'IBM Plex Mono', monospace; }
   .quote-box .q-in.unit{ width:76px; }
   .quote-box tr.on td{ background:var(--accent-soft); }
+  .q-ord{ font-size:12px; font-weight:600; color:var(--accent); }
   /* ออกบันทึก ภย. / ขย. / ย. (Word) */
   .quote-box .memo-step{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:14px 0 6px; font-size:13px; font-weight:600; color:var(--ink); }
   .quote-box .memo-set{ border:1px dashed var(--border-strong); border-radius:8px; padding:10px 12px; margin:4px 0 8px; background:var(--surface-2); }
@@ -351,9 +363,9 @@
   .credit-info{ border:0; background:none; color:var(--accent); font:inherit; font-size:15px; line-height:1; padding:2px 4px; cursor:pointer; border-radius:4px; }
   .credit-info:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   #credit-notice{ flex-basis:100%; max-width:62ch; margin:4px auto 0; color:var(--ink-muted); line-height:1.6; }
-  .rock-on{ position:fixed; right:16px; bottom:12px; width:84px; height:auto; opacity:.7; pointer-events:none; user-select:none; z-index:0; color:var(--ink); }
-  .rock-on .fill{ fill:var(--surface); }
-  .rock-on .fill path{ fill:var(--surface); }
+  .rock-on{ position:fixed; right:16px; bottom:12px; width:84px; height:auto; opacity:.85; pointer-events:none; user-select:none; z-index:0; }
+  .icon-credit{ font-size:11px; color:var(--ink-faint); }
+  .icon-credit a{ color:inherit; }
   @media (max-width:700px){ .rock-on{ width:56px; } }
   #tooltip{
     position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); font-size:12px; padding:6px 10px; border-radius:6px;
@@ -381,13 +393,13 @@
 <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือกไฟล์">
   <div class="dz-title">ลากไฟล์ Excel ที่ export จาก HIS มาวางที่นี่ (เลือกได้หลายไฟล์พร้อมกัน) หรือคลิกเพื่อเลือกไฟล์</div>
   <div class="dz-hint">Meditem · DrugCatNow · gpsc · inventory · ห้องจ่ายยา ชั้น G · ห้องจ่ายยา ชั้น 1 · list — โปรแกรมดูจากหัวคอลัมน์ ไม่ต้องตั้งชื่อไฟล์ให้ตรง ไฟล์ที่ไม่ได้นำเข้าใหม่จะใช้ข้อมูลครั้งล่าสุดที่บันทึกไว้</div>
-  <input type="file" id="file-input" accept=".xlsx,.xls,.docx" multiple>
+  <input type="file" id="file-input" accept=".xlsx,.xls,.docx,.zip" multiple>
 </div>
 <div class="errorbar" id="errorbar"></div>
 <div class="importnote" id="importnote" hidden></div>
 <div class="filestatus">
   <div class="fs-head">
-    <span class="fs-title">ข้อมูลที่ใช้อยู่ (นำเข้าครั้งล่าสุดของแต่ละไฟล์)<span class="fs-missing-count" id="fs-missing"></span></span>
+    <span class="fs-title"><button type="button" class="fs-toggle" id="fs-toggle" aria-expanded="true" aria-controls="fs-body"><span class="fs-caret" aria-hidden="true">▾</span>ข้อมูลที่ใช้อยู่ (นำเข้าครั้งล่าสุดของแต่ละไฟล์)</button><span class="fs-missing-count" id="fs-missing"></span></span>
     <span class="fs-actions">
       <button class="btn-ghost" id="btn-export" type="button">ส่งออก Excel (รายการต้องจัดซื้อ)</button>
       <button class="btn-ghost" id="btn-backup" type="button">สำรองข้อมูล</button>
@@ -396,8 +408,11 @@
       <button class="btn-ghost" id="btn-clear" type="button">ล้างข้อมูลที่บันทึกไว้</button>
     </span>
   </div>
-  <div class="fs-grid" id="file-slots"></div>
-  <div class="table-note" id="fs-note" style="margin-top:10px"></div>
+  <div class="fs-summary" id="fs-summary"></div>
+  <div id="fs-body">
+    <div class="fs-grid" id="file-slots"></div>
+    <div class="table-note" id="fs-note" style="margin-top:10px"></div>
+  </div>
 </div>
 
 <div class="filters">
@@ -730,8 +745,11 @@
     <p id="credit-notice" hidden>ผู้พัฒนา: ภญ.ธมลวรรณ จันทร์แก้ว · ผู้ได้รับอนุญาตใช้งาน: ภก.สุทธิพงษ์ เดชก้อง<br>"ระบบนี้ถือเป็นทรัพย์สินทางปัญญาของผู้พัฒนา ห้ามคัดลอก ดัดแปลง หรือนำไปใช้โดยไม่ได้รับอนุญาต" · ผู้ที่ได้รับอนุญาตให้ใช้หรือดัดแปลง ต้องคงเครดิตนี้ไว้ แม้จะเปลี่ยนชื่อโปรแกรมหรือโลโก้</p>
   </div>
   <!-- /CREDIT -->
+  <!-- ไอคอนมุมขวาล่าง: Flaticon "inventory" 10469240 ใช้ไฟล์ตามที่ได้รับ ไม่วาดใหม่ · ไอคอนฟรีต้องให้เครดิตบนหน้าเว็บ (คุณธมลวรรณ 10 พ.ย. 69 · ข้อ 2.32 ข้อ 10)
+       ยังไม่มีชื่อผู้ออกแบบ (เปิดหน้า Flaticon อัตโนมัติไม่ได้): ใส่ "created by ชื่อผู้ออกแบบ" ก่อน merge เข้า master -->
+  <div class="icon-credit"><a href="https://www.flaticon.com/free-icon/inventory_10469240" target="_blank" rel="noopener" title="inventory icon">Inventory icon</a> · <a href="https://www.flaticon.com/" target="_blank" rel="noopener">Flaticon</a></div>
 </footer>
-<svg class="rock-on" viewBox="0 0 200 240" aria-hidden="true" focusable="false"><circle cx="100" cy="138" r="84" fill="none" stroke="currentColor" stroke-width="18"/><g class="fill" stroke="currentColor" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"><path d="M68 236 L64 198 Q52 178 56 154 L50 104 L38 46 Q34 22 53 19 Q71 17 75 38 L90 100 L128 98 L140 34 Q146 13 165 18 Q181 25 174 47 L158 118 Q166 152 154 180 Q144 200 142 236 Z"/><path d="M80 112 Q78 88 100 88 Q118 88 118 108 Q118 126 100 128 Q82 128 80 112 Z"/><path d="M110 108 Q110 86 131 86 Q150 88 150 108 Q150 126 132 128 Q112 128 110 108 Z"/><path d="M156 150 Q146 134 122 136 L84 140 Q66 142 70 154 Q74 164 92 160 L120 158 Q132 160 136 176"/></g><path d="M86 186 Q98 196 116 190" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg>
+<img class="rock-on" src="icon-inventory.png" alt="" aria-hidden="true" width="84" height="84">
 
 <script>
 (function(){
@@ -1226,6 +1244,7 @@
     document.getElementById('rate-search').value = '';
   }
 
+  var fsOpen = null;   /* ช่องข้อมูลที่ใช้อยู่: null = ตามข้อมูล (ไม่มีข้อมูล = เปิด) · true / false = ผลการนำเข้าหรือผู้ใช้กด */
   function readFile(file){
     return new Promise(function(resolve, reject){
       var fr = new FileReader();
@@ -1248,15 +1267,50 @@
     }).filter(function(x){ return Object.keys(x.value).length; }) };
   }
 
+  /* ไฟล์รวม .zip (#39 · พี่โอม 6 พ.ย. 69 "มีแต่พี่ทำข้อมูล ก็จะ update เป็น file เดียวไว้ลง"): แตกไฟล์ในเบราว์เซอร์ด้วย SheetJS (CFB อ่าน zip ได้)
+     รวมโฟลเดอร์ย่อย แล้วนำเข้าเหมือนลากทีละไฟล์ · ชื่อไทยใน zip: PowerShell / Windows ใหม่เก็บ UTF-8 · โปรแกรมเก่าเก็บ windows-874 → ถอดเอง (ชื่อห้องจ่ายยาใช้จับประเภทไฟล์)
+     .rar เปิดในเบราว์เซอร์ไม่ได้ → บอกวิธีแก้แทน "ไม่รู้จักไฟล์" */
+  function zipName(s){
+    var b = new Uint8Array(s.length);
+    for(var i = 0; i < s.length; i++){ var c = s.charCodeAt(i); if(c > 255) return s; b[i] = c; }
+    try{ return new TextDecoder('utf-8', { fatal:true }).decode(b); }catch(e){}
+    try{ return new TextDecoder('windows-874').decode(b); }catch(e2){ return s; }
+  }
+  function expandZips(files){
+    var out = [], pre = { unknown:[], zips:[], rar:[] }, chain = Promise.resolve();
+    files.forEach(function(f){
+      if(/\.rar$/i.test(f.name)){ pre.rar.push(f.name); return; }
+      if(!/\.zip$/i.test(f.name)){ chain = chain.then(function(){ out.push(f); }); return; }
+      chain = chain.then(function(){ return readFile(f); }).then(function(buf){
+        var z = XLSX.CFB.read(new Uint8Array(buf), { type:'array' }), n = 0;
+        z.FileIndex.forEach(function(e, i){
+          if(e.type !== 2 || !e.content || !e.content.length) return;
+          var name = zipName(z.FullPaths[i]).split(/[\\\/]/).pop();
+          if(!name || name.charAt(0) === '\u0001' || /^(~\$|\.)|^(thumbs\.db|desktop\.ini)$/i.test(name)) return;   /* รายการภายในของ CFB / ไฟล์ล็อกของ Excel / ไฟล์ซ่อน */
+          if(!/\.(xlsx?|docx)$/i.test(name)){ pre.unknown.push(f.name + ' > ' + name); return; }
+          var u = new Uint8Array(e.content.length); u.set(e.content);
+          out.push({ name:name, zip:f.name, zipBuf:u.buffer }); n++;
+        });
+        pre.zips.push(f.name + ' (' + n + ' ไฟล์)');
+      }).catch(function(err){ pre.unknown.push(f.name + ' (เปิดไฟล์ zip ไม่ได้: ' + (err && err.message ? err.message : err) + ')'); });
+    });
+    return chain.then(function(){ return { files:out, pre:pre }; });
+  }
+  function rarMsg(pre){
+    return pre.rar.length ? 'ไฟล์ .rar เปิดในเบราว์เซอร์ไม่ได้ (' + pre.rar.join(', ') + ') — บีบอัดเป็น .zip แทน: เลือกไฟล์ทั้งหมด คลิกขวา > บีบอัดเป็นไฟล์ ZIP (Compress to ZIP file) หรือแตก .rar แล้วลากไฟล์ข้างในมาวาง' : '';
+  }
   function handleFiles(fileList){
     var files = Array.prototype.slice.call(fileList || []);
     if(!files.length) return;
     hideError();
     showNote('กำลังอ่านไฟล์ ' + files.length + ' ไฟล์…');
-    var found = {}, unknown = [], dup = [], keptLot = false, statusFiles = [], docxHit = [], quoteFiles = [];
+    expandZips(files).then(function(x){ importFiles(x.files, x.pre); });
+  }
+  function importFiles(files, pre){
+    var found = {}, unknown = pre.unknown.slice(), dup = [], keptLot = false, statusFiles = [], docxHit = [], quoteFiles = [], zipTpl = [];
     var chain = Promise.resolve();
     files.forEach(function(f){
-      chain = chain.then(function(){ return readFile(f); }).then(function(buf){
+      chain = chain.then(function(){ return f.zipBuf ? f.zipBuf : readFile(f); }).then(function(buf){
         /* ไฟล์ Word (.docx) = บันทึกข้อความเดิม ใช้เฉพาะรูปตราครุฑสำหรับบันทึกที่ออกจากโปรแกรม (เก็บในเครื่องนี้) */
         if(/\.docx$/i.test(f.name)){
           var gimg = garudaFromDocx(buf, f.name);
@@ -1278,6 +1332,7 @@
         var qSheets = /template/i.test(f.name) ? [] : quoteFileSheets(wb);
         if(qSheets.length){ quoteFiles.push({ file:f.name, sheets:qSheets.map(function(sn){ return wb.Sheets[sn]; }) }); return; }
         var tplSheet = quoteSheetName(wb);
+        if(tplSheet && f.zip){ zipTpl.push(f.name); return; }   /* DATA Template มีลายเซ็น: ไม่รับจากไฟล์รวม ลากแยกในเครื่องที่ออกใบเสนอราคาเท่านั้น (#39) */
         if(tplSheet){
           found.quoteTpl = { slot:'quoteTpl', fileName:f.name, sheetName:tplSheet.trim(), importedAt:new Date().toISOString(), rowCount:1, buf:buf };
           return;
@@ -1337,8 +1392,9 @@
       var save = recs.length ? dbPut(recs).catch(function(){ storageOk = false; }) : Promise.resolve();
       return save.then(function(){
         if(!recs.length && !oldInv && !statusFiles.length && !docxHit.length && !quoteFiles.length){
-          showNote('');
-          showError('ไม่รู้จักไฟล์ที่นำเข้า: ' + unknown.join(', ') + ' — ต้องเป็นไฟล์ที่ export จาก HIS ที่มีหัวคอลัมน์เดิม');
+          fsOpen = true; updateSourceUI();
+          showNote(zipTpl.length ? 'ไม่นำเข้า DATA Template จากไฟล์ .zip (มีลายเซ็น) ลากไฟล์ Template แยกเองในเครื่องที่ออกใบเสนอราคา' : '');
+          showError(rarMsg(pre) + (unknown.length ? (pre.rar.length ? ' · ' : '') + 'ไม่รู้จักไฟล์ที่นำเข้า: ' + unknown.join(', ') + ' — ต้องเป็นไฟล์ที่ export จาก HIS ที่มีหัวคอลัมน์เดิม' : ''));
           return;
         }
         recs = recs.filter(function(r){ return r.slot !== PREV_SLOT; });
@@ -1366,8 +1422,11 @@
             (qi.updated ? ' · ปรับใบเดิมตามไฟล์ ' + qi.updated + ' ใบ' : '') + (qi.same ? ' · ' + qi.same + ' ใบตรงกับประวัติอยู่แล้ว' : '') +
             (qi.miss.length ? ' · ไม่พบรหัสยาจากชื่อ (ไม่มียอดคงเหลือ / อัตราการใช้ให้ แก้ในบันทึกได้): ' + qi.miss.slice(0, 5).join(', ') + (qi.miss.length > 5 ? ' …' : '') : '') : 'ไฟล์ใบเสนอราคาไม่มีรายการ') : '') +
           (docxHit.length ? ' · ตราครุฑสำหรับบันทึก (Word) จาก ' + docxHit.join(', ') + ' เก็บไว้ในเครื่องนี้แล้ว' : '') +
+          (pre.zips.length ? ' · จากไฟล์รวม ' + pre.zips.join(', ') : '') +
+          (zipTpl.length ? ' · ไม่นำเข้า DATA Template จากไฟล์ .zip (มีลายเซ็น) ลากไฟล์ Template แยกเองในเครื่องที่ออกใบเสนอราคา' : '') +
           (storageOk ? '' : ' · บันทึกลงเครื่องไม่ได้ ข้อมูลจะหายเมื่อปิดหน้า'));
-        if(unknown.length) showError('ไม่รู้จักไฟล์: ' + unknown.join(', ') + ' — ไฟล์นี้ไม่ได้ถูกนำเข้า');
+        if(unknown.length || pre.rar.length) showError(rarMsg(pre) + (unknown.length ? (pre.rar.length ? ' · ' : '') + 'ไม่รู้จักไฟล์: ' + unknown.join(', ') + ' — ไฟล์นี้ไม่ได้ถูกนำเข้า' : ''));
+        fsOpen = !!(unknown.length || pre.rar.length); updateSourceUI();          /* นำเข้าสำเร็จ = พับช่องข้อมูลที่ใช้อยู่ · มีไฟล์ไม่รู้จัก = เปิดไว้ (#39) */
       });
     });
   }
@@ -1402,6 +1461,17 @@
         '<span class="fs-meta' + (r ? '' : ' fs-empty') + '" title="' + esc(r ? r.fileName : '') + '">' +
           (r ? esc(fmtDate(r.importedAt)) + (s.slot === 'quoteTpl' ? ' · ' + esc(r.sheetName || '') : s.slot === 'invstatus' ? ' · ' + (r.months || []).map(monthLabel).join(', ') : ' · ' + fmt(r.rowCount) + ' แถว') + (s.slot === 'plan' ? ' · ปีงบ ' + planYearsText(r.rows) : '') : 'ยังไม่มีข้อมูล') + '</span></div>';
     }).join('');
+    /* พับ / เปิดช่องข้อมูลที่ใช้อยู่ (#39): ตั้งต้นพับเมื่อมีข้อมูลแล้ว · นำเข้าสำเร็จ = พับ · มีไฟล์ไม่รู้จัก = เปิด · กดหัวข้อเพื่อเปิดดูวันที่อัปเดต */
+    var hasData = FILE_SLOTS.some(function(s){ return ds[s.slot]; }), open = fsOpen == null ? !hasData : fsOpen;
+    document.getElementById('fs-body').parentNode.classList.toggle('closed', !open);
+    document.getElementById('fs-body').hidden = !open;
+    document.getElementById('fs-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+    var latest = FILE_SLOTS.map(function(s){ return ds[s.slot] && ds[s.slot].importedAt; }).filter(Boolean).sort().pop();
+    /* ช่องที่ไม่ได้อัปเดตจากไฟล์รอบนี้ (ไม่นับ Inventory Status / DATA Template ที่ลากปีละครั้ง / ครั้งเดียว และห้องจ่ายยา IPD) */
+    var stale = fresh.length ? FILE_SLOTS.filter(function(s){ return fresh.indexOf(s.slot) < 0 && s.slot !== 'invstatus' && s.slot !== 'quoteTpl' && s.slot !== 'room:IPD1'; }) : [];   /* IPD ไม่ต้อง export (พี่โอม ข้อ 2.29) */
+    document.getElementById('fs-summary').innerHTML = !hasData ? '' :
+      (fresh.length ? 'รอบนี้อัปเดต <b>' + fresh.length + '</b> ไฟล์' + (stale.length ? ' · <b>ไม่ได้อัปเดตจากไฟล์รอบนี้:</b> ' + stale.map(function(s){ return esc(s.label) + (ds[s.slot] ? ' (' + esc(fmtDate(ds[s.slot].importedAt)) + ')' : ' (ยังไม่มี)'); }).join(', ') : ' · ไฟล์ที่ลากประจำครบ')
+        : 'นำเข้าล่าสุด ' + esc(fmtDate(latest))) + (open ? '' : ' · <button type="button" class="btn-ghost" data-fs-open style="padding:1px 10px">ดูวันที่อัปเดตทุกไฟล์</button>');
     var missingSlots = FILE_SLOTS.filter(function(s){ return !ds[s.slot]; });
     document.getElementById('fs-missing').textContent = missingSlots.length ? '· ยังไม่มี ' + missingSlots.length + ' ไฟล์' : '';
     var notes = [];
@@ -1422,6 +1492,8 @@
   }
 
   document.getElementById('btn-export').addEventListener('click', exportExcel);
+  document.getElementById('fs-toggle').addEventListener('click', function(){ fsOpen = this.getAttribute('aria-expanded') !== 'true'; updateSourceUI(); });
+  document.getElementById('fs-summary').addEventListener('click', function(e){ if(e.target.closest('[data-fs-open]')){ fsOpen = true; updateSourceUI(); document.getElementById('fs-toggle').focus(); } });
   document.getElementById('btn-clear').addEventListener('click', function(){
     if(!window.confirm('ล้างข้อมูลที่นำเข้าไว้ทั้งหมดในเบราว์เซอร์นี้? (ไฟล์ Excel ในเครื่องไม่ถูกลบ · ตารางเดือนสำรองคงคลัง ประวัติคงคลังรายเดือน และประวัติใบเสนอราคายังเก็บไว้)')) return;
     var done = function(){ state.datasets = {}; state.prev = null; state.fresh = []; showNote(''); hideError(); rebuild(); resetFilters(); renderAll(); };
@@ -2066,6 +2138,9 @@
      Template เก็บใน IndexedDB ของเครื่องนี้เท่านั้น (มีลายเซ็นหัวหน้ากลุ่มงาน) — ห้ามนำขึ้นเว็บ / git
      ใบละ 1 บริษัท (distribute) ไม่เกิน 8 รายการ · สูตรในใบคงไว้ตาม Template (G = I/1.07, J = G*E, K = 7%, L = E*I) */
   var QUOTE_MAX = 8, QUOTE_ITEM_ROW = 7, QUOTE_LAST_COL = 12;
+  /* quoteState.sel[hc] = ลำดับที่ติ๊ก (1, 2, 3 …) ไม่ใช่แค่ 1: ติ๊กตัวแรก = รายการที่ 1 ในใบเสนอราคาและบันทึกทุกใบที่ออกต่อ (พี่โอม 15 พ.ย. 69 · ตอบข้อ 28) */
+  var quoteTick = 0;
+  function quoteTickOn(hc){ quoteState.sel[hc] = ++quoteTick; }
   var EXCELJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
   var QUOTE_NO_KEY = 'rj2-quote-next-no';
   var quoteState = { open:false, company:'all', mfr:'all', mfrFree:false, distFree:false, autoLock:{}, onlyOut:false, search:'', sel:{}, edits:{}, nos:{ W:'', WM:'', WC:'' }, date:'', editing:null, note:'' };
@@ -2335,8 +2410,11 @@
       comps[k] = 1; (groups[key] || (groups[key] = { series:s, company:k, items:[] })).items.push(it);
     });
     var sheets = [];
-    Object.keys(groups).sort(function(a, b){ return a.localeCompare(b, 'th'); }).forEach(function(key){
-      var g = groups[key], list = g.items.sort(function(a, b){ return a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true }); });
+    /* เรียงตามลำดับที่ติ๊ก (เดิมเรียงตาม hospcode) · ใบของชุดเลขเดียวกันเรียงตามรายการแรกที่ติ๊ก */
+    function tick(it){ return +quoteState.sel[it.hospcode] || 0; }
+    Object.keys(groups).forEach(function(key){ groups[key].items.sort(function(a, b){ return tick(a) - tick(b); }); });
+    Object.keys(groups).sort(function(a, b){ var A = groups[a], B = groups[b]; return A.series.localeCompare(B.series) || tick(A.items[0]) - tick(B.items[0]); }).forEach(function(key){
+      var g = groups[key], list = g.items;
       for(var i = 0; i < list.length; i += QUOTE_MAX) sheets.push({ series:g.series, company:g.company, items:list.slice(i, i + QUOTE_MAX) });
     });
     var next = {};
@@ -2513,7 +2591,7 @@
     quoteState.sel = {};
     doc.lines.forEach(function(l){
       if(!byId[l.id]){ gone.push(l.name); return; }
-      quoteState.sel[l.id] = 1;
+      quoteTickOn(l.id);   /* ลำดับเดิมในใบ */
       quoteState.edits[l.id] = { qty:String(l.qty), price:String(l.price), unitS:l.unitS, unitP:l.unitP };
     });
     var ser = doc.series === 'WB' ? 'W' : doc.series === 'WV' ? 'WM' : doc.series;
@@ -2533,20 +2611,37 @@
 
   /* ---------------- บันทึก ภย. / ภว. → ขย. / ขว. → ย. / ยว. (Word) ----------------
      พี่โอม 26–28 ต.ค. 69: ออกต่อจากใบขอใบเสนอราคาในประวัติ · ทุกช่องที่ไฮไลต์แก้ได้ก่อนส่งออก · เลือกกรรมการก่อนสร้าง
-     ภย. / ขย. / ย. = ใบ W (ยา) · ภว. / ขว. / ยว. = ใบ WM, WC · ไม่แปะลายเซ็นในบันทึก (ลงนามจริงบนกระดาษ)
+     ภย. / ขย. / ย. = ใบ W (ยา) · ภว. / ขว. / ยว. = ใบ WM, WC (9 พ.ย. 69) · ไม่แปะลายเซ็นในบันทึก (ลงนามจริงบนกระดาษ)
      รายชื่อ / ตำแหน่ง / ตราครุฑ เก็บใน IndexedDB ของเครื่องนี้เท่านั้น — เว็บเปิดสาธารณะ ห้ามใส่ชื่อคนในโค้ด
      ไฟล์ .docx สร้างเองด้วยตัวเขียน zip ของ SheetJS (ไม่ต้องโหลดไลบรารีเพิ่ม) */
   var MEMO_SLOT = '_memoset', memoSet = null;
-  /* หน้าจอเรียก head ว่า หัวหน้ากลุ่มงานเภสัชกรรม (คุณธมลวรรณ 4 พ.ย. 69) · ใน ขย. / ขว. / ย. / ยว. ยังพิมพ์ ลงชื่อ…(หัวหน้าเจ้าหน้าที่พัสดุ) ตามเอกสารจริง */
-  var MEMO_ROLES = [['committee', 'กรรมการตรวจรับ'], ['officer', 'เจ้าหน้าที่พัสดุ'], ['head', 'หัวหน้ากลุ่มงานเภสัชกรรม'], ['exec', 'ผู้บริหารเสนอความเห็น'], ['director', 'ผู้อำนวยการ']];
+  /* head = หัวหน้ากลุ่มงานเภสัชกรรม (คุณธมลวรรณ 4 พ.ย. 69) ลงนาม ภย. / ภว. · ขย. / ขว. / ย. / ยว. ลงชื่อ…(หัวหน้าเจ้าหน้าที่พัสดุ) ใช้คนในช่อง supHead (9 พ.ย. 69) */
+  /* 2 หน้าที่ใหม่ "เพราะมีโอกาสเปลี่ยน" (พี่โอม 9 พ.ย. 69 · ข้อ 2.32 ข้อ 4): ประธานกรรมการตรวจรับ = ช่องประธานกรรมการ · หัวหน้าเจ้าหน้าที่พัสดุ = ผู้ลงนาม ขย. / ขว. / ย. / ยว.
+     หัวหน้ากลุ่มงานเภสัชกรรมลงนาม ภย. / ภว. (ข้อ 24 รอยืนยัน) */
+  var MEMO_ROLES = [['committee', 'กรรมการตรวจรับ'], ['chair', 'ประธานกรรมการตรวจรับ'], ['officer', 'เจ้าหน้าที่พัสดุ'], ['supHead', 'หัวหน้าเจ้าหน้าที่พัสดุ'], ['head', 'หัวหน้ากลุ่มงานเภสัชกรรม'], ['exec', 'ผู้บริหารเสนอความเห็น'], ['director', 'ผู้อำนวยการ']];
+  /* ตั้งต้นครั้งเดียวจากคนเดิม เอกสารจะได้ไม่ว่าง: คนที่ติ๊กหัวหน้ากลุ่มงานได้ติ๊กหัวหน้าเจ้าหน้าที่พัสดุ · ประธานในชุดล่าสุดและในบันทึกที่เก็บไว้ได้ติ๊กประธาน */
+  function memoRolesUp(){
+    if(!memoSet || memoSet.rolesV >= 2) return;
+    var people = memoSet.people || [], chairs = {};
+    [(memoSet.pick || {}).committee].concat((quoteHist && quoteHist.docs || []).map(function(x){ return x.memo && x.memo.committee; }),
+      Object.keys(memoSet.ry || {}).map(function(n){ return memoSet.ry[n].committee; })).forEach(function(c){ if(c && c[0]) chairs[c[0]] = 1; });
+    people.forEach(function(q){ q.roles = q.roles || {}; if(q.roles.head) q.roles.supHead = true; if(chairs[q.id]) q.roles.chair = true; });
+    if(memoSet.pick && memoSet.pick.head && !memoSet.pick.supHead) memoSet.pick.supHead = memoSet.pick.head;
+    memoSet.rolesV = 2; memoSaveSet();
+  }
   var MEMO_KIND = {
     drug:{ p:'ภย', k:'ขย', y:'ย', r:'รย', what:'ยา', col:'รายการยา', need:'เพื่อใช้รักษาผู้ป่วย',
       subjP:'ขออนุมัติหลักการซื้อยาโดยวิธีเฉพาะเจาะจง', subjK:'ขออนุมัติซื้อยา โดยวิธีเฉพาะเจาะจง' },
     non:{ p:'ภว', k:'ขว', y:'ยว', r:'รยว', what:'วัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช)', col:'รายการเวชภัณฑ์ที่มิใช่ยา', need:'เพื่อใช้ในทางการแพทย์',
       subjP:'ขออนุมัติหลักการซื้อวัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช) โดยวิธีเฉพาะเจาะจง', subjK:'ขออนุมัติซื้อวัสดุเวชภัณฑ์ไม่ใช่ยา (เภสัช) โดยวิธีเฉพาะเจาะจง' }
   };
-  /* W / WB / WC (เภสัชเคมีภัณฑ์) → ภย. / ขย. / ย. · WM → ภว. / ขว. / ยว. — พี่โอมยืนยัน 3 พ.ย. 69 (เดิม WC ไปชุด ภว.) */
-  function memoKindOf(doc){ return doc.series === 'WM' ? MEMO_KIND.non : MEMO_KIND.drug; }
+  /* W / WB → ภย. / ขย. / ย. · WM / WC (เภสัชเคมีภัณฑ์) → ภว. / ขว. / ยว. — พี่โอม 9 พ.ย. 69 ตามหมวดในแผน (ข้อ 2.32 ข้อ 2)
+     WC เปลี่ยนชุดมาแล้ว 3 ครั้ง (22 ต.ค. ภว. → 3 พ.ย. ภย. → 9 พ.ย. ภว.) จึงจำชุดไว้กับบันทึก (kind): ใบ WC ที่ออกเลขไปแล้วก่อนหน้านี้ยังเปิดเป็น ภย. ตามที่พิมพ์ไป */
+  function memoKindRule(doc){ return doc.series === 'WM' || doc.series === 'WC' ? 'non' : 'drug'; }
+  function memoKindOf(doc){
+    var s = memoState.d && doc.no === memoState.no ? memoState.d : doc.memo;
+    return MEMO_KIND[s && s.kind || memoKindRule(doc)];
+  }
   function memoSeed(){
     return { slot:MEMO_SLOT, people:[], planRef:{}, next:{}, pick:{}, garuda:null,
       org:{ hosp:'โรงพยาบาลราชวิถี 2 (รังสิต)', dept:'กลุ่มงานเภสัชกรรม',
@@ -2677,12 +2772,53 @@
     (state.lookups && state.lookups.po || []).forEach(function(r){ if(r.id === id && r.price > 0 && (!best || (r.date || r.ym * 100) >= (best.date || best.ym * 100))) best = r; });
     return best ? best.price : '';
   }
+  /* ชื่อรายการในตาราง ภย. / ขย. / ย.: GENERIC ความแรง (ชื่อการค้า) ตัวพิมพ์ใหญ่ ตามแบบ ภย.0616 — พี่โอม (ข้อ 2.32 ข้อ 6 · ข้อ 26)
+     ชื่อสามัญ + ความแรงจาก DrugCatNow: ยาผสมจับคู่ตัวยากับความแรงตามลำดับ " + " แล้วคั่นด้วย ", " (ERGOTAMINE TARTRATE 1 MG, CAFFEINE 100 MG (TOFAGO))
+     จำนวนไม่เท่ากัน = ชื่อสามัญทั้งหมดตามด้วยความแรงทั้งก้อน · ไม่มี generic (เวชภัณฑ์มิใช่ยา) = '' → ใช้ชื่อเดิม · พี่โอมแก้ในช่องได้ก่อนส่งออก */
+  var MEMO_NOTE_RX = /[฀-๿]|^(HF|RPP|GPO|\d.*)$/i;
+  function memoTradeOf(dc, m, gen){
+    var src = String(dc.tradename || m.name || '').replace(/^[_\s]+/, '').trim(), br = '', x, re = /\(([^()]+)\)/g, G = String(gen).toUpperCase();
+    while(!br && (x = re.exec(src))){                                                   /* วงเล็บแรกที่เป็นชื่อ (TOFAGO · MST · MEZAVANT XL) */
+      var t = x[1].trim();
+      if(t.length > 2 && !MEMO_NOTE_RX.test(t) && G.indexOf(t.toUpperCase()) < 0) br = t;   /* ไม่ใช่หมายเหตุ รพ. / ภาษาไทย / ตัวเลข / ส่วนของชื่อสามัญ */
+    }
+    if(!br){
+      br = src.replace(/\(.*$/, '').split(/\s(?=[\d.]|TAB|CAP|INJ|SYR|SUSP|CREAM|OINT|GEL|EYE|EAR|NASAL|SOL|DROP|SR\b|MR\b|XR\b)/i)[0].replace(/[\s,\-]+$/, '').trim();
+      var g = {}; String(gen).toUpperCase().split(/[^A-Z]+/).forEach(function(w){ if(w.length > 2) g[w] = 1; });
+      if(g[(br.toUpperCase().match(/[A-Z]+/) || [''])[0]]) br = '';                       /* ขึ้นต้นด้วยชื่อสามัญ (MORPHINE SULFATE 10 MG) = ไม่มีชื่อการค้า */
+    }
+    return br.toUpperCase();
+  }
+  function memoGenericName(id){
+    var L = state.lookups || {}, dc = (L.dc || {})[id] || {}, m = (L.med || {})[id] || {};
+    var gen = String(dc.generic || '').replace(/\s+/g, ' ').trim(); if(!gen) return '';
+    var gs = gen.split(/\s*\+\s*/), str = String(dc.strength || '').replace(/\s+/g, ' ').trim(), ss = str ? str.split(/\s*\+\s*/) : [];
+    var parts = ss.length === gs.length ? gs.map(function(g, i){ return g + ' ' + ss[i]; }) : null;
+    if(parts && parts.length > 1){                                                      /* DrugCatNow เรียงตัวยาตามตัวอักษร → เรียงตามที่ปรากฏในชื่อการค้า (ERGOTAMINE ก่อน CAFFEINE) */
+      var tn = String(dc.tradename || m.name || '').toUpperCase();
+      var at = gs.map(function(g, i){ var k = tn.indexOf(g.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5)); return { p:parts[i], k:k < 0 ? 1e6 + i : k }; });
+      parts = at.sort(function(a, b){ return a.k - b.k; }).map(function(a){ return a.p; });
+    }
+    var body = (parts ? parts.join(', ') : gs.join(', ') + (str ? ' ' + str : '')).toUpperCase();
+    var br = memoTradeOf(dc, m, gen);
+    if(!str && body === String(dc.tradename || m.name || '').replace(/^[_\s]+/, '').trim().toUpperCase()) return '';   /* เวชภัณฑ์ที่ generic = ชื่อเดิม */
+    function words(s){ return ' ' + s.replace(/[^A-Z0-9]+/g, ' ').trim() + ' '; }
+    return body + (br && words(body).indexOf(words(br)) < 0 ? ' (' + br + ')' : '');   /* ชื่อการค้าซ้ำชื่อสามัญทั้งคำ = ไม่ใส่วงเล็บ */
+  }
   function memoLinesFrom(doc){
     var L = state.lookups || { med:{} }, byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
+    var drug = memoKindOf(doc) === MEMO_KIND.drug, idx = null, fixed = false;
+    /* ใบจากไฟล์ที่ลากก่อนไฟล์ HIS (หน้าว่าง) ยังจับรหัสไม่ได้ → จับคู่ชื่ออีกครั้งตอนออกบันทึก แล้วจำไว้ในประวัติ (ข้อ 2.32 ข้อ 5) */
+    doc.lines.forEach(function(l){
+      if(l.id || !state.items.length) return;
+      idx = idx || quoteNameIndex();
+      var hit = idx[quoteNameKey(l.name)]; if(hit && hit.ids.length === 1){ l.id = hit.id; fixed = true; }
+    });
+    if(fixed && quoteHist) dbPut([quoteHist]).catch(function(){ storageOk = false; });
     return doc.lines.map(function(l){
       var it = byId[l.id] || {}, m = L.med[l.id] || {}, r = refPick(l.id), pack = l.pack || 1, unit = l.unitP || 'กล่อง';
       var st = it.stock && it.stock.central ? it.stock.central.qty : null, rate = it.proc ? it.proc.userate : null, gps = String(m.gpscode || '');
-      return { id:l.id, name:l.name, unit:unit,
+      return { id:l.id, name:(drug && l.id && memoGenericName(l.id)) || l.name, qname:l.name, unit:unit,   /* qname = ชื่อในใบเสนอราคา ใช้ตั้งชื่อไฟล์ */
         stock:st == null ? '' : Math.round(st * 10) / 10,                        /* ยอดคงเหลือจากคลังยา (พี่โอม 28 ต.ค.: ดึงจากคงคลังแล้วแก้ได้) */
         rate:rate == null ? '' : Math.round(rate),                                   /* userate จากไฟล์ list (แก้ได้) */
         pack:pack > 1 ? '1 ' + unit + ' (' + fmt1(pack) + ' ' + (l.unitS || '') + ')' : '1 ' + unit,
@@ -2854,7 +2990,7 @@
   }
   function buildMemoK(doc, d){
     var k = memoKindOf(doc), t = memoTotals(d), fy = memoFY(d.kDate || d.pDate), n = d.lines.length, I = { left:0, first:1418, jc:'thaiDistribute' };
-    var off = memoPerson(d.officer), head = memoPerson(d.head), ex = memoPerson(d.exec), dir = memoPerson(d.director);
+    var off = memoPerson(d.officer), head = memoPerson(d.supHead), ex = memoPerson(d.exec), dir = memoPerson(d.director);   /* ลงนามช่อง หัวหน้าเจ้าหน้าที่พัสดุ */
     /* ข้อ 1–8 ตาม ขย.0450 ของพี่โอม: เลขเริ่มที่ 1 tab บรรทัดถัดไปชิดขอบซ้าย (พี่โอมเขียนแก้ 4 พ.ย. 69) */
     var NUM = { first:720, jc:'thaiDistribute' };
     var body = memoHead(memoSet.org.lineK, k.k + '.' + d.kNo, memoDateTh(d.kDate), k.subjK, 'หมวดค่าวัสดุ') +
@@ -2896,19 +3032,32 @@
   }
   function buildMemoY(doc, d){
     var k = memoKindOf(doc), t = memoTotals(d), n = d.lines.length, S = 28, drug = k === MEMO_KIND.drug;
-    var off = memoPerson(d.officer), head = memoPerson(d.head), dir = memoPerson(d.director);
+    var off = memoPerson(d.officer), head = memoPerson(d.supHead), dir = memoPerson(d.director);
     function P(text, o){ o = o || {}; return wPara(wRun(text, { sz:S, b:o.b }), o); }
-    var cols = drug
+    /* ย. และ ยว. ใช้คอลัมน์ราคาชุดเดียวกับ ภย. / ขย. / ภว. / ขว. ของบันทึกนั้น (`layout`) ทั้ง 3 แบบ — พี่โอม (ข้อ 2.32 ข้อ 7 · ตอบข้อ 27 15 พ.ย. 69 · ข้อ 2.33)
+       Zuellig: ราคาต่อหน่วย (รวม VAT) · (ไม่รวม VAT) · วงเงิน (ไม่รวม VAT) · DKSH: วงเงิน (รวม VAT) · บริษัทอื่น: ไม่มีคอลัมน์ไม่รวม VAT · ไม่มีราคาซื้อครั้งสุดท้าย / ราคากลาง */
+    var lay = d.layout || 'other', exCol = lay !== 'other', amtH = '(' + (lay === 'zuellig' ? 'ไม่รวม' : 'รวม') + ' VAT)';
+    var cols = drug && exCol
+      ? [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:2346, flex:1 }, { h:'รหัส GPU', w:850, jc:'center', num:1 }, { h:'รหัส TPU', w:850, jc:'center', num:1 }, { h:'รหัส\nUNSPSC', w:1000, jc:'center', num:1 },
+         { h:'จำนวน', w:1200, jc:'center' }, { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1050, jc:'right', num:1 }, { h:'ราคาต่อ\nหน่วย\n(ไม่รวม VAT)', w:1050, jc:'right', num:1 },
+         { h:'วงเงิน\n' + amtH, w:1300, jc:'right', num:1 }]
+      : drug
       ? [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:2650, flex:1 }, { h:'รหัส GPU', w:900, jc:'center', num:1 }, { h:'รหัส TPU', w:900, jc:'center', num:1 }, { h:'รหัส\nUNSPSC', w:1100, jc:'center', num:1 },
          { h:'จำนวน', w:1300, jc:'center' }, { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1300, jc:'right', num:1 }, { h:'วงเงิน\n(รวม VAT)', w:1496, jc:'right', num:1 }]
+      : exCol
+      ? [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:3046, flex:1 }, { h:'จำนวน', w:1000, jc:'center', num:1 }, { h:'หน่วย', w:900, jc:'center' }, { h:'รหัส\nUNSPSC', w:1300, jc:'center', num:1 },
+         { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1050, jc:'right', num:1 }, { h:'ราคาต่อ\nหน่วย\n(ไม่รวม VAT)', w:1050, jc:'right', num:1 }, { h:'ราคารวม\n' + amtH, w:1300, jc:'right', num:1 }]
       : [{ h:'ลำดับ\nที่', w:580, jc:'center' }, { h:k.col, w:3600, flex:1 }, { h:'จำนวน', w:1000, jc:'center', num:1 }, { h:'หน่วย', w:900, jc:'center' }, { h:'รหัส\nUNSPSC', w:1300, jc:'center', num:1 },
          { h:'ราคาต่อ\nหน่วย\n(รวม VAT)', w:1300, jc:'right', num:1 }, { h:'ราคารวม\n(รวม VAT)', w:1546, jc:'right', num:1 }];
     var rows = [{ head:true, cells:cols.map(function(c){ return { t:c.h }; }) }];
     d.lines.forEach(function(l, i){
-      var v = fmt2(Math.round((+l.qty || 0) * (+l.price || 0) * 100) / 100);
+      var q = +l.qty || 0, exP = memoExPrice(l.price);
+      var v = fmt2(lay === 'zuellig' ? Math.round(q * exP * 100) / 100 : Math.round(q * (+l.price || 0) * 100) / 100);   /* เหมือน memoItemTable */
       rows.push({ cells:drug
-        ? [{ t:(i + 1) + '.' }, { t:l.name }, { t:l.gpu }, { t:l.tpu }, { t:l.unspsc }, { t:memoQty(l.qty, l.unit) + memoPackShort(l) }, { t:fmt2(+l.price || 0) }, { t:v }]
-        : [{ t:(i + 1) + '.' }, { t:l.name }, { t:memoQty(l.qty, '') }, { t:l.unit }, { t:l.unspsc }, { t:fmt2(+l.price || 0) }, { t:v }] });
+        ? [{ t:(i + 1) + '.' }, { t:l.name }, { t:l.gpu }, { t:l.tpu }, { t:l.unspsc }, { t:memoQty(l.qty, l.unit) + memoPackShort(l) }, { t:fmt2(+l.price || 0) }]
+            .concat(exCol ? [{ t:fmt2(exP) }] : []).concat([{ t:v }])
+        : [{ t:(i + 1) + '.' }, { t:l.name }, { t:memoQty(l.qty, '') }, { t:l.unit }, { t:l.unspsc }, { t:fmt2(+l.price || 0) }]
+            .concat(exCol ? [{ t:fmt2(exP) }] : []).concat([{ t:v }]) });
     });
     var nc = cols.length;
     rows.push({ cells:[{ t:'มูลค่าที่ไม่รวมภาษี', span:nc - 1, jc:'right' }, { t:fmt2(t.ex) }] });
@@ -2948,14 +3097,16 @@
   function memoOpen(no){
     var doc = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.no === no; })[0]; if(!doc) return;
     if(!memoSet) memoSet = memoSeed();
-    var k = memoKindOf(doc), s = doc.memo || {}, pick = memoSet.pick || {}, today = todayIso();
+    memoRolesUp();
+    var s = doc.memo || {}, kind = s.kind || (s.pNo && doc.series === 'WC' ? 'drug' : memoKindRule(doc)), k = MEMO_KIND[kind], pick = memoSet.pick || {}, today = todayIso();
     memoState.no = no; memoState.msg = '';
-    memoState.d = {
+    memoState.d = { kind:kind,
       pNo:s.pNo || memoNextNo(k.p, memoBE(today)), pDate:s.pDate || today,
       planRef:s.planRef != null ? s.planRef : memoSet.planRef[memoFY(s.pDate || today)] || '',
       kNo:s.kNo || memoNextNo(k.k, memoFY(today)), kDate:s.kDate || '', yDate:s.yDate || '',
       bill:s.bill || '', billDate:s.billDate || '', days:s.days || 5, layout:s.layout || memoLayoutOf(doc.company),
       committee:memoSeats(s.committee || pick.committee), officer:s.officer || pick.officer || '', head:s.head || pick.head || '',
+      supHead:s.supHead || (s.pNo && s.head) || pick.supHead || '',     /* บันทึกเดิม: หัวหน้ากลุ่มงานคนเดิมลงนาม ขย. ไปแล้ว */
       exec:s.exec || pick.exec || '', director:s.director || pick.director || '',
       lines:s.lines ? s.lines.map(function(l){ var o = {}; Object.keys(l).forEach(function(x){ o[x] = l[x]; }); return o; }) : memoLinesFrom(doc) };
     renderMemo();
@@ -2968,7 +3119,7 @@
     memoTimer = setTimeout(function(){ dbPut([quoteHist]).catch(function(){ storageOk = false; }); }, 400);
   }
   /* กรรมการ 3 ช่อง: คนที่ไม่มีหน้าที่กรรมการแล้วให้ช่องว่าง ไม่ให้หน้าจอว่างแต่ Word ยังพิมพ์ชื่อเดิม */
-  function memoSeats(c){ return [0, 1, 2].map(function(i){ var p = memoPerson((c || [])[i]); return p && p.roles && p.roles.committee ? p.id : ''; }); }
+  function memoSeats(c){ return [0, 1, 2].map(function(i){ var p = memoPerson((c || [])[i]); return p && p.roles && p.roles[i ? 'committee' : 'chair'] ? p.id : ''; }); }
   function memoOpts(role, cur){
     var list = (memoSet.people || []).filter(function(p){ return p.roles && p.roles[role]; });
     return '<option value="">' + (list.length ? '— เลือก —' : '— ยังไม่มีรายชื่อ (ตั้งค่ารายชื่อ) —') + '</option>' +
@@ -2978,14 +3129,15 @@
     var w = [];
     if(d.committee.filter(Boolean).length < 3) w.push('ยังเลือกคณะกรรมการตรวจรับไม่ครบ 3 คน');
     else if(d.committee[0] === d.committee[1] || d.committee[0] === d.committee[2] || d.committee[1] === d.committee[2]) w.push('คณะกรรมการตรวจรับซ้ำกัน');
-    if(!d.head) w.push('ยังไม่ได้เลือกหัวหน้ากลุ่มงานเภสัชกรรม');
+    if(!d.supHead) w.push('ยังไม่ได้เลือกหัวหน้าเจ้าหน้าที่พัสดุ (ลงนาม ขย. / ขว. / ย. / ยว.)');
+    if(!d.head) w.push('ยังไม่ได้เลือกหัวหน้ากลุ่มงานเภสัชกรรม (ลงนาม ภย. / ภว.)');
     if(d.kDate && d.pDate && d.kDate <= d.pDate) w.push('วันที่ ขย. / ขว. ควรอยู่หลังวันที่ ภย. / ภว.');
     if(!memoSet.garuda) w.push('ยังไม่มีตราครุฑ — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าด้านบน');
     if(!d.planRef) w.push('ยังไม่ได้ใส่หนังสืออ้างอิงแผน');
     return w;
   }
   /* วงเงินแผนคงเหลือ = วงเงินแผน (planfin ปีงบ) − PO_inven รับจากการสั่งซื้อแล้ว (101) ของกองนั้น — พี่โอม 3 พ.ย. 69 (#4)
-     กองยา = W / WB / WC (planfin + planfin_C) · กองเวชภัณฑ์มิใช่ยา = WM (planfin_M) · ยังไม่หักใบที่สั่งแล้วแต่ยังไม่ได้รับของ */
+     กองยา = W / WB (planfin) · กองเวชภัณฑ์มิใช่ยา = WM + WC (planfin_M + planfin_C · 9 พ.ย. 69) · ยังไม่หักใบที่สั่งแล้วแต่ยังไม่ได้รับของ */
   function memoBudgetHtml(doc, t){
     var d = memoState.d, fy = memoFY(d.kDate || d.pDate), pot = memoKindOf(doc) === MEMO_KIND.drug ? 'drug' : 'nondrug';
     var name = pot === 'drug' ? 'ยา' : 'เวชภัณฑ์มิใช่ยา', sums = planPotSums(fy);
@@ -3028,11 +3180,12 @@
     /* วาดใหม่ทั้งกล่อง (เช่น ติ๊กหน้าที่) แล้วตารางเลื่อนกลับซ้ายสุด — จำตำแหน่งเลื่อนของตารางรายชื่อ / รายการไว้คืน (คุณธมลวรรณ 3 พ.ย. 69) */
     var keep = {}; Array.prototype.forEach.call(box.querySelectorAll("[data-keep]"), function(el){ keep[el.getAttribute("data-keep")] = [el.scrollLeft, el.scrollTop]; });
     function F(label, key, attrs){ return '<label class="q-field">' + label + ' <input class="q-in" data-f="' + key + '" value="' + esc(d[key] == null ? '' : d[key]) + '"' + (attrs || '') + '></label>'; }
-    var who = '<label class="q-field">ประธานกรรมการ <select class="search field-select" data-who="c0">' + memoOpts('committee', d.committee[0]) + '</select></label>' +
+    var who = '<label class="q-field">ประธานกรรมการ <select class="search field-select" data-who="c0">' + memoOpts('chair', d.committee[0]) + '</select></label>' +
       '<label class="q-field">กรรมการ <select class="search field-select" data-who="c1">' + memoOpts('committee', d.committee[1]) + '</select></label>' +
       '<label class="q-field">กรรมการ <select class="search field-select" data-who="c2">' + memoOpts('committee', d.committee[2]) + '</select></label>' +
       '<label class="q-field">เจ้าหน้าที่พัสดุ <select class="search field-select" data-who="officer">' + memoOpts('officer', d.officer) + '</select></label>' +
-      '<label class="q-field">หัวหน้ากลุ่มงานเภสัชกรรม <select class="search field-select" data-who="head">' + memoOpts('head', d.head) + '</select></label>' +
+      '<label class="q-field">หัวหน้าเจ้าหน้าที่พัสดุ (' + k.k + '. / ' + k.y + '.) <select class="search field-select" data-who="supHead">' + memoOpts('supHead', d.supHead) + '</select></label>' +
+      '<label class="q-field">หัวหน้ากลุ่มงานเภสัชกรรม (' + k.p + '.) <select class="search field-select" data-who="head">' + memoOpts('head', d.head) + '</select></label>' +
       '<label class="q-field">ผู้บริหารเสนอความเห็น (ขย.) <select class="search field-select" data-who="exec">' + memoOpts('exec', d.exec) + '</select></label>' +
       '<label class="q-field">ผู้อำนวยการ <select class="search field-select" data-who="director">' + memoOpts('director', d.director) + '</select></label>';
     var NUMK = { stock:1, rate:1, qty:1, ref:1, last:1, price:1 };
@@ -3041,7 +3194,9 @@
     var planFy = memoFY(d.kDate || d.pDate);
     var table = '<table style="min-width:1620px"><thead><tr><th>#</th>' + lineCols.map(function(c){ return '<th>' + c[1] + '</th>' + (c[0] === 'rate' ? '<th data-plan-head>ใช้ × 12 เทียบแผนปีงบ ' + (planFy % 100) + '</th>' : ''); }).join('') + '<th class="mono">วงเงิน</th></tr></thead><tbody>' +
       d.lines.map(function(l, i){
-        return '<tr><td class="mono">' + (i + 1) + '</td>' + lineCols.map(function(c){
+        /* ↑ / ↓ เลื่อนลำดับรายการ ใช้กับ ภย. / ขย. / ย. ชุดเดียวกัน จำไว้กับบันทึก — พี่โอม ส่งมาก่อน 9 พ.ย. (ข้อ 2.32 ข้อ 9 · ข้อ 28) */
+        var mv = function(dir, lab, off){ return '<button type="button" class="btn-ghost memo-mv" data-act="mv" data-dir="' + dir + '" data-i="' + i + '" aria-label="' + lab + ' รายการที่ ' + (i + 1) + '" title="' + lab + '"' + (off ? ' disabled' : '') + '>' + (dir < 0 ? '↑' : '↓') + '</button>'; };
+        return '<tr><td class="mono" style="white-space:nowrap">' + (i + 1) + ' ' + mv(-1, 'เลื่อนขึ้น', i === 0) + mv(1, 'เลื่อนลง', i === d.lines.length - 1) + '</td>' + lineCols.map(function(c){
           return '<td><input class="q-in' + (NUMK[c[0]] ? ' num' : '') + '" data-l="' + c[0] + '" data-i="' + i + '" value="' + esc(l[c[0]] == null ? '' : l[c[0]]) + '" style="width:' + c[2] + 'px"' + (NUMK[c[0]] ? ' inputmode="decimal"' : '') + '></td>' +
             (c[0] === 'rate' ? '<td data-plan="' + i + '" style="white-space:nowrap">' + memoPlanCheck(l, planFy) + '</td>' : '');
         }).join('') + '<td class="mono" data-v="' + i + '">' + fmt2((+l.qty || 0) * (+l.price || 0)) + '</td></tr>';
@@ -3061,7 +3216,7 @@
       (memoState.setOpen ?
         '<div class="memo-set"><div class="table-note" style="margin:0 0 8px">รายชื่อเก็บไว้ในเครื่องนี้เท่านั้น (ไม่อยู่ในโปรแกรมบนเว็บ) · ติ๊กว่าแต่ละคนอยู่ในหน้าที่ไหนได้หลายช่อง · ช่อง "ใช้ลงนาม" = บรรทัดใต้ชื่อตอนลงนาม (ว่างไว้ = ใช้ตำแหน่ง)</div>' +
         '<div class="table-scroll" data-keep="people" style="max-height:300px"><table style="min-width:1100px"><thead><tr><th>ชื่อ – นามสกุล</th><th>ตำแหน่ง</th><th>ใช้ลงนาม</th>' + MEMO_ROLES.map(function(r){ return '<th>' + r[1] + '</th>'; }).join('') + '<th></th></tr></thead><tbody>' +
-        (people || '<tr><td colspan="9" class="table-note" style="padding:10px">ยังไม่มีรายชื่อ — กด "เพิ่มรายชื่อ"</td></tr>') + '</tbody></table></div>' +
+        (people || '<tr><td colspan="' + (MEMO_ROLES.length + 4) + '" class="table-note" style="padding:10px">ยังไม่มีรายชื่อ — กด "เพิ่มรายชื่อ"</td></tr>') + '</tbody></table></div>' +
         '<div class="table-tools" style="margin:8px 0 0"><button type="button" class="btn-ghost" data-act="add-person">เพิ่มรายชื่อ</button></div>' +
         '<div class="table-tools" style="margin:10px 0 0">' +
           '<label class="q-field">ส่วนราชการ (ภย. / ภว.) <input class="q-in" data-org="lineP" value="' + esc(set.org.lineP) + '" style="width:420px"></label>' +
@@ -3078,7 +3233,7 @@
       '<div class="table-tools">' + F(k.y + '. (หนังสือสั่งซื้อ) วันที่', 'yDate', ' type="date"') +
         F('เลขที่ใบเสนอราคา / บิลของบริษัท', 'bill', ' style="width:140px"') + F('ลงวันที่', 'billDate', ' type="date"') + F('กำหนดส่ง (วันทำการ)', 'days', ' style="width:50px" inputmode="numeric"') + '</div>' +
       '<div class="memo-step">3. รายการ (ยอดคงเหลือจากคลังยา · อัตราการใช้จาก userate · ราคากลางจาก DATA Template · ราคาซื้อครั้งสุดท้ายจาก PO_inven — แก้ได้ทุกช่อง)</div>' +
-      '<div class="table-tools"><label class="q-field">คอลัมน์ราคาในตาราง ' + k.p + '. / ' + k.k + '. <select class="search field-select" data-f="layout">' +
+      '<div class="table-tools"><label class="q-field">คอลัมน์ราคาในตาราง ' + k.p + '. / ' + k.k + '. / ' + k.y + '. <select class="search field-select" data-f="layout">' +
         MEMO_LAYOUTS.map(function(o){ return '<option value="' + o[0] + '"' + (d.layout === o[0] ? ' selected' : '') + '>' + o[1] + (o[0] === memoLayoutOf(doc.company) ? ' (ตามบริษัท)' : '') + '</option>'; }).join('') +
         '</select></label><span class="table-note" style="margin:0">' + esc({ zuellig:'ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (ไม่รวม VAT)', dksh:'ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (รวม VAT)', other:'ราคาต่อหน่วย (รวม VAT) · วงเงิน (รวม VAT)' }[d.layout] || '') + '</span></div>' +
       '<div class="table-scroll" data-keep="lines" style="max-height:360px">' + table + '</div>' +
@@ -3092,7 +3247,7 @@
   }
   function memoExport(which){
     var doc = memoDoc(), d = memoState.d; if(!doc || !d) return;
-    var k = memoKindOf(doc), blob, name, first = d.lines[0] ? String(d.lines[0].name || '') : '';
+    var k = memoKindOf(doc), blob, name, first = d.lines[0] ? String(d.lines[0].qname || d.lines[0].name || '') : '';
     var safe = (first.replace(/^[_\s]+/, '').split(/[\s(]/)[0] || String(doc.company || '')).replace(/[\\\/:*?"<>|]/g, '').slice(0, 40);
     try{
       if(which === 'p'){ blob = buildMemoP(doc, d); name = k.p + d.pNo.replace('/', '-') + ' ' + safe + '.docx'; memoBump(k.p, d.pNo); }
@@ -3101,7 +3256,7 @@
     }catch(err){ memoState.msg = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err); document.getElementById('memo-sum').innerHTML = memoSumHtml(); return; }
     saveBlob(blob, name);
     /* จำค่าที่เลือกไว้เป็นค่าเริ่มต้นของใบถัดไป และหนังสืออ้างอิงแผนของปีงบนั้น */
-    memoSet.pick = { committee:d.committee.slice(), officer:d.officer, head:d.head, exec:d.exec, director:d.director };
+    memoSet.pick = { committee:d.committee.slice(), officer:d.officer, supHead:d.supHead, head:d.head, exec:d.exec, director:d.director };
     if(d.planRef) memoSet.planRef[memoFY(d.pDate)] = d.planRef;
     memoSaveSet(); memoKeep();
     memoState.msg = 'ส่งออกแล้ว: ' + name + ' · เลขถัดไป ' + k.p + '. ' + memoNextNo(k.p, memoBE(todayIso())) + ' / ' + k.k + '. ' + memoNextNo(k.k, memoFY(todayIso()));
@@ -3143,6 +3298,11 @@
       else if(act === 'set'){ memoState.setOpen = !memoState.setOpen; renderMemo(); }
       else if(act === 'add-person'){ memoSet.people.push({ id:'p' + Date.now().toString(36), name:'', pos:'', sign:'', roles:{} }); memoSaveSet(); renderMemo(); }
       else if(act === 'del-person'){ memoSet.people.splice(Number(b.getAttribute('data-i')), 1); memoSaveSet(); renderMemo(); }
+      else if(act === 'mv'){
+        var L = memoState.d.lines, i = Number(b.getAttribute('data-i')), j = i + Number(b.getAttribute('data-dir'));
+        if(j >= 0 && j < L.length){ var x = L[i]; L[i] = L[j]; L[j] = x; memoKeep(); renderMemo();
+          var nb = box.querySelector('[data-act="mv"][data-i="' + j + '"][data-dir="' + b.getAttribute('data-dir') + '"]'); if(nb && !nb.disabled) nb.focus(); }
+      }
       else if(act === 'reset-lines'){ var doc = memoDoc(); if(doc){ memoState.d.lines = memoLinesFrom(doc); memoKeep(); renderMemo(); } }
       else if(/^exp-/.test(act)) memoExport(act.slice(4));
     });
@@ -3257,7 +3417,7 @@
         '<div class="table-tools">' + F('ผู้จำหน่าย', 'company', ' style="width:320px"') + F('เอกสารเลขที่', 'bill', ' style="width:150px"') + F('เอกสารลงวันที่', 'billDate', ' type="date"') + F('วันที่ตรวจรับ', 'inspect', ' type="date"') + '</div>' +
         '<div class="table-tools">' + F('เรื่อง', 'subj', ' style="width:300px"') + F('หมวด', 'cat', ' style="width:120px"') + '</div>' +
         '<div class="memo-step">4. กรรมการตรวจรับ (ตั้งต้นจากชุดที่ใช้ล่าสุด เปลี่ยนคนได้)</div>' +
-        '<div class="table-tools"><label class="q-field">ประธานกรรมการ <select class="search field-select" data-rw="0">' + memoOpts('committee', d.committee[0]) + '</select></label>' +
+        '<div class="table-tools"><label class="q-field">ประธานกรรมการ <select class="search field-select" data-rw="0">' + memoOpts('chair', d.committee[0]) + '</select></label>' +
           '<label class="q-field">กรรมการ <select class="search field-select" data-rw="1">' + memoOpts('committee', d.committee[1]) + '</select></label>' +
           '<label class="q-field">กรรมการ <select class="search field-select" data-rw="2">' + memoOpts('committee', d.committee[2]) + '</select></label></div>' +
         '<div class="table-note" style="margin:2px 0 0">เพิ่มคนใหม่ได้ที่ปุ่ม ออกบันทึก ภย. / ขย. / ย. → ตั้งค่ารายชื่อ แล้วติ๊กหน้าที่ กรรมการตรวจรับ</div>' +
@@ -3365,6 +3525,7 @@
     });
     document.getElementById('quote-ry').addEventListener('click', function(){
       if(!memoSet) memoSet = memoSeed();
+      memoRolesUp();
       ryState.open = true; renderRy();
       document.getElementById('ry-box').scrollIntoView({ behavior:'smooth', block:'start' });
     });
@@ -3510,15 +3671,24 @@
       if(quoteState.mfr !== 'all' && (it.manufact || NO_MFR) !== quoteState.mfr) return false;
       if(quoteState.onlyOut && !isOut(it)) return false;
       return !q || (it.hospcode + ' ' + it.tradename + ' ' + it.generic + ' ' + ((state.lookups && state.lookups.med[it.hospcode]) || {}).name).toLowerCase().indexOf(q) >= 0;   /* ชื่อใน Meditem ด้วย (อาจต่างจาก DrugCatNow) */
-    }).sort(function(a, b){
-      return (quoteState.sel[b.hospcode] ? 1 : 0) - (quoteState.sel[a.hospcode] ? 1 : 0) || (isOut(b) ? 1 : 0) - (isOut(a) ? 1 : 0) ||
+    });
+    /* ชื่อขึ้นต้นด้วย "_" = ออกจากบัญชี รพ. แล้ว เก็บไว้เผื่อกลับมาใช้: ยังแสดงและเลือกได้ แต่อยู่ท้ายสุด (พี่โอม ก่อน 9 พ.ย. 69 · ข้อ 2.32 ข้อ 8) */
+    var dropped = {};
+    rows.forEach(function(it){
+      var e = quoteState.edits[it.hospcode], nm = e && e.name != null ? e.name : ((state.lookups && state.lookups.med[it.hospcode]) || {}).name || it.tradename || it.generic;
+      if(/^\s*_/.test(nm || '')) dropped[it.hospcode] = 1;
+    });
+    rows.sort(function(a, b){
+      return (quoteState.sel[b.hospcode] ? 1 : 0) - (quoteState.sel[a.hospcode] ? 1 : 0) ||          /* ที่เลือกแล้วอยู่บนสุดเสมอ (ไม่ให้หลุดเกิน 150 แถว) */
+        (+quoteState.sel[a.hospcode] || 0) - (+quoteState.sel[b.hospcode] || 0) ||                   /* ตามลำดับที่ติ๊ก */
+        (dropped[a.hospcode] ? 1 : 0) - (dropped[b.hospcode] ? 1 : 0) || (isOut(b) ? 1 : 0) - (isOut(a) ? 1 : 0) ||
         a.hospcode.localeCompare(b.hospcode, undefined, { numeric:true });
     });
     var LIMIT = 150, shown = rows.slice(0, LIMIT);
     document.getElementById('quote-table').innerHTML = shown.length ? shown.map(function(it){
       var l = quoteLine(it), on = !!quoteState.sel[it.hospcode], hc = esc(it.hospcode), total = (+l.qty || 0) * (+l.price || 0);
       return '<tr data-hc="' + hc + '"' + (on ? ' class="on"' : '') + '>' +
-        '<td><input type="checkbox" data-k="sel"' + (on ? ' checked' : '') + ' aria-label="เลือก ' + esc(l.name) + '"></td>' +
+        '<td style="white-space:nowrap"><input type="checkbox" data-k="sel"' + (on ? ' checked' : '') + ' aria-label="เลือก ' + esc(l.name) + '"> <span class="q-ord" data-ord></span></td>' +
         '<td>' + hc + '</td><td>' + esc(l.name) + (seriesOf(it) !== 'W' ? ' <span class="pill">' + SERIES_LABEL[seriesOf(it)] + ' · ' + seriesOf(it) + '</span>' : '') + (quoteState.company === 'all' || (it.distribute || NO_COMPANY) !== quoteState.company ? '<br><small class="rate-inv">' + esc(it.distribute || NO_COMPANY) + '</small>' : '') + '</td>' +
         '<td class="mono plan"' + (it.plan ? ' title="แผนจัดซื้อ ฿' + fmt(it.plan.value) + '"' : '') + '>' + (it.plan ? fmt1(it.plan.qty) : '–') + '</td>' +
         boughtCell(it) +
@@ -3665,7 +3835,7 @@
   /* ล้างทั้งหน้าให้เริ่มใบใหม่ได้ทันที (พี่โอม 5 พ.ย. 69): รายการที่เลือก จำนวน / ราคาที่แก้ ตัวกรอง และคำค้น · เลขที่ใบและวันที่คงไว้ */
   function quoteReset(){
     clearTimeout(quoteTimer);
-    quoteState.sel = {}; quoteState.edits = {}; quoteState.note = ''; quoteState.search = ''; quoteState.onlyOut = false;
+    quoteState.sel = {}; quoteTick = 0; quoteState.edits = {}; quoteState.note = ''; quoteState.search = ''; quoteState.onlyOut = false;
     quoteState.company = 'all'; quoteState.mfr = 'all'; quoteState.mfrFree = false; quoteState.distFree = false; quoteState.autoLock = {};
     document.getElementById('quote-search').value = '';
     document.getElementById('quote-only-out').checked = false;
@@ -3679,6 +3849,11 @@
   }
   function quoteSummary(extra){
     var g = quoteGroups();
+    /* เลขลำดับข้างช่องติ๊ก = ลำดับในใบเสนอราคาใบนั้น (หลายใบ = บอกเลขใบด้วย) */
+    var ord = {}; g.sheets.forEach(function(s){ s.items.forEach(function(it, i){ ord[it.hospcode] = (g.sheets.length > 1 ? s.no + ' · ' : '') + (i + 1); }); });
+    Array.prototype.forEach.call(document.querySelectorAll('#quote-table tr[data-hc]'), function(tr){
+      var sp = tr.querySelector('[data-ord]'); if(sp) sp.textContent = ord[tr.getAttribute('data-hc')] || '';
+    });
     var ed = quoteState.editing, over = [], mixed = quoteMixedMfr(g.sheets);
     if(mixed.length) extra = '⚠ ใบ ' + mixed.join(', ') + ' มีหลายผู้ผลิต (ปลดล็อกผู้ผลิตแล้ว) ตรวจก่อนส่งออก' + (extra ? ' · ' + extra : '');
     else if(g.count && (quoteState.mfr !== 'all' || quoteState.company !== 'all')) extra = 'ล็อกตามรายการแรก: ' + [quoteState.company !== 'all' ? quoteState.company : '', quoteState.mfr !== 'all' ? 'ผู้ผลิต ' + quoteState.mfr : ''].filter(Boolean).join(' · ') + ' (เลือก "ทุกบริษัท" / "ทุกผู้ผลิต" เพื่อปลดล็อก)' + (extra ? ' · ' + extra : '');
@@ -3721,7 +3896,7 @@
     var tr = e.target.closest('tr[data-hc]'); if(!tr) return;
     var hc = tr.getAttribute('data-hc'), k = e.target.getAttribute('data-k');
     if(k === 'sel'){
-      if(e.target.checked) quoteState.sel[hc] = 1; else delete quoteState.sel[hc];
+      if(e.target.checked) quoteTickOn(hc); else delete quoteState.sel[hc];
       if(!Object.keys(quoteState.sel).length && quoteUnlockAuto()){ renderQuote(); return; }
       if(e.target.checked && quoteLockFirst(hc)){ renderQuote(); return; }
       tr.classList.toggle('on', e.target.checked); quoteSummary('');
@@ -3740,7 +3915,7 @@
     var ed = quoteState.edits[hc] || (quoteState.edits[hc] = {});
     ed[k] = k === 'qty' || k === 'price' ? e.target.value : e.target.value.trim();
     if(k === 'qty' && +e.target.value > 0 && !quoteState.sel[hc]){
-      quoteState.sel[hc] = 1; tr.classList.add('on'); tr.querySelector('[data-k="sel"]').checked = true;
+      quoteTickOn(hc); tr.classList.add('on'); tr.querySelector('[data-k="sel"]').checked = true;
       if(quoteLockFirst(hc)){   /* รายการกรองตามบริษัท / ผู้ผลิตตอนแสดงครั้งถัดไป */
         document.getElementById('quote-company').value = quoteState.company;
         document.getElementById('quote-mfr').value = quoteState.mfr;
@@ -4232,21 +4407,20 @@
 
   /* ---------------- ซื้อจริงเทียบวงเงินแผนทั้งปีงบ ----------------
      แจ้งเมื่อยอดซื้อจริง (PO_inven รับจากการสั่งซื้อ 101) ของปีงบเกินยอด planfin ปีงบนั้น
-     แยก 2 กองตามที่ขออนุมัติแผน (พี่โอม 26 ต.ค. 69): ยา = planfin + planfin_C · เวชภัณฑ์มิใช่ยา = planfin_M
+     แยก 2 กองตามหมวดในแผน (พี่โอม 9 พ.ย. 69 · ข้อ 2.32 ข้อ 2 · เดิม 26 ต.ค. planfin_C อยู่กองยา): ยา = planfin (W) · วัสดุเวชภัณฑ์ไม่ใช่ยา = planfin_M + planfin_C (WM + WC)
      รายการที่ไม่มีในแผนแยกกองตามทะเบียน · นับทุกรายการ ไม่ขึ้นกับตัวกรองทะเบียน / ประเภทบัญชี */
-  var PLAN_POTS = [['drug', 'ยา', 'planfin + planfin_C'], ['nondrug', 'เวชภัณฑ์มิใช่ยา', 'planfin_M']];
+  var PLAN_POTS = [['drug', 'ยา', 'planfin'], ['nondrug', 'เวชภัณฑ์มิใช่ยา', 'planfin_M + planfin_C']];
   var PLAN_NEAR_PCT = 90;
   function planPotOf(L, id, plan){
     var g = plan && plan[id] && plan[id].grp;
-    if(g) return g === '2/1' ? 'nondrug' : 'drug';
-    var t = regTypeOf(L, id);
-    return t === 'ทะเบียนยา' || t === 'ทะเบียนเภสัชเคมีภัณฑ์' ? 'drug' : 'nondrug';
+    if(g) return g === '1/1' ? 'drug' : 'nondrug';
+    return regTypeOf(L, id) === 'ทะเบียนยา' ? 'drug' : 'nondrug';
   }
   /* ยอดแผนและซื้อจริงแยกกองของปีงบ (ใช้ทั้งแถบวงเงินในตารางแผน และวงเงินคงเหลือในหน้าออกบันทึก) */
   function planPotSums(cur){
     var L = state.lookups, plan = L && cur ? L.planByYear[cur] : null; if(!plan) return null;
     var P = {}; PLAN_POTS.forEach(function(o){ P[o[0]] = { plan:0, buy:0 }; });
-    Object.keys(plan).forEach(function(id){ P[plan[id].grp === '2/1' ? 'nondrug' : 'drug'].plan += plan[id].value; });
+    Object.keys(plan).forEach(function(id){ P[planPotOf(L, id, plan)].plan += plan[id].value; });
     var poN = 0, lastYm = 0;
     (L.po || []).forEach(function(r){
       if(fiscalOf(r.ym) !== cur) return; poN++; if(r.ym > lastYm) lastYm = r.ym;
@@ -4527,11 +4701,15 @@
     hline(KPI_GOOD, 'var(--critical)', 'KPI THIP = 1.33', dyK);
     if(mean !== null) hline(mean, 'var(--accent)', 'mean = ' + mean.toFixed(2), dyM);
     /* ปีงบที่เทียบ: สีตามช่วงเดียวกันแต่จาง เส้นบางกว่า ไม่มีป้ายตัวเลข (ชี้ที่จุดเพื่อดูค่า) วาดก่อนให้อยู่ใต้ปีปัจจุบัน
-       ป้ายปีงบ (เช่น 68 / 69) ท้ายเส้นแต่ละปี */
+       ป้ายปีงบ "ปีงบ 68" / "ปีงบ 69" ท้ายเส้นแต่ละปี (พี่โอม 9 พ.ย. 69 · ข้อ 2.32 ข้อ 3)
+       ป้ายที่ล้นเข้าขอบขวา (เดือนท้าย ๆ) ขยับขึ้น / ลงให้ห่างป้าย KPI / mean อย่างน้อย 15px */
+    var sideY = [y(KPI_GOOD) + 4 + dyK].concat(mean !== null ? [y(mean) + 4 + dyM] : []);
     function yearTag(rs, color, opacity){
       for(var k = rs.length - 1; k >= 0; k--){
         if(rs[k].ratio === null) continue;
-        s += '<text class="k-val" x="' + (x(k) + 12) + '" y="' + (y(rs[k].ratio) + 4) + '" font-size="13" style="fill:' + color + '" opacity="' + opacity + '">' + String(fiscalOf(rs[k].ym) % 100) + '</text>';
+        var tx = x(k) + 12, ty = y(rs[k].ratio) + 4;
+        if(tx + 48 > W - R0 + 4) sideY.forEach(function(ly){ if(Math.abs(ty - ly) < 15) ty = ty <= ly ? ly - 15 : ly + 15; });
+        s += '<text class="k-val" x="' + tx + '" y="' + ty + '" font-size="13" style="fill:' + color + '" opacity="' + opacity + '">ปีงบ ' + String(fiscalOf(rs[k].ym) % 100) + '</text>';
         return;
       }
     }
