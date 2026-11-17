@@ -1769,7 +1769,7 @@
   function shUsedBy(series, no, owner){
     var hit = '';
     (quoteHist && quoteHist.docs || []).forEach(function(d){
-      var m = d.memo, iss = m && m.issued; if(!iss || hit || d.no === owner.doc) return;
+      var m = d.memo, iss = m && m.issued; if(!iss || hit || qKey(d) === owner.doc) return;
       var k = MEMO_KIND[m.kind || memoKindRule(d)];
       ['p', 'k', 'y'].forEach(function(w){ var x = iss[w]; if(x && !hit && (w === 'p' ? k.p : k.k) === series && x.no === no) hit = 'ใบ ' + d.no + ' (' + (d.company || '') + ')'; });
     });
@@ -1779,14 +1779,29 @@
     });
     return hit;
   }
+  function shIssuedHere(series, no, owner){
+    var x;
+    if(owner.ry){ x = memoSet && memoSet.ry && memoSet.ry[owner.ry]; return !!(x && x.issued && x.issued.no === no); }
+    var d = qFind(owner.doc), iss = d && d.memo && d.memo.issued || {};
+    return ['p', 'k', 'y'].some(function(w){ return iss[w] && iss[w].no === no; });
+  }
   /* บันทึก ภ. / ข. / ย. / รย.: เลขที่ ≥ เลขถัดไปใน Sheet = เลขใหม่ จอง · ต่ำกว่า = พิมพ์ซ้ำใบเดิม ได้ถ้าไม่ใช่เลขของใบอื่น */
   function shTake(series, no, owner){
     if(!shOn()) return Promise.resolve();
     var cur = SH.meta.counters[series] || '', c = cur ? shNoCmp(no, cur) : 1;
     if(c === null) return Promise.reject(new Error('เลขที่ ' + series + '. ' + no + ' ไม่อยู่ในรูปแบบ 0001/2570'));
+    /* เล่มนี้ยังไม่มีเลขเริ่มในข้อมูลกลาง: ใบแรกเป็นจุดเริ่มของทุกเครื่อง ต้องตรงกับเล่มจริง (ถ้าเป็นใบเก่าพิมพ์ซ้ำ เล่มจะเริ่มต่ำเกินไป) */
+    if(!cur && !window.confirm('เล่ม ' + series + '. ยังไม่มีเลขเริ่มในข้อมูลกลาง\n\nส่งออกเลข ' + no + ' แล้วทุกเครื่องจะนับต่อจาก ' + nextNo(no) + '\nตรวจกับเล่มจริงก่อนว่า ' + no + ' เป็นเลขใหม่ที่ยังไม่เคยออก\n\nถูกต้อง กด OK · ถ้าเป็นใบเก่าพิมพ์ซ้ำ หรือเลขไม่ตรงเล่ม กด ยกเลิก')){
+      var e0 = new Error('ยังไม่ได้ยืนยันเลขเริ่มของเล่ม ' + series + '. · ตรวจกับเล่มจริงแล้วส่งออกอีกครั้ง'); e0.quiet = true; return Promise.reject(e0);
+    }
     if(c < 0){
       var who = shUsedBy(series, no, owner);
-      return who ? Promise.reject(new Error(series + '. ' + no + ' ออกไปแล้วกับ' + who + ' · เลขถัดไปคือ ' + cur)) : Promise.resolve();
+      if(who) return Promise.reject(new Error(series + '. ' + no + ' ออกไปแล้วกับ' + who + ' · เลขถัดไปคือ ' + cur));
+      /* ใบเก่าก่อนใช้ข้อมูลกลาง ไม่มีบันทึกว่าเลขนี้ส่งออกจริงไหม (อาจเป็นเลขที่หน้าจอเติมให้แล้วไม่ได้ออก) ให้ผู้ใช้ยืนยันครั้งแรก */
+      if(!shIssuedHere(series, no, owner) && !window.confirm(series + '. ' + no + ' ต่ำกว่าเลขถัดไปในข้อมูลกลาง (' + cur + ') และยังไม่มีบันทึกว่าใบนี้เคยส่งออกเลขนี้\n\nพิมพ์ใบเดิมซ้ำ (เลขนี้ออกไปแล้วกับใบนี้จริง) กด OK\nถ้าเป็นเอกสารใหม่ กด ยกเลิก แล้วเปลี่ยนเลขเป็น ' + cur)){
+        var e = new Error('ยังไม่ได้ยืนยันเลข ' + series + '. ' + no + ' · ถ้าเป็นเอกสารใหม่ ใช้เลข ' + cur); e.quiet = true; return Promise.reject(e);
+      }
+      return Promise.resolve();
     }
     return shCall('reserve', { series:series, expect:cur, next:nextNo(no) }).then(function(j){
       if(j.status !== 'ok'){
@@ -1798,9 +1813,9 @@
   }
   /* ยังไม่ได้ส่งออก (เลขชน / ออฟไลน์): หน้าต่างแจ้ง + ช่องเลขที่กะพริบ ผู้ใช้ต้องเห็นก่อนกดซ้ำ
      รอให้หน้าวาดเลขใหม่และกล่องแดงก่อน (หน้าต่างแจ้งหยุดการวาดหน้า) แล้วกะพริบหลังกด OK */
-  function shRefused(msg, input){
+  function shRefused(msg, input, quiet){   /* quiet = ผู้ใช้เพิ่งกด ยกเลิก เอง ไม่ต้องเด้งซ้ำ */
     setTimeout(function(){
-      try{ window.alert('ยังไม่ได้ส่งออก\n\n' + msg); }catch(e){}
+      if(!quiet){ try{ window.alert('ยังไม่ได้ส่งออก\n\n' + msg); }catch(e){} }
       if(!input) return;
       input.classList.remove('sh-flash'); void input.offsetWidth; input.classList.add('sh-flash');
       try{ input.focus(); input.select(); }catch(e){}
@@ -2836,16 +2851,20 @@
     }).then(function(){ btn.disabled = false; });
   }
 
+  /* ใบในประวัติ: key = sid (ใบเลขซ้ำที่เก็บไว้ทั้ง 2 ใบตอนย้ายเข้าข้อมูลกลาง เช่น W103-70~2) หรือเลขที่ · เลขที่ที่พิมพ์ในเอกสารยังเป็น d.no */
+  function qKey(d){ return d.sid || d.no; }
+  function qFind(key){ return (quoteHist && quoteHist.docs || []).filter(function(d){ return qKey(d) === key; })[0] || null; }
   function recordQuotes(sheets, file){
     if(!quoteHist) quoteHist = { slot:QUOTE_HIST_SLOT, docs:[] };
     sheets.forEach(function(sh){
-      var old = quoteHist.docs.filter(function(d){ return d.no === sh.no; })[0];
+      var key = quoteState.editing && quoteState.editing.no === sh.no ? quoteState.editing.key || sh.no : sh.no, old = qFind(key);
       var doc = { no:sh.no, series:sh.series, company:sh.company, date:quoteState.date || todayIso(), at:new Date().toISOString(), file:file,
         revisions:old ? (old.revisions || 1) + 1 : 1,
         lines:sh.items.map(function(it, i){ var l = sh.lines[i]; return { id:it.hospcode, name:l.name, qty:l.qty, price:l.price, unitS:l.unitS, unitP:l.unitP, pack:l.pack }; }) };
       /* แก้ใบเดิม: เก็บเลขที่ วันที่ กรรมการในบันทึกไว้ เหมือนตอนลากไฟล์เข้า · รายการในบันทึกดึงใหม่จากใบที่แก้ */
       if(old && old.memo){ doc.memo = old.memo; delete doc.memo.lines; }
-      quoteHist.docs = [doc].concat(quoteHist.docs.filter(function(d){ return d.no !== sh.no; }));
+      if(old && old.sid){ doc.sid = old.sid; doc.dup = old.dup; }   /* ใบเลขซ้ำที่เก็บไว้ทั้ง 2 ใบ (ย้ายเข้าข้อมูลกลาง) */
+      quoteHist.docs = [doc].concat(quoteHist.docs.filter(function(d){ return qKey(d) !== key; }));
     });
     if(!shOn()) quoteHist.docs = quoteHist.docs.slice(0, 300);   /* ข้อมูลกลางเก็บทุกใบ */
   }
@@ -2907,7 +2926,7 @@
     files.forEach(function(f){
       f.sheets.forEach(function(ws){
         var q = parseQuoteSheet(ws, idx); if(!q.no || !q.lines.length) return;
-        var old = quoteHist.docs.filter(function(d){ return d.no === q.no; })[0];
+        var old = qFind(q.no);
         q.lines.forEach(function(l){
           if(!l.id && old) old.lines.forEach(function(o){ if(o.id && quoteNameKey(o.name) === quoteNameKey(l.name)) l.id = o.id; });
           if(!l.id && res.miss.indexOf(l.name) < 0) res.miss.push(l.name);
@@ -2918,7 +2937,7 @@
           revisions:old ? (old.revisions || 1) + 1 : 1, lines:q.lines };
         if(old && old.memo){ doc.memo = old.memo; delete doc.memo.lines; }   /* รายการในบันทึกดึงใหม่จากไฟล์ */
         if(old) res.updated++;
-        quoteHist.docs = [doc].concat(quoteHist.docs.filter(function(d){ return d.no !== q.no; }));
+        quoteHist.docs = [doc].concat(quoteHist.docs.filter(function(d){ return qKey(d) !== q.no; }));
         res.nos.push(q.no);
         var p = noParts(q.no), cur = noParts(savedNo(q.series));
         if(p && cur && p.pre === q.series && cur.pre === p.pre && cur.suf === p.suf){
@@ -2934,7 +2953,7 @@
     return res;
   }
   function reopenQuote(no){
-    var doc = (quoteHist && quoteHist.docs || []).filter(function(d){ return d.no === no; })[0]; if(!doc) return;
+    var doc = qFind(no); if(!doc) return;
     var byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
     var gone = [];
     quoteState.sel = {};
@@ -2944,7 +2963,7 @@
       quoteState.edits[l.id] = { qty:String(l.qty), price:String(l.price), unitS:l.unitS, unitP:l.unitP };
     });
     var ser = doc.series === 'WB' ? 'W' : doc.series === 'WV' ? 'WM' : doc.series;
-    quoteState.editing = { no:doc.no, series:ser };
+    quoteState.editing = { no:doc.no, key:qKey(doc), series:ser };
     quoteState.nos[ser] = doc.no;
     quoteState.date = doc.date;
     quoteState.search = ''; document.getElementById('quote-search').value = '';
@@ -2988,7 +3007,7 @@
      WC เปลี่ยนชุดมาแล้ว 3 ครั้ง (22 ต.ค. ภว. → 3 พ.ย. ภย. → 9 พ.ย. ภว.) จึงจำชุดไว้กับบันทึก (kind): ใบ WC ที่ออกเลขไปแล้วก่อนหน้านี้ยังเปิดเป็น ภย. ตามที่พิมพ์ไป */
   function memoKindRule(doc){ return doc.series === 'WM' || doc.series === 'WC' ? 'non' : 'drug'; }
   function memoKindOf(doc){
-    var s = memoState.d && doc.no === memoState.no ? memoState.d : doc.memo;
+    var s = memoState.d && qKey(doc) === memoState.no ? memoState.d : doc.memo;
     return MEMO_KIND[s && s.kind || memoKindRule(doc)];
   }
   function memoSeed(){
@@ -3442,9 +3461,9 @@
 
   /* ---- หน้าต่างออกบันทึก ---- */
   var memoState = { no:'', d:null, setOpen:false, msg:'' }, memoTimer;
-  function memoDoc(){ return (quoteHist && quoteHist.docs || []).filter(function(x){ return x.no === memoState.no; })[0] || null; }
+  function memoDoc(){ return qFind(memoState.no); }
   function memoOpen(no){
-    var doc = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.no === no; })[0]; if(!doc) return;
+    var doc = qFind(no); if(!doc) return;
     if(!memoSet) memoSet = memoSeed();
     memoRolesUp();
     var s = doc.memo || {}, kind = s.kind || (s.pNo && doc.series === 'WC' ? 'drug' : memoKindRule(doc)), k = MEMO_KIND[kind], pick = memoSet.pick || {}, today = todayIso();
@@ -3608,14 +3627,14 @@
     if(!shOn()){ memoExportNow(which, doc, d); return; }
     var k = memoKindOf(doc), series = which === 'p' ? k.p : k.k, no = String(which === 'p' ? d.pNo : d.kNo).trim();
     memoState.msg = 'กำลังจองเลขที่ ' + series + '. ' + no + ' ในข้อมูลกลาง…'; document.getElementById('memo-sum').innerHTML = memoSumHtml();
-    shTake(series, no, { doc:doc.no }).then(function(){ memoExportNow(which, doc, d); }, function(err){
+    shTake(series, no, { doc:qKey(doc) }).then(function(){ memoExportNow(which, doc, d); }, function(err){
       memoState.msg = 'ยังไม่ได้ส่งออก: ' + err.message;
       var el = document.getElementById('memo-sum'); if(el) el.innerHTML = memoSumHtml();
-      shRefused(err.message, document.querySelector('#memo-box [data-f="' + (which === 'p' ? 'pNo' : 'kNo') + '"]'));
+      shRefused(err.message, document.querySelector('#memo-box [data-f="' + (which === 'p' ? 'pNo' : 'kNo') + '"]'), err.quiet);
     });
   }
   function memoExportNow(which, doc, d){
-    if(memoState.no !== doc.no || memoState.d !== d) return;   /* ปิด / เปลี่ยนใบระหว่างรอจองเลข */
+    if(memoState.no !== qKey(doc) || memoState.d !== d) return;   /* ปิด / เปลี่ยนใบระหว่างรอจองเลข */
     doc = memoDoc() || doc;   /* ดึงข้อมูลกลางระหว่างรอ = ใบเป็นออบเจกต์ใหม่ */
     var k = memoKindOf(doc), blob, name, first = d.lines[0] ? String(d.lines[0].qname || d.lines[0].name || '') : '';
     var safe = (first.replace(/^[_\s]+/, '').split(/[\s(]/)[0] || String(doc.company || '')).replace(/[\\\/:*?"<>|]/g, '').slice(0, 40);
@@ -3789,7 +3808,7 @@
         '<div class="table-tools"><label class="q-field">ชนิดเอกสาร <select class="search field-select" data-rf="kind"><option value="drug"' + (d.kind !== 'non' ? ' selected' : '') + '>รย. (ต่อจาก ย.)</option><option value="non"' + (d.kind === 'non' ? ' selected' : '') + '>รยว. (ต่อจาก ยว.)</option></select></label>' +
           F(k.r + '. เลขที่', 'rNo', ' style="width:100px"') + F('วันที่', 'rDate', ' type="date"') + '</div>' +
         '<div class="table-tools">' +
-          (hist.length ? '<label class="q-field">ดึงจากบันทึกในโปรแกรม <select class="search field-select" data-rhist><option value="">— พิมพ์เอง —</option>' + hist.map(function(x){ return '<option value="' + esc(x.no) + '">' + esc(k.k + '.' + x.memo.kNo + ' · ' + x.company) + '</option>'; }).join('') + '</select></label>' : '') +
+          (hist.length ? '<label class="q-field">ดึงจากบันทึกในโปรแกรม <select class="search field-select" data-rhist><option value="">— พิมพ์เอง —</option>' + hist.map(function(x){ return '<option value="' + esc(qKey(x)) + '">' + esc(k.k + '.' + x.memo.kNo + ' · ' + x.company + (x.dup ? ' · ' + x.dup : '')) + '</option>'; }).join('') + '</select></label>' : '') +
           F(k.k + '. เลขที่', 'kNo', ' style="width:100px" placeholder="0627/2569"') + F(k.k + '. ลงวันที่', 'kDate', ' type="date"') + '</div>' +
         '<div class="table-tools">' + F('ผู้จำหน่าย', 'company', ' style="width:320px"') + F('เอกสารเลขที่', 'bill', ' style="width:150px"') + F('เอกสารลงวันที่', 'billDate', ' type="date"') + F('วันที่ตรวจรับ', 'inspect', ' type="date"') + '</div>' +
         '<div class="table-tools">' + F('เรื่อง', 'subj', ' style="width:300px"') + F('หมวด', 'cat', ' style="width:120px"') + '</div>' +
@@ -3854,7 +3873,7 @@
     shTake(ryKind(d).r, String(d.rNo).trim(), { ry:d.no }).then(function(){ ryExportNow(d, g); }, function(err){
       ryState.msg = 'ยังไม่ได้ส่งออก: ' + err.message;
       var el = document.getElementById('ry-sum'); if(el && ryState.d === d) el.innerHTML = rySumHtml(g, d);
-      shRefused(err.message, document.querySelector('#ry-box [data-f="rNo"]'));
+      shRefused(err.message, document.querySelector('#ry-box [data-f="rNo"]'), err.quiet);
     });
   }
   function ryExportNow(d, g){
@@ -3901,7 +3920,7 @@
       } else if(t.hasAttribute('data-rw')){
         d.committee[Number(t.getAttribute('data-rw'))] = t.value; ryState.msg = ''; keep(); sum();
       } else if(t.hasAttribute('data-rhist') && t.value){
-        var doc = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.no === t.value; })[0], m = doc && doc.memo;
+        var doc = qFind(t.value), m = doc && doc.memo;
         if(m){ d.kNo = m.kNo || ''; d.kDate = m.kDate || ''; if(m.committee && m.committee.filter(Boolean).length) d.committee = memoSeats(m.committee); keep(); renderRy(); }
       }
     });
@@ -4095,8 +4114,8 @@
     QUOTE_SERIES.forEach(function(s){ document.getElementById('quote-no-' + s).value = quoteState.nos[s]; });
     var docs = quoteHist && quoteHist.docs || [];
     fillSelect('quote-hist', docs.length ? docs.map(function(d){
-      return [d.no, d.no + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '') + (d.src === 'file' ? ' · จากไฟล์' : '')];
-    }) : [['', 'ยังไม่มีใบที่ส่งออก']], quoteState.editing ? quoteState.editing.no : '');
+      return [qKey(d), d.no + (d.dup ? ' · ' + d.dup : '') + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '') + (d.src === 'file' ? ' · จากไฟล์' : '')];
+    }) : [['', 'ยังไม่มีใบที่ส่งออก']], quoteState.editing ? quoteState.editing.key || quoteState.editing.no : '');
     document.getElementById('quote-reopen').disabled = !docs.length;
     document.getElementById('quote-cancel-edit').hidden = !quoteState.editing;
     document.getElementById('quote-date').value = quoteState.date;
