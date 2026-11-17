@@ -66,21 +66,6 @@ dup.sort(function(a, b){ return a[0].series.localeCompare(b[0].series) || cmp(a[
 });
 console.log('\nเลขเดียวกันและเนื้อหาเหมือนกันหลายเครื่อง (สำเนาเดียวกัน ไม่ใช่ปัญหา): ' + same + ' เลข');
 
-/* ถ้า ภย. + ภว. (และ ขย. + ขว.) ใช้เลขเล่มเดียวกัน: เลขเดียวกันข้ามชนิดก็ซ้ำด้วย (ยังรอคำตอบข้อ 31) */
-var BOOK = { 'ภย':'ภ', 'ภว':'ภ', 'ขย (ย. ใช้เลขเดียวกัน)':'ข', 'ขว (ย. ใช้เลขเดียวกัน)':'ข' };
-var books = {};
-uses.forEach(function(u){ var b = BOOK[u.series]; if(b){ var g = b + '|' + u.no; (books[g] = books[g] || []).push(u); } });
-console.log('\n=== ถ้า ภย. + ภว. / ขย. + ขว. ใช้เล่มเดียวกัน: ซ้ำข้ามชนิดเพิ่ม ===');
-var cross = Object.keys(books).filter(function(g){
-  var l = books[g], kinds = {}, sigs = {}; l.forEach(function(u){ kinds[u.series] = 1; sigs[u.sig] = 1; });
-  return Object.keys(kinds).length > 1 && Object.keys(sigs).length > 1;
-});
-if(!cross.length) console.log('ไม่พบ');
-cross.sort(function(a, b){ return cmp(a.split('|')[1], b.split('|')[1]); }).forEach(function(g){
-  console.log('\n' + g.replace('|', ' '));
-  books[g].forEach(function(u){ console.log('  - ' + u.series.split(' ')[0] + ' · ' + u.dev + ' · ' + (u.date || 'ไม่มีวันที่ (น่าจะยังไม่ได้ส่งออก)') + ' · ' + u.company + ' · ' + u.what); });
-});
-
 console.log('\n=== เลขสูงสุดที่ใช้ และเลขถัดไปที่แต่ละเครื่องจำไว้ ===');
 var series = {};
 uses.forEach(function(u){
