@@ -1,30 +1,6 @@
 /* ทดสอบ appscript/Code.gs กับ Google Sheet จำลอง (ไม่ต้องต่ออินเทอร์เน็ต) · ใช้: node gas-test.js [path ของ Code.gs] */
-const fs = require('fs'), vm = require('vm'), assert = require('assert');
-function Sheet(name){ this.name = name; this.v = []; this.maxRows = 1000; this.prot = []; }
-Sheet.prototype = {
-  getName(){ return this.name; }, getLastRow(){ return this.v.length; }, getMaxRows(){ return this.maxRows; }, getMaxColumns(){ return 26; },
-  insertRowsAfter(a, n){ this.maxRows += n; },
-  getRange(r, c, nr, nc){ const sh = this; const R = { setValues(vals){ vals.forEach((row, i) => { while(sh.v.length < r + i) sh.v.push([]); row.forEach((x, j) => { sh.v[r - 1 + i][c - 1 + j] = x; }); }); return R; },
-    setNumberFormat(){ return R; }, setFontWeight(){ return R; } }; return R; },
-  getDataRange(){ const w = Math.max(0, ...this.v.map(r => r.length)); const vals = this.v.map(r => { const o = r.slice(); while(o.length < w) o.push(''); return o.map(x => x === undefined ? '' : x); }); return { getValues: () => vals }; },
-  setFrozenRows(){}, getProtections(){ return this.prot; },
-  protect(){ const p = { setDescription(){ return p; }, setWarningOnly(){ return p; } }; this.prot.push(p); return p; }
-};
-const sheets = [new Sheet('ชีต1')];
-const ss = { getName: () => 'test', getSheetByName: n => sheets.find(s => s.name === n) || null,
-  insertSheet(n){ const s = new Sheet(n); sheets.push(s); return s; }, getSheets: () => sheets.slice(), deleteSheet(s){ sheets.splice(sheets.indexOf(s), 1); } };
-const props = {};
-let uuid = 0;
-const ctx = {
-  SpreadsheetApp: { getActiveSpreadsheet: () => ss, getUi(){ throw new Error('no ui'); }, ProtectionType: { SHEET: 'SHEET' } },
-  PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty(k, v){ props[k] = v; } }) },
-  LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock(){} }) },
-  Utilities: { getUuid: () => 'aaaaaaaa-bbbb-cccc-dddd-' + String(++uuid).padStart(12, '0') },
-  Logger: { log(){} },
-  ContentService: { MimeType: { JSON: 'json' }, createTextOutput: t => ({ setMimeType(){ return { text: t }; } }) }
-};
-vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(process.argv[2] || require('path').join(__dirname, '..', 'appscript', 'Code.gs'), 'utf8'), ctx);
+const assert = require('assert');
+const srv = require('./gas-fake').create(process.argv[2]), ctx = srv.ctx, sheets = srv.sheets, props = srv.props;
 ctx.setup();
 assert.deepStrictEqual(sheets.map(s => s.name), ['ใบเสนอราคา', 'ตรวจรับ', 'รายชื่อ', 'ตั้งค่า', 'เลขที่', 'บันทึกการแก้']);
 const key = props.ACCESS_KEY; assert.ok(key && key.length >= 40);

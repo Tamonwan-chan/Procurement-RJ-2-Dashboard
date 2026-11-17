@@ -38,6 +38,8 @@ function load(opts){
     beforeParse: function(w){
       w.XLSX = shimXLSX;
       w.indexedDB = idb;
+      if(opts.fetch) w.fetch = opts.fetch;   /* ข้อมูลกลาง: ส่ง require('./gas-fake').create().fetch */
+      if(opts.storage) Object.keys(opts.storage).forEach(function(k){ w.localStorage.setItem(k, opts.storage[k]); });
       w.alert = function(m){ errors.push('alert: ' + m); };
       w.confirm = function(){ return true; };
       w.prompt = function(){ return null; };

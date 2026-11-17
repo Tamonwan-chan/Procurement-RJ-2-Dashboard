@@ -94,6 +94,10 @@
   .btn-ghost.memo-mv{ padding:1px 7px; margin-left:2px; font-size:12px; line-height:1.3; }
   .btn-ghost.memo-mv:disabled{ opacity:.3; cursor:default; border-color:var(--border); color:var(--ink-muted); }
   .filestatus{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:16px; }
+  .btn-ghost.sh-off{ border-color:var(--warning); color:var(--warning); }
+  .shared-box{ background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; margin:0 0 12px; }
+  .shared-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin-bottom:8px; }
+  .shared-box .table-note{ margin:4px 0 0; }
   .fs-head{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px 16px; margin-bottom:12px; }
   .fs-title{ font-size:13.5px; font-weight:600; color:var(--ink-muted); }
   .fs-toggle{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; display:inline-flex; align-items:center; gap:6px; text-align:left; }
@@ -326,7 +330,7 @@
 
   .rate-detail{ border:1px solid var(--border-strong); border-radius:var(--radius); padding:16px 18px; margin-bottom:14px; background:var(--surface); }
   .quote-box{ border:1px solid var(--accent); border-radius:var(--radius); padding:16px 18px; margin-bottom:14px; background:var(--surface); }
-  .quote-box .q-in{ font-family:inherit; font-size:12.5px; color:var(--ink); background:var(--surface); border:1px solid var(--border-strong); border-radius:6px; padding:3px 6px; }
+  .quote-box .q-in, .shared-box .q-in{ font-family:inherit; font-size:12.5px; color:var(--ink); background:var(--surface); border:1px solid var(--border-strong); border-radius:6px; padding:3px 6px; }
   .quote-box .q-in.num{ width:84px; text-align:right; font-family:'IBM Plex Mono', monospace; }
   .quote-box .q-in.unit{ width:76px; }
   .quote-box tr.on td{ background:var(--accent-soft); }
@@ -334,7 +338,7 @@
   /* ออกบันทึก ภย. / ขย. / ย. (Word) */
   .quote-box .memo-step{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:14px 0 6px; font-size:13px; font-weight:600; color:var(--ink); }
   .quote-box .memo-set{ border:1px dashed var(--border-strong); border-radius:8px; padding:10px 12px; margin:4px 0 8px; background:var(--surface-2); }
-  .quote-box label.q-field{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); }
+  .quote-box label.q-field, .shared-box label.q-field{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted); }
   .btn-solid{ font-family:inherit; font-size:12.5px; background:var(--accent); color:var(--accent-ink); border:1px solid var(--accent); border-radius:99px; padding:6px 14px; cursor:pointer; font-weight:600; }
   .btn-solid:disabled{ opacity:.5; cursor:not-allowed; }
   .rate-detail .rd-top, .quote-box .rd-top{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:8px 16px; }
@@ -405,8 +409,23 @@
       <button class="btn-ghost" id="btn-backup" type="button">สำรองข้อมูล</button>
       <button class="btn-ghost" id="btn-restore" type="button">กู้คืนข้อมูล</button>
       <input type="file" id="backup-file" accept=".json" hidden>
+      <button class="btn-ghost" id="btn-shared" type="button" aria-controls="shared-box">ข้อมูลกลาง</button>
       <button class="btn-ghost" id="btn-clear" type="button">ล้างข้อมูลที่บันทึกไว้</button>
     </span>
+  </div>
+  <div class="shared-box" id="shared-box" hidden>
+    <div class="shared-row">
+      <label class="q-field">ที่อยู่ web app <input class="q-in" id="sh-url" style="width:min(360px,100%)" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false"></label>
+      <label class="q-field">รหัสเข้าถึง <input class="q-in" id="sh-key" type="password" style="width:200px" autocomplete="off"></label>
+      <label class="q-field">ชื่อผู้ใช้ / เครื่อง <input class="q-in" id="sh-by" style="width:150px" placeholder="เช่น โอม-โน้ตบุ๊ก"></label>
+    </div>
+    <div class="shared-row">
+      <button class="btn-solid" id="sh-connect" type="button">เชื่อมต่อ</button>
+      <button class="btn-ghost" id="sh-sync" type="button" hidden>ดึงข้อมูลล่าสุด</button>
+      <button class="btn-ghost" id="sh-off" type="button" hidden>เลิกเชื่อมต่อเครื่องนี้</button>
+    </div>
+    <div class="table-note" id="sh-status" role="status"></div>
+    <div class="table-note">ใช้ร่วมกันทุกเครื่อง: ประวัติใบเสนอราคาและบันทึก ตรวจรับ รายชื่อ เลขที่ถัดไป · ไฟล์ HIS, DATA Template และตราครุฑ ยังอยู่เฉพาะเครื่องนี้ · ที่อยู่และรหัสเข้าถึงขอจากผู้ดูแลทางแชตส่วนตัว</div>
   </div>
   <div class="fs-summary" id="fs-summary"></div>
   <div id="fs-body">
@@ -1034,7 +1053,11 @@
     });
   }
   function dbAll(){ return dbTx('readonly', function(s, done){ var q = s.getAll(); q.onsuccess = function(){ done(q.result || []); }; }); }
-  function dbPut(recs){ return dbTx('readwrite', function(s){ recs.forEach(function(r){ s.put(r); }); }); }
+  function dbPut(recs){
+    var p = dbTx('readwrite', function(s){ recs.forEach(function(r){ s.put(r); }); });
+    if(recs.some(function(r){ return r && (r.slot === '_quotes' || r.slot === '_memoset'); })) shSoon();   /* ข้อมูลกลาง (#44): ส่งส่วนที่แก้ขึ้น Sheet */
+    return p;
+  }
   function dbClear(){ return dbTx('readwrite', function(s){ s.clear(); }); }
 
   /* ---------------- รวมข้อมูลจากทุกไฟล์เป็นรายการยา ---------------- */
@@ -1497,7 +1520,7 @@
   document.getElementById('btn-clear').addEventListener('click', function(){
     if(!window.confirm('ล้างข้อมูลที่นำเข้าไว้ทั้งหมดในเบราว์เซอร์นี้? (ไฟล์ Excel ในเครื่องไม่ถูกลบ · ตารางเดือนสำรองคงคลัง ประวัติคงคลังรายเดือน และประวัติใบเสนอราคายังเก็บไว้)')) return;
     var done = function(){ state.datasets = {}; state.prev = null; state.fresh = []; showNote(''); hideError(); rebuild(); resetFilters(); renderAll(); };
-    dbClear().then(function(){ return dbPut([kpiStore, quoteHist, stockHist, memoSet].filter(Boolean)); }).then(done, done);
+    dbClear().then(function(){ return dbPut([kpiStore, quoteHist, stockHist, memoSet, SH.meta].filter(Boolean)); }).then(done, done);
   });
 
   /* ---------------- สำรอง / กู้คืนข้อมูลที่พิมพ์เอง (#38) ----------------
@@ -1545,6 +1568,8 @@
     try{ data = JSON.parse(text); }catch(e){ data = null; }
     recs = data && data.app === BACKUP_APP && Array.isArray(data.records) ? data.records.filter(function(r){ return r && BACKUP_SLOTS.indexOf(r.slot) >= 0; }) : null;
     if(!recs || !recs.length){ showError('ไฟล์นี้ไม่ใช่ไฟล์สำรองข้อมูลของโปรแกรมจัดซื้อ จึงไม่ได้กู้คืน'); return; }
+    /* เชื่อมต่อข้อมูลกลางอยู่: กู้คืนจะส่งข้อมูลเก่าในไฟล์ขึ้นไปทับของทุกเครื่อง */
+    if(shOn()){ showError('เครื่องนี้เชื่อมต่อข้อมูลกลางอยู่ ข้อมูลอยู่ใน Google Sheet แล้ว จึงไม่กู้คืนจากไฟล์ (ถ้าจำเป็นจริง กด ข้อมูลกลาง → เลิกเชื่อมต่อเครื่องนี้ ก่อน)'); return; }
     var q = recs.filter(function(r){ return r.slot === '_quotes'; })[0], m = recs.filter(function(r){ return r.slot === '_memoset'; })[0];
     if(!window.confirm('กู้คืนจากไฟล์สำรองวันที่ ' + memoDateTh(String(data.savedAt || '').slice(0, 10)) + '?\n\nใบเสนอราคา ' + (q && q.docs ? q.docs.length : 0) + ' ใบ · รายชื่อ ' + (m && m.people ? m.people.length : 0) + ' คน\n\nข้อมูลเหล่านี้ในเครื่องนี้จะถูกแทนด้วยของในไฟล์ · ถ้าไฟล์เก่ากว่าเอกสารที่ออกไปแล้ว เลขที่ถัดไปจะย้อนกลับ ตรวจเลขก่อนออกเอกสารใบต่อไป')) return;
     recs = recs.map(bkDecode);
@@ -1566,6 +1591,297 @@
     rd.readAsText(f);
   });
   bkLabel();
+
+  /* ---------------- ข้อมูลกลาง: Google Sheet ของบัญชีคลัง ผ่าน Apps Script (#44) ----------------
+     ใช้ร่วมกันทุกเครื่อง: ประวัติใบเสนอราคา + ค่าในบันทึก · รย. / รยว. · รายชื่อ · ค่าตั้งต้นบันทึก · เลขที่ถัดไป (จองที่ script ใต้ lock ตอนออกเลข)
+     ยังอยู่เฉพาะเครื่อง: ไฟล์ HIS · DATA Template (ลายเซ็น) · ตราครุฑ · ตารางเดือนสำรอง / คงคลังย้อนหลัง
+     ที่อยู่ web app และรหัสเข้าถึงอยู่ใน localStorage ของเครื่องนี้เท่านั้น (ไม่อยู่ในโค้ด ไม่อยู่ในไฟล์สำรอง)
+     IndexedDB ยังเป็นสำเนาในเครื่อง · ติดต่อ Sheet ไม่ได้ = ดูและแก้ได้ (ส่งขึ้นเมื่อกลับมาออนไลน์) แต่ออกเลขใหม่ไม่ได้
+     ไม่เชื่อมต่อ = ทำงานแบบเดิมทุกอย่าง */
+  var SH_SLOT = '_shared', SH_PRE_SLOT = '_preshared', SH_LS = { url:'rj2-shared-url', key:'rj2-shared-key', by:'rj2-shared-by' };
+  var SH = { url:'', key:'', by:'', meta:null, online:null, busy:null, msg:'', timer:null, pulledAt:0 };
+  var SH_ERR = { key:'รหัสเข้าถึงไม่ถูกต้อง', 'not-set-up':'Sheet ยังไม่ได้กด "ตั้งค่าครั้งแรก"', busy:'มีเครื่องอื่นกำลังบันทึกอยู่ ลองใหม่อีกครั้ง', 'bad-json':'ส่งข้อมูลไม่สำเร็จ' };
+  function shLs(k, v){
+    try{
+      if(v === undefined) return localStorage.getItem(SH_LS[k]) || '';
+      if(v) localStorage.setItem(SH_LS[k], v); else localStorage.removeItem(SH_LS[k]);
+    }catch(e){}
+    return '';
+  }
+  function shLoadCfg(){ SH.url = shLs('url'); SH.key = shLs('key'); SH.by = shLs('by'); }
+  function shOn(){ return !!(SH.url && SH.key && SH.meta && SH.meta.joined); }
+  function shMetaSeed(){ return { slot:SH_SLOT, joined:false, revs:{}, counters:{}, pulledAt:'' }; }
+  /* เขียน IndexedDB ตรง ๆ (ไม่ผ่าน dbPut) เพื่อไม่ให้นับเป็นการแก้ที่ต้องส่งขึ้น Sheet */
+  function shStore(recs){ return dbTx('readwrite', function(s){ recs.filter(Boolean).forEach(function(r){ s.put(r); }); }).catch(function(){ storageOk = false; }); }
+  function shSaveMeta(){ if(SH.meta) shStore([SH.meta]); }
+  function shSig(x){ return JSON.stringify(x === undefined ? null : x); }
+
+  function shCall(action, extra){
+    var body = { key:SH.key, by:SH.by, action:action };
+    Object.keys(extra || {}).forEach(function(k){ body[k] = extra[k]; });
+    /* text/plain = ไม่มี preflight · Apps Script ตอบ 302 ไป script.googleusercontent.com แล้ว fetch ตามไปเอง */
+    return fetch(SH.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body:JSON.stringify(body), redirect:'follow' })
+      .then(function(r){
+        return r.text().then(function(t){
+          var j = null; try{ j = JSON.parse(t); }catch(e){}
+          if(!j) throw new Error(r.ok ? 'ที่อยู่นี้ไม่ใช่ web app ของระบบจัดซื้อ (หรือ deploy ไม่ได้ตั้ง ผู้มีสิทธิ์เข้าถึง = ทุกคน)' : 'ข้อมูลกลางตอบกลับ HTTP ' + r.status);
+          return j;
+        });
+      }, function(){
+        SH.online = false; shUi();
+        throw new Error('ติดต่อข้อมูลกลางไม่ได้ (ไม่มีอินเทอร์เน็ต หรือที่อยู่ web app ไม่ถูก)');
+      })
+      .then(function(j){
+        SH.online = true;
+        if(!j.ok){ var e = new Error(SH_ERR[j.error] || 'ข้อมูลกลางตอบกลับว่า ' + (j.error || 'ไม่ทราบสาเหตุ')); e.code = j.error; throw e; }
+        return j;
+      });
+  }
+
+  /* เลขที่ W001-70 / 0001/2570: −1 / 0 / 1 (ปีก่อน แล้วค่อยลำดับ) · null = คนละชุด */
+  function shNoCmp(a, b){
+    var re = /^([A-Z]*)(\d+)(?:-(\d+))?(?:\/(\d+))?$/, x = re.exec(String(a || '').trim().toUpperCase()), y = re.exec(String(b || '').trim().toUpperCase());
+    if(!x || !y || x[1] !== y[1]) return null;
+    var yx = Number(x[3] || x[4] || 0), yy = Number(y[3] || y[4] || 0);
+    if(yx !== yy) return yx < yy ? -1 : 1;
+    return Number(x[2]) === Number(y[2]) ? 0 : Number(x[2]) < Number(y[2]) ? -1 : 1;
+  }
+
+  /* ---- ข้อมูลในเครื่อง → รายการใน Sheet (kind|id) ---- */
+  function shQuoteSum(d){
+    var m = d.memo || {}, iss = m.issued || {}, k = MEMO_KIND[m.kind || memoKindRule(d)], kk = iss.k || iss.y;
+    var total = (d.lines || []).reduce(function(a, l){ return a + (+l.qty || 0) * (+l.price || 0); }, 0);
+    return { 'เลขที่':d.no, 'ชุด':d.series || '', 'วันที่':d.date || '', 'บริษัท':d.company || '', 'จำนวนรายการ':(d.lines || []).length,
+      'ยอดเงิน':Math.round(total * 100) / 100, 'เลข ภ.':iss.p ? k.p + '.' + iss.p.no : '', 'เลข ข. / ย.':kk ? k.k + '.' + kk.no : '' };
+  }
+  function shLocal(){
+    var out = {};
+    function add(kind, id, data, sum){ out[kind + '|' + id] = { kind:kind, id:String(id), data:data, summary:sum }; }
+    (quoteHist && quoteHist.docs || []).forEach(function(d){ add('quote', d.sid || d.no, d, shQuoteSum(d)); });
+    if(memoSet){
+      Object.keys(memoSet.ry || {}).forEach(function(n){
+        var r = memoSet.ry[n]; if(!r || !r.done) return;
+        var k = ryKind(r);
+        add('ry', n, r, { 'เลขที่':k.r + '.' + r.rNo, 'เลขรับ (minpno)':n, 'วันที่':r.inspect || '', 'บริษัท':r.company || '', 'ตามใบ ย.':r.kNo ? k.y + '.' + r.kNo : '' });
+      });
+      (memoSet.people || []).forEach(function(p){ add('person', p.id, p, { 'ชื่อ':p.name || '', 'ตำแหน่ง':p.pos || '' }); });
+      add('setting', 'memo', { org:memoSet.org, planRef:memoSet.planRef || {}, pick:memoSet.pick || {}, rolesV:memoSet.rolesV || 0 },
+        { 'หัวข้อ':'ค่าตั้งต้นบันทึก (หน่วยงาน หนังสืออ้างอิงแผน ผู้ลงนามล่าสุด)' });
+    }
+    return out;
+  }
+  function shWhat(kind, id){ return kind === 'quote' ? 'ใบ ' + id : kind === 'ry' ? 'ตรวจรับ ' + id : kind === 'person' ? 'รายชื่อ' : 'ค่าตั้งต้นบันทึก'; }
+
+  /* ส่งรายการที่เปลี่ยนจากครั้งล่าสุดที่ตรงกับ Sheet · baseRev ไม่ตรง = มีคนแก้ก่อน → ไม่เขียนทับ ใช้ของใน Sheet ตอนดึงครั้งถัดไป */
+  function shPush(){
+    if(!shOn()) return Promise.resolve(0);
+    var loc = shLocal(), revs = SH.meta.revs, recs = [], notes = [];
+    Object.keys(loc).forEach(function(k){
+      var r = loc[k], sig = shSig(r.data), m = revs[k];
+      if(m && !m.deleted && m.sig === sig) return;
+      recs.push({ kind:r.kind, id:r.id, baseRev:m ? m.rev : 0, data:r.data, summary:r.summary, k:k, sig:sig });
+    });
+    Object.keys(revs).forEach(function(k){   /* ลบได้เฉพาะรายชื่อ (ปุ่มลบ) · ใบเสนอราคาไม่มีปุ่มลบ */
+      if(/^person\|/.test(k) && !loc[k] && !revs[k].deleted) recs.push({ kind:'person', id:k.slice(7), baseRev:revs[k].rev, data:null, deleted:true, k:k, sig:'null' });
+    });
+    if(!recs.length) return Promise.resolve(0);
+    function part(i){
+      if(i >= recs.length) return Promise.resolve();
+      var chunk = recs.slice(i, i + 25);
+      return shCall('put', { records:chunk.map(function(r){ return { kind:r.kind, id:r.id, baseRev:r.baseRev, data:r.data, summary:r.summary, deleted:!!r.deleted, force:r.kind === 'setting' }; }) }).then(function(j){
+        /* force: ค่าตั้งต้นบันทึก (ผู้ลงนามล่าสุด) เปลี่ยนทุกครั้งที่ส่งออก ให้บันทึกล่าสุดชนะ ไม่ต้องเตือน */
+        (j.results || []).forEach(function(x, n){
+          var r = chunk[n];
+          if(x.status === 'ok') revs[r.k] = { rev:x.rev, sig:r.sig, deleted:!!r.deleted };
+          else if(x.status === 'conflict') notes.push(shWhat(r.kind, r.id) + ' มีคนแก้จากเครื่องอื่นก่อน' + (x.by ? ' (' + x.by + ')' : '') + ' ใช้ของล่าสุดในข้อมูลกลางแทน');
+          else if(x.status === 'too-big') notes.push(shWhat(r.kind, r.id) + ' ใหญ่เกินช่องของ Sheet ยังไม่ได้ส่งขึ้น');
+        });
+        shSaveMeta();
+        return part(i + 25);
+      });
+    }
+    return part(0).then(function(){ if(notes.length) SH.msg = notes.join(' · '); return notes.length; });
+  }
+
+  /* Sheet → ข้อมูลในเครื่อง · replaceAll = เข้าร่วมครั้งแรก ไม่เก็บของในเครื่อง (สำเนาเดิมอยู่ใน _preshared)
+     รายการที่แก้ในเครื่องแต่ยังไม่ได้ส่งขึ้น (Sheet ยังเป็น rev เดิม) คงของในเครื่องไว้ */
+  function shApply(j, replaceAll){
+    var revs = SH.meta.revs, loc = replaceAll ? {} : shLocal(), srv = {}, fin = {};
+    if(replaceAll){ SH.meta.revs = revs = {}; }
+    (j.records || []).forEach(function(r){ srv[r.kind + '|' + r.id] = r; });
+    Object.keys(srv).forEach(function(k){
+      var r = srv[k], m = revs[k], l = loc[k];
+      if(m && r.rev === m.rev && l && shSig(l.data) !== m.sig){ fin[k] = l.data; return; }                     /* แก้ในเครื่อง รอส่งขึ้น */
+      if(m && r.rev === m.rev && !l && !r.deleted && /^person\|/.test(k)){ fin[k] = null; return; }           /* ลบรายชื่อในเครื่อง รอส่งขึ้น */
+      fin[k] = r.deleted ? null : r.data;
+      revs[k] = { rev:r.rev, sig:shSig(r.data), deleted:!!r.deleted };
+    });
+    Object.keys(loc).forEach(function(k){ if(!srv[k]){ fin[k] = loc[k].data; delete revs[k]; } });   /* สร้างในเครื่อง ยังไม่ขึ้น Sheet */
+    var docs = [], ry = {}, people = [], setting = null;
+    Object.keys(fin).forEach(function(k){
+      var d = fin[k]; if(!d) return;
+      var kind = k.split('|')[0], id = k.slice(kind.length + 1);
+      if(kind === 'quote') docs.push(d); else if(kind === 'ry') ry[id] = d; else if(kind === 'person') people.push(d); else if(kind === 'setting' && id === 'memo') setting = d;
+    });
+    docs.sort(function(a, b){ return String(b.at || '') < String(a.at || '') ? -1 : String(b.at || '') > String(a.at || '') ? 1 : 0; });
+    if(!quoteHist) quoteHist = { slot:QUOTE_HIST_SLOT, docs:[] };
+    if(!memoSet) memoSet = memoSeed();
+    quoteHist.docs = docs; memoSet.ry = ry; memoSet.people = people;
+    if(setting){ memoSet.org = setting.org || memoSet.org; memoSet.planRef = setting.planRef || {}; memoSet.pick = setting.pick || {}; memoSet.rolesV = setting.rolesV || memoSet.rolesV; }
+    /* เลขที่ถัดไป: Sheet เป็นหลัก (ชุดที่ Sheet ยังไม่มี ใช้ของในเครื่อง แล้วจองครั้งแรกด้วย expect = '') */
+    SH.meta.counters = {};
+    Object.keys(j.counters || {}).forEach(function(s){ SH.meta.counters[s] = j.counters[s].next; });
+    quoteHist.next = quoteHist.next || {}; memoSet.next = memoSet.next || {};
+    Object.keys(SH.meta.counters).forEach(function(s){
+      var v = SH.meta.counters[s];
+      if(QUOTE_SERIES.indexOf(s) >= 0){ quoteHist.next[s] = v; try{ localStorage.setItem(noKey(s), v); }catch(e){} if(!quoteState.editing) quoteState.nos[s] = ''; }
+      else memoSet.next[s] = v;
+    });
+    SH.pulledAt = Date.now(); SH.meta.pulledAt = new Date().toISOString();
+    shStore([quoteHist, memoSet, SH.meta]);
+    renderQuote(); if(ryState.open) renderRy();
+  }
+
+  function shSync(){
+    if(!shOn()) return Promise.resolve();
+    if(SH.busy) return SH.busy;
+    SH.msg = ''; shUi();
+    SH.busy = shPush().then(function(){ return shCall('pull'); }).then(function(j){ shApply(j, false); })
+      .catch(function(err){ SH.msg = err.message; })
+      .then(function(){ SH.busy = null; shUi(); });
+    return SH.busy;
+  }
+  function shSoon(){
+    if(!shOn()) return;
+    clearTimeout(SH.timer);
+    SH.timer = setTimeout(function(){
+      if(SH.busy){ shSoon(); return; }
+      SH.busy = shPush().catch(function(err){ SH.msg = err.message; }).then(function(){ SH.busy = null; shUi(); });
+    }, 1500);
+  }
+
+  /* ---- ออกเลขที่: เลขใหม่จองที่ Sheet ก่อนสร้างไฟล์ (ชนกัน = ไม่สร้าง) · จองแล้วสร้างไฟล์ไม่สำเร็จ เลขนั้นข้ามไป ---- */
+  function shUsedBy(series, no, owner){
+    var hit = '';
+    (quoteHist && quoteHist.docs || []).forEach(function(d){
+      var m = d.memo, iss = m && m.issued; if(!iss || hit || d.no === owner.doc) return;
+      var k = MEMO_KIND[m.kind || memoKindRule(d)];
+      ['p', 'k', 'y'].forEach(function(w){ var x = iss[w]; if(x && !hit && (w === 'p' ? k.p : k.k) === series && x.no === no) hit = 'ใบ ' + d.no + ' (' + (d.company || '') + ')'; });
+    });
+    Object.keys(memoSet && memoSet.ry || {}).forEach(function(n){
+      var r = memoSet.ry[n], x = r && r.issued;
+      if(!hit && x && n !== owner.ry && ryKind(r).r === series && x.no === no) hit = 'การรับ ' + n + ' (' + (r.company || '') + ')';
+    });
+    return hit;
+  }
+  /* บันทึก ภ. / ข. / ย. / รย.: เลขที่ ≥ เลขถัดไปใน Sheet = เลขใหม่ จอง · ต่ำกว่า = พิมพ์ซ้ำใบเดิม ได้ถ้าไม่ใช่เลขของใบอื่น */
+  function shTake(series, no, owner){
+    if(!shOn()) return Promise.resolve();
+    var cur = SH.meta.counters[series] || '', c = cur ? shNoCmp(no, cur) : 1;
+    if(c === null) return Promise.reject(new Error('เลขที่ ' + series + '. ' + no + ' ไม่อยู่ในรูปแบบ 0001/2570'));
+    if(c < 0){
+      var who = shUsedBy(series, no, owner);
+      return who ? Promise.reject(new Error(series + '. ' + no + ' ออกไปแล้วกับ' + who + ' · เลขถัดไปคือ ' + cur)) : Promise.resolve();
+    }
+    return shCall('reserve', { series:series, expect:cur, next:nextNo(no) }).then(function(j){
+      if(j.status !== 'ok'){
+        SH.meta.counters[series] = j.current; if(memoSet) memoSet.next[series] = j.current; shSaveMeta();
+        throw new Error((j.by ? j.by + ' ' : 'เครื่องอื่น') + 'เพิ่งออกเลข ' + series + '. · เลขถัดไปคือ ' + j.current + ' แก้เลขแล้วส่งออกอีกครั้ง');
+      }
+      SH.meta.counters[series] = j.next; shSaveMeta();
+    });
+  }
+  /* ใบขอใบเสนอราคาใหม่ (ไม่ใช่แก้ใบเดิม): จองทุกชุดที่มีในการส่งออกครั้งนี้ */
+  function shTakeQuotes(g){
+    if(!shOn() || quoteState.editing) return Promise.resolve();
+    return QUOTE_SERIES.filter(function(s){ return g.sheets.some(function(sh){ return sh.series === s; }); }).reduce(function(p, s){
+      return p.then(function(){
+        var first = g.sheets.filter(function(sh){ return sh.series === s; })[0].no, cur = SH.meta.counters[s] || '', c = cur ? shNoCmp(first, cur) : 1;
+        function renum(v, why){
+          quoteState.nos[s] = v; document.getElementById('quote-no-' + s).value = v;
+          throw new Error(why + ' · เปลี่ยนเลขใบแรกเป็น ' + v + ' ให้แล้ว กดส่งออกอีกครั้ง');
+        }
+        if(c === null || c < 0) renum(cur, 'เลข ' + first + ' ใช้ไปแล้วในข้อมูลกลาง');
+        return shCall('reserve', { series:s, expect:cur, next:g.next[s] }).then(function(j){
+          if(j.status !== 'ok'){ SH.meta.counters[s] = j.current; shSaveMeta(); renum(j.current, (j.by || 'เครื่องอื่น') + ' เพิ่งออกใบ ' + s); }
+          SH.meta.counters[s] = j.next; shSaveMeta();
+        });
+      });
+    }, Promise.resolve()).catch(function(e){ e.shared = true; throw e; });   /* ยังไม่ได้สร้างไฟล์ */
+  }
+
+  /* ---- เชื่อมต่อ / เลิกเชื่อมต่อ ---- */
+  function shConnect(){
+    var url = document.getElementById('sh-url').value.trim(), key = document.getElementById('sh-key').value.replace(/\s+/g, ''), by = document.getElementById('sh-by').value.trim();
+    if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)){ SH.msg = 'ที่อยู่ web app ต้องขึ้นต้นด้วย https://script.google.com/macros/s/ (ที่อยู่ที่ได้ตอน Deploy ลงท้าย /exec)'; shUi(); return Promise.resolve(); }
+    if(!key){ SH.msg = 'ยังไม่ได้ใส่รหัสเข้าถึง'; shUi(); return Promise.resolve(); }
+    if(!by){ SH.msg = 'ใส่ชื่อผู้ใช้หรือชื่อเครื่อง (จะแสดงในบันทึกการแก้ว่าใครทำ)'; shUi(); return Promise.resolve(); }
+    var old = { url:SH.url, key:SH.key, by:SH.by };
+    SH.url = url; SH.key = key; SH.by = by; SH.msg = 'กำลังเชื่อมต่อ…'; shUi();
+    if(!SH.meta) SH.meta = shMetaSeed();
+    var first = !SH.meta.joined;
+    return shCall('pull').then(function(j){
+      shLs('url', url); shLs('key', key); shLs('by', by);
+      if(!first){ shApply(j, false); SH.msg = 'เชื่อมต่อแล้ว'; return; }
+      var loc = shLocal(), srv = {}, onlyHere;
+      (j.records || []).forEach(function(r){ srv[r.kind + '|' + r.id] = 1; });
+      onlyHere = Object.keys(loc).filter(function(k){ return /^(quote|ry)\|/.test(k) && !srv[k]; });
+      var empty = !(j.records || []).some(function(r){ return r.kind === 'quote'; });
+      /* เก็บสำเนาข้อมูลเดิมของเครื่องนี้ไว้ก่อนแทนด้วยข้อมูลกลาง */
+      return shStore([{ slot:SH_PRE_SLOT, at:new Date().toISOString(), quotes:quoteHist ? JSON.parse(JSON.stringify(quoteHist)) : null,
+        memo:memoSet ? JSON.parse(JSON.stringify(memoSet, function(k, v){ return k === 'garuda' ? undefined : v; })) : null }]).then(function(){
+        SH.meta.joined = true;
+        if(empty && onlyHere.length && window.confirm('ข้อมูลกลางยังว่าง\n\nส่งข้อมูลของเครื่องนี้ขึ้นเป็นข้อมูลตั้งต้นไหม? (ใบเสนอราคา / ตรวจรับ ' + onlyHere.length + ' ใบ รายชื่อ และเลขที่ถัดไป)\n\nกด ยกเลิก = ใช้ข้อมูลกลางที่ว่าง ข้อมูลเดิมของเครื่องนี้เก็บสำเนาไว้')){
+          SH.meta.revs = {};
+          return shPush().then(shSeedCounters).then(function(){ return shCall('pull'); }).then(function(j2){ shApply(j2, false); SH.msg = 'เชื่อมต่อแล้ว · ส่งข้อมูลของเครื่องนี้ขึ้นเป็นข้อมูลตั้งต้น'; });
+        }
+        shApply(j, true);
+        SH.msg = 'เชื่อมต่อแล้ว · ใช้ข้อมูลกลางแทนข้อมูลเดิมของเครื่องนี้' + (onlyHere.length ? ' (ใบที่มีเฉพาะเครื่องนี้ ' + onlyHere.length + ' ใบ ไม่ได้ส่งขึ้น เก็บสำเนาไว้ในเครื่อง)' : '');
+      });
+    }).catch(function(err){
+      if(first) SH.meta.joined = false; else { SH.url = old.url; SH.key = old.key; SH.by = old.by; }   /* เชื่อมต่ออยู่แล้วแต่ค่าใหม่ใช้ไม่ได้: กลับไปใช้ค่าเดิม */
+      SH.msg = 'เชื่อมต่อไม่สำเร็จ: ' + err.message;
+    })
+      .then(function(){ shSaveMeta(); shUi(); });
+  }
+  /* ข้อมูลตั้งต้น: เลขถัดไปของเครื่องนี้ขึ้น Sheet (เฉพาะชุดที่ Sheet ยังไม่มี) */
+  function shSeedCounters(){
+    var nx = {};
+    QUOTE_SERIES.forEach(function(s){ var v = quoteHist && quoteHist.next && quoteHist.next[s]; if(v) nx[s] = v; });
+    Object.keys(memoSet && memoSet.next || {}).forEach(function(s){ if(memoSet.next[s]) nx[s] = memoSet.next[s]; });
+    return Object.keys(nx).reduce(function(p, s){
+      return p.then(function(){ if(SH.meta.counters[s]) return; return shCall('reserve', { series:s, expect:'', next:nx[s] }); });
+    }, Promise.resolve());
+  }
+  function shDisconnect(){
+    if(!window.confirm('เลิกเชื่อมต่อข้อมูลกลางในเครื่องนี้?\n\nข้อมูลในเครื่องยังอยู่ แต่เลขที่จะกลับไปนับเองในเครื่องนี้ (อาจซ้ำกับเครื่องอื่น)')) return;
+    shLs('url', ''); shLs('key', ''); SH.url = SH.key = ''; SH.meta = shMetaSeed(); SH.online = null; SH.msg = 'เลิกเชื่อมต่อแล้ว';
+    shSaveMeta(); shUi();
+  }
+
+  function shUi(){
+    var btn = document.getElementById('btn-shared'), st = document.getElementById('sh-status');
+    if(!btn) return;
+    var on = shOn();
+    btn.textContent = 'ข้อมูลกลาง' + (on ? (SH.online === false ? ' · ออฟไลน์' : ' · เชื่อมต่อแล้ว') : '');
+    btn.classList.toggle('sh-off', on && SH.online === false);
+    var t = on ? 'เชื่อมต่อในชื่อ ' + SH.by + (SH.meta.pulledAt ? ' · ดึงข้อมูลล่าสุด ' + new Date(SH.meta.pulledAt).toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' }) : '') +
+        (SH.online === false ? ' · ติดต่อไม่ได้: ดูและแก้ได้ แต่ออกเลขที่ใหม่ไม่ได้จนกว่าจะออนไลน์' : '') + (SH.busy ? ' · กำลังซิงก์…' : '')
+      : 'ยังไม่เชื่อมต่อ: เลขที่นับแยกเฉพาะเครื่องนี้';
+    st.textContent = t + (SH.msg ? ' · ' + SH.msg : '');
+    document.getElementById('sh-sync').hidden = !on;
+    document.getElementById('sh-off').hidden = !on;
+    document.getElementById('sh-connect').textContent = on ? 'บันทึกการตั้งค่า' : 'เชื่อมต่อ';
+  }
+  document.getElementById('btn-shared').addEventListener('click', function(){
+    var box = document.getElementById('shared-box'); box.hidden = !box.hidden;
+    if(!box.hidden){ document.getElementById('sh-url').value = SH.url; document.getElementById('sh-key').value = SH.key; document.getElementById('sh-by').value = SH.by; shUi(); }
+  });
+  document.getElementById('sh-connect').addEventListener('click', shConnect);
+  document.getElementById('sh-sync').addEventListener('click', shSync);
+  document.getElementById('sh-off').addEventListener('click', shDisconnect);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden && shOn() && Date.now() - SH.pulledAt > 60000) shSync(); });
+  shLoadCfg();
 
   var dz = document.getElementById('dropzone');
   var fileInput = document.getElementById('file-input');
@@ -2455,8 +2771,8 @@
       msg.textContent = 'แก้ไขใบ ' + quoteState.editing.no + ' ได้ทีละ 1 ใบ — รายการต้องเป็นบริษัทเดียวกัน ประเภทเดียวกัน และไม่เกิน ' + QUOTE_MAX + ' รายการ (ตอนนี้จะได้ ' + g.sheets.length + ' ใบ)';
       return;
     }
-    var btn = document.getElementById('quote-export'); btn.disabled = true; msg.textContent = 'กำลังสร้างไฟล์…';
-    loadExcelJS().then(function(ExcelJS){
+    var btn = document.getElementById('quote-export'); btn.disabled = true; msg.textContent = shOn() && !quoteState.editing ? 'กำลังจองเลขที่ในข้อมูลกลาง…' : 'กำลังสร้างไฟล์…';
+    shTakeQuotes(g).then(loadExcelJS).then(function(ExcelJS){
       var src = new ExcelJS.Workbook();
       return src.xlsx.load(tpl.buf).then(function(){
         var tws = src.worksheets.filter(function(w){ return w.name.trim() === String(tpl.sheetName).trim(); })[0];
@@ -2497,7 +2813,7 @@
         ' ไฟล์ ' + name + ' · เลขที่ใบถัดไป ' + QUOTE_SERIES.map(function(s){ return SERIES_LABEL[s] + ' ' + quoteState.nos[s]; }).join(' / ');
       renderQuote();
     }).catch(function(err){
-      msg.textContent = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+      msg.textContent = (err && err.shared ? 'ยังไม่ได้ส่งออก: ' : 'สร้างไฟล์ไม่สำเร็จ: ') + (err && err.message ? err.message : err);
     }).then(function(){ btn.disabled = false; });
   }
 
@@ -2510,7 +2826,7 @@
         lines:sh.items.map(function(it, i){ var l = sh.lines[i]; return { id:it.hospcode, name:l.name, qty:l.qty, price:l.price, unitS:l.unitS, unitP:l.unitP, pack:l.pack }; }) };
       quoteHist.docs = [doc].concat(quoteHist.docs.filter(function(d){ return d.no !== sh.no; }));
     });
-    quoteHist.docs = quoteHist.docs.slice(0, 300);
+    if(!shOn()) quoteHist.docs = quoteHist.docs.slice(0, 300);   /* ข้อมูลกลางเก็บทุกใบ */
   }
 
   /* ไฟล์ใบขอใบเสนอราคา (Excel ที่ส่งออกจากโปรแกรม หรือใบ wb… ที่ทำเองจาก DATA Template) → ประวัติใบเสนอราคา
@@ -2592,7 +2908,7 @@
         }
       });
     });
-    quoteHist.docs = quoteHist.docs.slice(0, 300);
+    if(!shOn()) quoteHist.docs = quoteHist.docs.slice(0, 300);   /* ข้อมูลกลางเก็บทุกใบ */
     if(res.nos.length) dbPut([quoteHist]).catch(function(){ storageOk = false; });
     return res;
   }
@@ -3121,6 +3437,15 @@
       supHead:s.supHead || (s.pNo && s.head) || pick.supHead || '',     /* บันทึกเดิม: หัวหน้ากลุ่มงานคนเดิมลงนาม ขย. ไปแล้ว */
       exec:s.exec || pick.exec || '', director:s.director || pick.director || '',
       lines:s.lines ? s.lines.map(function(l){ var o = {}; Object.keys(l).forEach(function(x){ o[x] = l[x]; }); return o; }) : memoLinesFrom(doc) };
+    /* auto = เลขที่โปรแกรมเติมให้ (ยังไม่ได้พิมพ์เองและยังไม่ได้ส่งออก): เชื่อมต่อข้อมูลกลางอยู่และเครื่องอื่นใช้เลขนั้นไปแล้ว = เติมเลขถัดไปใหม่
+       บันทึกเดิมก่อนมีช่องนี้ไม่แตะ (เลขที่อาจพิมพ์ออกไปแล้ว) */
+    var dd = memoState.d;
+    dd.auto = s.auto ? { p:!!s.auto.p, k:!!s.auto.k } : { p:!s.pNo, k:!s.kNo };
+    if(s.issued) dd.issued = JSON.parse(JSON.stringify(s.issued));
+    if(shOn()){
+      if(dd.auto.p && SH.meta.counters[k.p] && shNoCmp(dd.pNo, SH.meta.counters[k.p]) < 0) dd.pNo = memoNextNo(k.p, memoBE(today));
+      if(dd.auto.k && SH.meta.counters[k.k] && shNoCmp(dd.kNo, SH.meta.counters[k.k]) < 0) dd.kNo = memoNextNo(k.k, memoFY(today));
+    }
     renderMemo();
     document.getElementById('memo-box').scrollIntoView({ behavior:'smooth', block:'start' });
   }
@@ -3259,6 +3584,17 @@
   }
   function memoExport(which){
     var doc = memoDoc(), d = memoState.d; if(!doc || !d) return;
+    if(!shOn()){ memoExportNow(which, doc, d); return; }
+    var k = memoKindOf(doc), series = which === 'p' ? k.p : k.k, no = String(which === 'p' ? d.pNo : d.kNo).trim();
+    memoState.msg = 'กำลังจองเลขที่ ' + series + '. ' + no + ' ในข้อมูลกลาง…'; document.getElementById('memo-sum').innerHTML = memoSumHtml();
+    shTake(series, no, { doc:doc.no }).then(function(){ memoExportNow(which, doc, d); }, function(err){
+      memoState.msg = 'ยังไม่ได้ส่งออก: ' + err.message;
+      var el = document.getElementById('memo-sum'); if(el) el.innerHTML = memoSumHtml();
+    });
+  }
+  function memoExportNow(which, doc, d){
+    if(memoState.no !== doc.no || memoState.d !== d) return;   /* ปิด / เปลี่ยนใบระหว่างรอจองเลข */
+    doc = memoDoc() || doc;   /* ดึงข้อมูลกลางระหว่างรอ = ใบเป็นออบเจกต์ใหม่ */
     var k = memoKindOf(doc), blob, name, first = d.lines[0] ? String(d.lines[0].qname || d.lines[0].name || '') : '';
     var safe = (first.replace(/^[_\s]+/, '').split(/[\s(]/)[0] || String(doc.company || '')).replace(/[\\\/:*?"<>|]/g, '').slice(0, 40);
     try{
@@ -3267,6 +3603,9 @@
       else { blob = buildMemoY(doc, d); name = 'ใบสั่งซื้อ ' + k.y + d.kNo.replace('/', '-') + ' ' + safe + '.docx'; memoBump(k.k, d.kNo); }
     }catch(err){ memoState.msg = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err); document.getElementById('memo-sum').innerHTML = memoSumHtml(); return; }
     saveBlob(blob, name);
+    /* จดว่าเลขนี้ออกไปแล้ว เมื่อไร โดยใคร (เดิมเลขในบันทึกถูกเติมไว้ก่อนส่งออก จึงแยกไม่ได้ว่าพิมพ์จริงหรือยัง) */
+    d.issued = d.issued || {}; d.issued[which] = { no:String(which === 'p' ? d.pNo : d.kNo).trim(), at:new Date().toISOString(), by:SH.by || '' };
+    if(d.auto) d.auto[which === 'p' ? 'p' : 'k'] = false;
     /* จำค่าที่เลือกไว้เป็นค่าเริ่มต้นของใบถัดไป และหนังสืออ้างอิงแผนของปีงบนั้น */
     memoSet.pick = { committee:d.committee.slice(), officer:d.officer, supHead:d.supHead, head:d.head, exec:d.exec, director:d.director };
     if(d.planRef) memoSet.planRef[memoFY(d.pDate)] = d.planRef;
@@ -3278,7 +3617,11 @@
     var box = document.getElementById('memo-box');
     box.addEventListener('input', function(e){
       var t = e.target, d = memoState.d; if(!d) return;
-      if(t.hasAttribute('data-f')){ d[t.getAttribute('data-f')] = t.getAttribute('data-f') === 'days' ? (Number(t.value) || '') : t.value; }
+      if(t.hasAttribute('data-f')){
+        d[t.getAttribute('data-f')] = t.getAttribute('data-f') === 'days' ? (Number(t.value) || '') : t.value;
+        if(d.auto && t.getAttribute('data-f') === 'pNo') d.auto.p = false;   /* พิมพ์เลขเอง = ไม่เติมใหม่ */
+        if(d.auto && t.getAttribute('data-f') === 'kNo') d.auto.k = false;
+      }
       else if(t.hasAttribute('data-l')){
         var l = d.lines[Number(t.getAttribute('data-i'))], key = t.getAttribute('data-l');
         l[key] = /^(stock|rate|qty|ref|last|price)$/.test(key) ? (t.value.trim() === '' ? '' : num(t.value)) : t.value;
@@ -3484,6 +3827,15 @@
   }
   function ryExport(){
     var d = ryState.d, g = d ? ryGroup(d.no) : null; if(!g) return;
+    if(!shOn()){ ryExportNow(d, g); return; }
+    ryState.msg = 'กำลังจองเลขที่ ' + ryKind(d).r + '. ' + d.rNo + ' ในข้อมูลกลาง…'; document.getElementById('ry-sum').innerHTML = rySumHtml(g, d);
+    shTake(ryKind(d).r, String(d.rNo).trim(), { ry:d.no }).then(function(){ ryExportNow(d, g); }, function(err){
+      ryState.msg = 'ยังไม่ได้ส่งออก: ' + err.message;
+      var el = document.getElementById('ry-sum'); if(el && ryState.d === d) el.innerHTML = rySumHtml(g, d);
+    });
+  }
+  function ryExportNow(d, g){
+    if(ryState.d !== d) return;   /* ปิด / เปลี่ยนการรับระหว่างรอจองเลข */
     var k = ryKind(d), rows = ryRows(g, d), name, blob;
     var safe = (String(rows[0] ? rows[0].name : '').replace(/^[_\s]+/, '').split(/[\s(]/)[0] || d.company || '').replace(/[\\\/:*?"<>|]/g, '').slice(0, 40);
     function head(no){ return String(no || '').split('/')[0].trim(); }
@@ -3494,6 +3846,7 @@
     }catch(err){ ryState.msg = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err); document.getElementById('ry-sum').innerHTML = rySumHtml(g, d); return; }
     saveBlob(blob, name);
     d.done = true;
+    d.issued = { no:String(d.rNo).trim(), at:new Date().toISOString(), by:SH.by || '' };
     memoSet.ry = memoSet.ry || {}; memoSet.ry[d.no] = JSON.parse(JSON.stringify(d));
     memoSet.pick = memoSet.pick || {}; if(d.committee.filter(Boolean).length === 3) memoSet.pick.committee = d.committee.slice();
     memoSaveSet();
@@ -5177,11 +5530,12 @@
   renderAll();
   dbAll().then(function(recs){
     var savedKpi = null;
-    recs.forEach(function(r){ if(r.slot === PREV_SLOT) state.prev = r; else if(r.slot === KPI_SLOT) savedKpi = r; else if(r.slot === QUOTE_HIST_SLOT) quoteHist = r; else if(r.slot === STOCKH_SLOT) stockHist = r; else if(r.slot === MEMO_SLOT) memoSet = r; else state.datasets[r.slot] = r; });
+    recs.forEach(function(r){ if(r.slot === PREV_SLOT) state.prev = r; else if(r.slot === KPI_SLOT) savedKpi = r; else if(r.slot === QUOTE_HIST_SLOT) quoteHist = r; else if(r.slot === STOCKH_SLOT) stockHist = r; else if(r.slot === MEMO_SLOT) memoSet = r; else if(r.slot === SH_SLOT) SH.meta = r; else if(r.slot === SH_PRE_SLOT) return; else state.datasets[r.slot] = r; });
     if(savedKpi) kpiStore = savedKpi; else { kpiStore = kpiSeed(); dbPut([kpiStore]).catch(function(){}); }
     rebuild();
     if(state.datasets.inventory) stockHistRecord(state.datasets.inventory);
     renderAll();
+    shUi(); shSync();   /* ข้อมูลกลาง (#44): ดึงของล่าสุดทุกครั้งที่เปิดหน้า */
   }).catch(function(){ storageOk = false; updateSourceUI(); renderKpi(); });
 })();
 </script>
