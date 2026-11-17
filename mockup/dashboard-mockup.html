@@ -95,6 +95,11 @@
   .btn-ghost.memo-mv:disabled{ opacity:.3; cursor:default; border-color:var(--border); color:var(--ink-muted); }
   .filestatus{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:16px; }
   .btn-ghost.sh-off{ border-color:var(--warning); color:var(--warning); }
+  /* ข้อมูลกลาง: เลขชน / ออฟไลน์ ยังไม่ได้ส่งออก ต้องเห็นชัด */
+  .sh-refused{ display:block; margin-top:8px; padding:10px 14px; border:2px solid var(--critical); border-radius:8px; background:var(--critical-soft); color:var(--critical); font-size:14px; font-weight:600; line-height:1.5; }
+  .sh-flash{ animation:shFlash .45s ease-in-out 0s 6 alternate; }
+  @keyframes shFlash{ from{ box-shadow:0 0 0 0 transparent; } to{ box-shadow:0 0 0 4px var(--critical); } }
+  @media (prefers-reduced-motion: reduce){ .sh-flash{ animation:none; outline:3px solid var(--critical); } }
   .shared-box{ background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; margin:0 0 12px; }
   .shared-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin-bottom:8px; }
   .shared-box .table-note{ margin:4px 0 0; }
@@ -1791,6 +1796,14 @@
       SH.meta.counters[series] = j.next; shSaveMeta();
     });
   }
+  /* ยังไม่ได้ส่งออก (เลขชน / ออฟไลน์): หน้าต่างแจ้ง + ช่องเลขที่กะพริบ ผู้ใช้ต้องเห็นก่อนกดซ้ำ */
+  function shRefused(msg, input){
+    try{ window.alert('ยังไม่ได้ส่งออก\n\n' + msg); }catch(e){}
+    if(!input) return;
+    input.classList.remove('sh-flash'); void input.offsetWidth; input.classList.add('sh-flash');
+    try{ input.focus(); input.select(); }catch(e){}
+  }
+  function shMsgHtml(m){ return /^ยังไม่ได้ส่งออก/.test(m) ? '<span class="sh-refused">' + esc(m) + '</span>' : '<br>' + esc(m); }
   /* ใบขอใบเสนอราคาใหม่ (ไม่ใช่แก้ใบเดิม): จองทุกชุดที่มีในการส่งออกครั้งนี้ */
   function shTakeQuotes(g){
     if(!shOn() || quoteState.editing) return Promise.resolve();
@@ -1799,7 +1812,7 @@
         var first = g.sheets.filter(function(sh){ return sh.series === s; })[0].no, cur = SH.meta.counters[s] || '', c = cur ? shNoCmp(first, cur) : 1;
         function renum(v, why){
           quoteState.nos[s] = v; document.getElementById('quote-no-' + s).value = v;
-          throw new Error(why + ' · เปลี่ยนเลขใบแรกเป็น ' + v + ' ให้แล้ว กดส่งออกอีกครั้ง');
+          var e = new Error(why + ' · เปลี่ยนเลขใบแรกเป็น ' + v + ' ให้แล้ว กดส่งออกอีกครั้ง'); e.input = 'quote-no-' + s; throw e;
         }
         if(c === null || c < 0) renum(cur, 'เลข ' + first + ' ใช้ไปแล้วในข้อมูลกลาง');
         return shCall('reserve', { series:s, expect:cur, next:g.next[s] }).then(function(j){
@@ -2813,7 +2826,10 @@
         ' ไฟล์ ' + name + ' · เลขที่ใบถัดไป ' + QUOTE_SERIES.map(function(s){ return SERIES_LABEL[s] + ' ' + quoteState.nos[s]; }).join(' / ');
       renderQuote();
     }).catch(function(err){
-      msg.textContent = (err && err.shared ? 'ยังไม่ได้ส่งออก: ' : 'สร้างไฟล์ไม่สำเร็จ: ') + (err && err.message ? err.message : err);
+      if(err && err.shared){
+        msg.innerHTML = shMsgHtml('ยังไม่ได้ส่งออก: ' + err.message);
+        shRefused(err.message, err.input ? document.getElementById(err.input) : null);
+      }else msg.textContent = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
     }).then(function(){ btn.disabled = false; });
   }
 
@@ -3507,7 +3523,7 @@
     var d = memoState.d, t = memoTotals(d), w = memoWarn(d), doc = memoDoc();
     return (doc ? memoBudgetHtml(doc, t) + '<br>' : '') +
       'รวม ' + d.lines.length + ' รายการ · วงเงิน ฿' + fmt2(t.total) + ' (ไม่รวมภาษี ฿' + fmt2(t.ex) + ' · VAT ฿' + fmt2(t.vat) + ') · ขย. ข้อ 3 ราคากลางของพัสดุ ฿' + fmt2(t.ref) +
-      (w.length ? '<br><b class="pt-up">' + w.map(esc).join(' · ') + '</b>' : '') + (memoState.msg ? '<br>' + esc(memoState.msg) : '');
+      (w.length ? '<br><b class="pt-up">' + w.map(esc).join(' · ') + '</b>' : '') + (memoState.msg ? shMsgHtml(memoState.msg) : '');
   }
   function renderMemo(){
     var box = document.getElementById('memo-box'), doc = memoDoc(), d = memoState.d;
@@ -3590,6 +3606,7 @@
     shTake(series, no, { doc:doc.no }).then(function(){ memoExportNow(which, doc, d); }, function(err){
       memoState.msg = 'ยังไม่ได้ส่งออก: ' + err.message;
       var el = document.getElementById('memo-sum'); if(el) el.innerHTML = memoSumHtml();
+      shRefused(err.message, document.querySelector('#memo-box [data-f="' + (which === 'p' ? 'pNo' : 'kNo') + '"]'));
     });
   }
   function memoExportNow(which, doc, d){
@@ -3722,7 +3739,7 @@
   function rySumHtml(g, d){
     var w = ryWarn(g, d), n = ryRows(g, d).length, t = ryTotal(g, d);
     return 'ในเอกสาร: จำนวน ' + n + ' รายการ · ฿' + fmt2(t) + ' (' + esc(bahtText(t)) + ')' +
-      (w.length ? '<br><b class="pt-up">' + w.map(esc).join(' · ') + '</b>' : '') + (ryState.msg ? '<br>' + esc(ryState.msg) : '');
+      (w.length ? '<br><b class="pt-up">' + w.map(esc).join(' · ') + '</b>' : '') + (ryState.msg ? shMsgHtml(ryState.msg) : '');
   }
   function ryListHtml(){
     var q = ryState.q.toLowerCase(), cur = ryState.d && ryState.d.no, done = memoSet.ry || {};
@@ -3832,6 +3849,7 @@
     shTake(ryKind(d).r, String(d.rNo).trim(), { ry:d.no }).then(function(){ ryExportNow(d, g); }, function(err){
       ryState.msg = 'ยังไม่ได้ส่งออก: ' + err.message;
       var el = document.getElementById('ry-sum'); if(el && ryState.d === d) el.innerHTML = rySumHtml(g, d);
+      shRefused(err.message, document.querySelector('#ry-box [data-f="rNo"]'));
     });
   }
   function ryExportNow(d, g){

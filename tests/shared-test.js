@@ -102,6 +102,9 @@ device('เครื่อง ก').then(p => { A = p; return A.restore(backup);
 }).then(ok => {
   assert.ok(!ok, 'A must not export a number B took');
   assert.ok(/เพิ่งออกเลข/.test(A.memoMsg()) && /0006\/2569/.test(A.memoMsg()), A.memoMsg());
+  assert.ok(A.$('memo-sum').querySelector('.sh-refused'), 'refusal shown as a red box');
+  assert.ok(A.$('memo-box').querySelector('[data-f="pNo"]').classList.contains('sh-flash'), 'number field flashes');
+  assert.ok(A.errors.some(e => /^alert: ยังไม่ได้ส่งออก/.test(e)), 'refusal pops up');
   assert.strictEqual(counter('ภย'), '0006/2569');
   // 5. A ซิงก์แล้วเปิดใหม่: เลขที่เติมอัตโนมัติขยับเป็นเลขถัดไป ส่งออกได้
   return A.sync();
@@ -149,7 +152,10 @@ device('เครื่อง ก').then(p => { A = p; return A.restore(backup);
     });
   });
 }).then(() => {
-  assert.deepStrictEqual(A.errors, []); assert.deepStrictEqual(B.errors, []);
+  /* ข้อ 4, 6, 8 = ยังไม่ได้ส่งออก มีหน้าต่างแจ้ง 3 ครั้ง นอกนั้นต้องไม่มี error */
+  const popups = A.errors.filter(e => /^alert: ยังไม่ได้ส่งออก/.test(e));
+  assert.strictEqual(popups.length, 3, popups.join('\n'));
+  assert.deepStrictEqual(A.errors.filter(e => popups.indexOf(e) < 0), []); assert.deepStrictEqual(B.errors, []);
   const log = rows('บันทึกการแก้').map(r => r[1] + ' ' + r[2] + ' ' + r[3] + ' ' + r[4]);
   assert.ok(log.some(l => /^เครื่อง ข ออกเลข ภย 0006\/2569/.test(l)), log.join('\n'));
   console.log('all shared-store checks passed · Sheet log rows: ' + log.length + ' · downloads A ' + A.downloads.length + ', B ' + B.downloads.length);
