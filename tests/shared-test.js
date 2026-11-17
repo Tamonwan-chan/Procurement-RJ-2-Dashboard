@@ -103,9 +103,10 @@ device('เครื่อง ก').then(p => { A = p; return A.restore(backup);
   assert.ok(!ok, 'A must not export a number B took');
   assert.ok(/เพิ่งออกเลข/.test(A.memoMsg()) && /0006\/2569/.test(A.memoMsg()), A.memoMsg());
   assert.ok(A.$('memo-sum').querySelector('.sh-refused'), 'refusal shown as a red box');
-  assert.ok(A.$('memo-box').querySelector('[data-f="pNo"]').classList.contains('sh-flash'), 'number field flashes');
-  assert.ok(A.errors.some(e => /^alert: ยังไม่ได้ส่งออก/.test(e)), 'refusal pops up');
   assert.strictEqual(counter('ภย'), '0006/2569');
+  return until(() => A.errors.some(e => /^alert: ยังไม่ได้ส่งออก/.test(e)), 2000, 'refusal pops up');
+}).then(() => {
+  assert.ok(A.$('memo-box').querySelector('[data-f="pNo"]').classList.contains('sh-flash'), 'number field flashes');
   // 5. A ซิงก์แล้วเปิดใหม่: เลขที่เติมอัตโนมัติขยับเป็นเลขถัดไป ส่งออกได้
   return A.sync();
 }).then(() => A.openMemo('W002-70')).then(() => {

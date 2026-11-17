@@ -1796,12 +1796,15 @@
       SH.meta.counters[series] = j.next; shSaveMeta();
     });
   }
-  /* ยังไม่ได้ส่งออก (เลขชน / ออฟไลน์): หน้าต่างแจ้ง + ช่องเลขที่กะพริบ ผู้ใช้ต้องเห็นก่อนกดซ้ำ */
+  /* ยังไม่ได้ส่งออก (เลขชน / ออฟไลน์): หน้าต่างแจ้ง + ช่องเลขที่กะพริบ ผู้ใช้ต้องเห็นก่อนกดซ้ำ
+     รอให้หน้าวาดเลขใหม่และกล่องแดงก่อน (หน้าต่างแจ้งหยุดการวาดหน้า) แล้วกะพริบหลังกด OK */
   function shRefused(msg, input){
-    try{ window.alert('ยังไม่ได้ส่งออก\n\n' + msg); }catch(e){}
-    if(!input) return;
-    input.classList.remove('sh-flash'); void input.offsetWidth; input.classList.add('sh-flash');
-    try{ input.focus(); input.select(); }catch(e){}
+    setTimeout(function(){
+      try{ window.alert('ยังไม่ได้ส่งออก\n\n' + msg); }catch(e){}
+      if(!input) return;
+      input.classList.remove('sh-flash'); void input.offsetWidth; input.classList.add('sh-flash');
+      try{ input.focus(); input.select(); }catch(e){}
+    }, 80);
   }
   function shMsgHtml(m){ return /^ยังไม่ได้ส่งออก/.test(m) ? '<span class="sh-refused">' + esc(m) + '</span>' : '<br>' + esc(m); }
   /* ใบขอใบเสนอราคาใหม่ (ไม่ใช่แก้ใบเดิม): จองทุกชุดที่มีในการส่งออกครั้งนี้ */
