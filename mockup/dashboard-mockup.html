@@ -2508,6 +2508,8 @@
       var doc = { no:sh.no, series:sh.series, company:sh.company, date:quoteState.date || todayIso(), at:new Date().toISOString(), file:file,
         revisions:old ? (old.revisions || 1) + 1 : 1,
         lines:sh.items.map(function(it, i){ var l = sh.lines[i]; return { id:it.hospcode, name:l.name, qty:l.qty, price:l.price, unitS:l.unitS, unitP:l.unitP, pack:l.pack }; }) };
+      /* แก้ใบเดิม: เก็บเลขที่ วันที่ กรรมการในบันทึกไว้ เหมือนตอนลากไฟล์เข้า · รายการในบันทึกดึงใหม่จากใบที่แก้ */
+      if(old && old.memo){ doc.memo = old.memo; delete doc.memo.lines; }
       quoteHist.docs = [doc].concat(quoteHist.docs.filter(function(d){ return d.no !== sh.no; }));
     });
     quoteHist.docs = quoteHist.docs.slice(0, 300);
