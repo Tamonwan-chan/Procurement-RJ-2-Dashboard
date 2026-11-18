@@ -5,7 +5,8 @@
   "scripts": {
     "smoke": "node smoke.js",
     "gas": "node gas-test.js",
-    "shared": "node shared-test.js"
+    "shared": "node shared-test.js",
+    "memo": "node memo-test.js"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.0.0",

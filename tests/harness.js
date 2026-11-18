@@ -2,7 +2,9 @@
    Usage from an ad-hoc check:
      var h = require('./harness');
      h.load().then(function(p){ return p.drop(['../ลาก/Meditem.xls']).then(function(){ ...p.window.document... }); });
-   Each load() gets a fresh, empty IndexedDB; pass the same `idb` to load({ idb }) to reopen with saved data. */
+   Each load() gets a fresh, empty IndexedDB; pass the same `idb` to load({ idb }) to reopen with saved data.
+   load({ inside:true }) also gives page.inside.get('buildMemoP') / page.inside.set('memoSet', v): the page script's own
+   variables and functions (they live inside its wrapper function), for checks such as memo-test.js. */
 var fs = require('fs');
 var path = require('path');
 var JSDOM = require('jsdom').JSDOM;
@@ -32,6 +34,11 @@ function load(opts){
   var idb = opts.idb || new IDBFactory();
   /* the page loads SheetJS from cdnjs; inject the local copy instead */
   var html = fs.readFileSync(PAGE, 'utf8').replace(/<script src="https:\/\/cdnjs[^"]*xlsx[^"]*"><\/script>/, '');
+  /* a direct eval placed just before the wrapper closes sees everything declared inside it */
+  if(opts.inside){
+    var at = html.lastIndexOf('})();');
+    html = html.slice(0, at) + 'window.__inside = { get:function(n){ return eval(n); }, set:function(n, v){ eval(n + " = v"); } };\n' + html.slice(at);
+  }
   var dom = new JSDOM(html, {
     url: 'http://localhost/mockup/dashboard-mockup.html',
     runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: vc,
@@ -51,7 +58,7 @@ function load(opts){
   });
   var w = dom.window;
   var page = {
-    window: w, document: w.document, errors: errors, idb: idb,
+    window: w, document: w.document, errors: errors, idb: idb, inside: w.__inside,
     text: function(sel){ var el = w.document.querySelector(sel); return el ? el.textContent.trim() : ''; },
     /* drop files on the drop zone; resolves when the import note or the error bar shows a result */
     drop: function(paths){

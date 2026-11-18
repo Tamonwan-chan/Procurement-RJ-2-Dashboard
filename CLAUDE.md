@@ -21,9 +21,10 @@ mockup/logo-rj2.jpg            logo, set in BRAND
 guide/index.html               Thai user guide (Pages)
 appscript/                     Apps Script for the shared Google Sheet store (clasp; no data, key or address)
 tests/                         headless harness: harness.js (load page, drop files), smoke.js;
-                               on shared-db: gas-test.js (Code.gs vs a fake Sheet), audit-numbers.js (duplicate
-                               numbers across device backups), merge-backups.js (one merged backup for the cutover);
-                               both write next to the backups, never in the repo
+                               memo-test.js (every Word memo built from made-up data, layout rules checked);
+                               shared-test.js (two devices vs Code.gs on gas-fake.js); gas-test.js (Code.gs vs a fake Sheet);
+                               audit-numbers.js (duplicate numbers across device backups), merge-backups.js (one merged
+                               backup for the cutover); both write next to the backups, never in the repo
 .claude/commands/              /line-triage
 .vscode/extensions.json        recommended VS Code extensions (GitLens, GitHub Issues, Live Preview, Markdown All in One)
 ประเด็นที่รอยืนยันจากพี่โอม.md      Q&A log with พี่โอม (questions, answers, changes)
@@ -85,7 +86,7 @@ Local-only, never commit: `สรุปบทบาทและงานที�
 
 1. `git fetch` and check status and the current branch first (work happens on several PCs).
 2. Edit `mockup/dashboard-mockup.html` (small, targeted edits; match the surrounding ES5 style and Thai comments).
-3. Test headlessly before pushing: `cd tests && npm install` once per PC, then `node smoke.js` (drops every HIS export at the top of `ลาก/`, ~10 s; lists each slot's row count, exits 1 on a script error or an unrecognised file) or `node smoke.js <files…>`. For a specific check, write a throwaway script in the session scratchpad that does `require('<repo>/tests/harness')`: `load()` gives a fresh page + empty IndexedDB, `page.drop(paths)` imports like a real drop, then inspect `page.document` (the SheetJS cross-realm shim is built in). Don't commit checks that print real figures. Use real Chrome via puppeteer-core for visuals / export. Quote output can be checked by opening it in Excel.
+3. Test headlessly before pushing: `cd tests && npm install` once per PC, then `node smoke.js` (drops every HIS export at the top of `ลาก/`, ~10 s; lists each slot's row count, exits 1 on a script error or an unrecognised file) or `node smoke.js <files…>`. After any change to a Word memo (ภย. / ขย. / ย. / รย. and their ว versions) also run `node memo-test.js` (~5 s, made-up data, 619 checks on 19 documents: table widths and indents, cell alignment, committee tabs, signature blocks, 2.1 / 2.2, totals); when he changes a format rule on purpose, update the matching check in the same commit. `load({ inside:true })` gives `page.inside.get(name)` / `.set(name, v)` for the page script's own functions and variables. For a specific check, write a throwaway script in the session scratchpad that does `require('<repo>/tests/harness')`: `load()` gives a fresh page + empty IndexedDB, `page.drop(paths)` imports like a real drop, then inspect `page.document` (the SheetJS cross-realm shim is built in). Don't commit checks that print real figures. Use real Chrome via puppeteer-core for visuals / export. Quote output can be checked by opening it in Excel.
 4. Commit with a clear message and push the branch. If it is on `master` (or a merge to it), wait for the Pages build, then tell her to press Ctrl + F5.
 5. Update `ประเด็นที่รอยืนยันจากพี่โอม.md` (open questions, answers, changes) and `README.md` when rules change.
 6. Track work in **GitHub Issues** (`gh issue list`): one issue per feature / bug / open question, short neutral Thai title, labels `enhancement` / `bug` / `question` + `waiting` (blocked on พี่โอม's answer or files), milestone "v2.0". The repo is public, so issues hold no real data, prices, figures or names; details stay in the Q&A file. พี่โอม never uses GitHub: she relays his messages and Claude opens / updates the issues. Close them from the commit (`Fixes #n`). New requests outside the v2.0 scope go to `ICEBOX.md`, not to issues, until she picks them.
