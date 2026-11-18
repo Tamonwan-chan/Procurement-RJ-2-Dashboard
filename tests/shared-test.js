@@ -153,6 +153,20 @@ device('เครื่อง ก').then(p => { A = p; return A.restore(backup);
     });
   });
 }).then(() => {
+  // 11. ลบใบเสนอราคา (#47): ถามก่อน (มีเลขบันทึก = เตือน) · Sheet ทำเครื่องหมายลบ · อีกเครื่องหายตามเมื่อซิงก์
+  let asked = ''; A.window.confirm = m => { asked = m; return true; };
+  A.set('quote-hist', 'W002-70'); A.click('quote-delete');
+  assert.ok(asked.indexOf("ลบใบ W002-70?") === 0 && asked.indexOf("มีเลขบันทึก ภย. 0006/2569") > 0 && asked.indexOf("ลบจากข้อมูลกลาง") > 0, asked);
+  assert.ok(![].some.call(A.$('quote-hist').options, o => o.value === 'W002-70'), 'gone on A');
+  return until(() => (quoteRow('W002-70') || {})['ลบแล้ว'] === 'ลบ', 5000, 'delete pushed');
+}).then(() => B.sync()).then(() => {
+  assert.deepStrictEqual([].map.call(B.$('quote-hist').options, o => o.value).filter(Boolean), ['W001-70']);
+  assert.strictEqual(counter('W'), 'W003-70', 'next number unchanged');
+  assert.ok(rows('บันทึกการแก้').some(r => /เครื่อง ก ลบ quote W002-70/.test(r[1] + ' ' + r[2] + ' ' + r[3] + ' ' + r[4])), 'logged');
+  // ผู้ดูแลกู้คืนใน Sheet (ลบคำว่า ลบ): ทุกเครื่องเห็นใบกลับมา
+  const t = srv.tab('ใบเสนอราคา'), head = t.v[0], row = t.v.find(r => r[head.indexOf('id')] === 'W002-70'); row[head.indexOf('ลบแล้ว')] = '';
+  return A.sync().then(() => assert.ok([].some.call(A.$('quote-hist').options, o => o.value === 'W002-70'), 'restored on A'));
+}).then(() => {
   /* ข้อ 4, 6, 8 = ยังไม่ได้ส่งออก มีหน้าต่างแจ้ง 3 ครั้ง นอกนั้นต้องไม่มี error */
   const popups = A.errors.filter(e => /^alert: ยังไม่ได้ส่งออก/.test(e));
   assert.strictEqual(popups.length, 3, popups.join('\n'));

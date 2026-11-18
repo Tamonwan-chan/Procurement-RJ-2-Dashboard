@@ -627,6 +627,7 @@
     <div class="table-tools" style="margin:14px 0 0; padding-top:12px; border-top:1px solid var(--border)">
       <label class="q-field">ใบที่ส่งออกแล้ว <select class="search field-select" id="quote-hist" aria-label="ใบที่ส่งออกแล้ว"></select></label>
       <button type="button" class="btn-ghost" id="quote-reopen">เปิดมาแก้ไข (ใช้เลขเดิม)</button>
+      <button type="button" class="btn-ghost" id="quote-delete">ลบใบนี้</button>
       <button type="button" class="btn-ghost" id="quote-cancel-edit" hidden>ยกเลิกการแก้ไข</button>
       <button type="button" class="btn-solid" id="quote-memo">ออกบันทึก ภย. / ขย. / ย. (Word)</button>
       <button type="button" class="btn-solid" id="quote-ry">ออกบันทึกตรวจรับ รย. / รยว. (Word)</button>
@@ -1686,8 +1687,9 @@
       if(m && !m.deleted && m.sig === sig) return;
       recs.push({ kind:r.kind, id:r.id, baseRev:m ? m.rev : 0, data:r.data, summary:r.summary, k:k, sig:sig });
     });
-    Object.keys(revs).forEach(function(k){   /* ลบได้เฉพาะรายชื่อ (ปุ่มลบ) · ใบเสนอราคาไม่มีปุ่มลบ */
-      if(/^person\|/.test(k) && !loc[k] && !revs[k].deleted) recs.push({ kind:'person', id:k.slice(7), baseRev:revs[k].rev, data:null, deleted:true, k:k, sig:'null' });
+    Object.keys(revs).forEach(function(k){   /* ลบได้เฉพาะรายชื่อและใบเสนอราคา (ปุ่มลบ · #47) */
+      var kind = k.split('|')[0];
+      if((kind === 'person' || kind === 'quote') && !loc[k] && !revs[k].deleted) { var keep = SH.meta.del && SH.meta.del[k]; recs.push({ kind:kind, id:k.slice(kind.length + 1), baseRev:revs[k].rev, data:keep || null, summary:keep ? shQuoteSum(keep) : null, deleted:true, k:k, sig:'null' }); }   /* ใบที่ลบ: ส่งข้อมูลไปเก็บในแถวด้วย ผู้ดูแลกู้คืนได้ */
     });
     if(!recs.length) return Promise.resolve(0);
     function part(i){
@@ -1697,7 +1699,7 @@
         /* force: ค่าตั้งต้นบันทึก (ผู้ลงนามล่าสุด) เปลี่ยนทุกครั้งที่ส่งออก ให้บันทึกล่าสุดชนะ ไม่ต้องเตือน */
         (j.results || []).forEach(function(x, n){
           var r = chunk[n];
-          if(x.status === 'ok') revs[r.k] = { rev:x.rev, sig:r.sig, deleted:!!r.deleted };
+          if(x.status === 'ok'){ revs[r.k] = { rev:x.rev, sig:r.sig, deleted:!!r.deleted }; if(r.deleted && SH.meta.del) delete SH.meta.del[r.k]; }
           else if(x.status === 'conflict') notes.push(shWhat(r.kind, r.id) + ' มีคนแก้จากเครื่องอื่นก่อน' + (x.by ? ' (' + x.by + ')' : '') + ' ใช้ของล่าสุดในข้อมูลกลางแทน');
           else if(x.status === 'too-big') notes.push(shWhat(r.kind, r.id) + ' ใหญ่เกินช่องของ Sheet ยังไม่ได้ส่งขึ้น');
         });
@@ -1717,7 +1719,7 @@
     Object.keys(srv).forEach(function(k){
       var r = srv[k], m = revs[k], l = loc[k];
       if(m && r.rev === m.rev && l && shSig(l.data) !== m.sig){ fin[k] = l.data; return; }                     /* แก้ในเครื่อง รอส่งขึ้น */
-      if(m && r.rev === m.rev && !l && !r.deleted && /^person\|/.test(k)){ fin[k] = null; return; }           /* ลบรายชื่อในเครื่อง รอส่งขึ้น */
+      if(m && !m.deleted && r.rev === m.rev && !l && !r.deleted && /^(person|quote)\|/.test(k)){ fin[k] = null; return; }   /* ลบรายชื่อ / ใบในเครื่อง รอส่งขึ้น */
       fin[k] = r.deleted ? null : r.data;
       revs[k] = { rev:r.rev, sig:shSig(r.data), deleted:!!r.deleted };
     });
@@ -2959,6 +2961,26 @@
     if(res.nos.length) dbPut([quoteHist]).catch(function(){ storageOk = false; });
     return res;
   }
+  /* ลบใบเสนอราคาออกจากประวัติ (#47 · ค่าตั้งต้นข้อ 37): เลขที่ของใบที่ลบไม่นำกลับมาใช้ เลขถัดไปไม่ย้อน · ใบที่มีเลขบันทึกแล้วลบได้ แต่เตือนก่อน
+     ข้อมูลกลาง: ทำเครื่องหมาย "ลบ" ในแถวของ Sheet (ไม่ลบแถว ผู้ดูแลกู้คืนได้) ทุกเครื่องหายตามเมื่อซิงก์ */
+  function deleteQuote(key){
+    var doc = qFind(key); if(!doc) return;
+    var m = doc.memo || {}, iss = m.issued || {}, k = MEMO_KIND[m.kind || memoKindRule(doc)], memos = [];
+    var p = iss.p ? iss.p.no : m.pNo, kk = iss.k ? iss.k.no : iss.y ? iss.y.no : m.kNo;
+    if(p) memos.push(k.p + '. ' + p); if(kk) memos.push(k.k + '. / ' + k.y + '. ' + kk);
+    var msg = 'ลบใบ ' + doc.no + (doc.dup ? ' (' + doc.dup + ')' : '') + '?\n\n' + doc.company + ' · ' + (doc.lines || []).length + ' รายการ · ' + isoShortTh(doc.date) + '\n\n' +
+      (memos.length ? '⚠ ใบนี้มีเลขบันทึก ' + memos.join(' · ') + ' — เลขบันทึกนั้นยังนับว่าออกไปแล้ว ไม่นำกลับมาใช้\n' : '') +
+      'เลขที่ ' + doc.no + ' ไม่นำกลับมาใช้ เลขถัดไปไม่เปลี่ยน\n' +
+      (shOn() ? 'ลบจากข้อมูลกลางด้วย ทุกเครื่องจะไม่เห็นใบนี้ (ผู้ดูแลกู้คืนจาก Sheet ได้)' : 'ลบเฉพาะในเครื่องนี้');
+    if(!window.confirm(msg)) return;
+    if(quoteState.editing && (quoteState.editing.key || quoteState.editing.no) === key) quoteReset();
+    if(memoState.no === key){ memoState.no = ''; renderMemo(); }
+    if(shOn()){ SH.meta.del = SH.meta.del || {}; SH.meta.del['quote|' + key] = doc; shSaveMeta(); }
+    quoteHist.docs = quoteHist.docs.filter(function(d){ return qKey(d) !== key; });
+    dbPut([quoteHist]).catch(function(){ storageOk = false; });
+    quoteState.note = 'ลบใบ ' + doc.no + (doc.dup ? ' (' + doc.dup + ')' : '') + ' แล้ว' + (shOn() ? ' · ส่งการลบขึ้นข้อมูลกลาง' : '');
+    renderQuote();
+  }
   function reopenQuote(no){
     var doc = qFind(no); if(!doc) return;
     var byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
@@ -4124,6 +4146,7 @@
       return [qKey(d), d.no + (d.dup ? ' · ' + d.dup : '') + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '') + (d.src === 'file' ? ' · จากไฟล์' : '')];
     }) : [['', 'ยังไม่มีใบที่ส่งออก']], quoteState.editing ? quoteState.editing.key || quoteState.editing.no : '');
     document.getElementById('quote-reopen').disabled = !docs.length;
+    document.getElementById('quote-delete').disabled = !docs.length;
     document.getElementById('quote-cancel-edit').hidden = !quoteState.editing;
     document.getElementById('quote-date').value = quoteState.date;
     quoteSummary([quoteState.note, rows.length > LIMIT ? 'แสดง ' + LIMIT + ' จาก ' + fmt(rows.length) + ' รายการ — เลือกบริษัทหรือค้นหาเพื่อดูรายการอื่น' : ''].filter(Boolean).join(' · '));
@@ -4304,6 +4327,7 @@
   });
   document.getElementById('quote-reopen').addEventListener('click', function(){ var v = document.getElementById('quote-hist').value; if(v) reopenQuote(v); });
   document.getElementById('quote-cancel-edit').addEventListener('click', quoteReset);
+  document.getElementById('quote-delete').addEventListener('click', function(){ var v = document.getElementById('quote-hist').value; if(v) deleteQuote(v); });
   document.getElementById('quote-date').addEventListener('change', function(e){ quoteState.date = e.target.value; });
   document.getElementById('quote-clear').addEventListener('click', quoteReset);
   document.getElementById('quote-export').addEventListener('click', exportQuotes);
