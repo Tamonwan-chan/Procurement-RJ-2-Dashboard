@@ -3062,7 +3062,11 @@
     if(c && (Number(c[2]) > Number(m[2]) || (Number(c[2]) === Number(m[2]) && Number(c[1]) >= Number(n)))) return;   /* ไม่ย้อนกลับ */
     memoSet.next[series] = n + '/' + m[2];
   }
-  function memoPerson(id){ return (memoSet && memoSet.people || []).filter(function(p){ return p.id === id; })[0] || null; }
+  /* สำเนาที่ตัดช่องว่างท้ายชื่อ: "(… พุ่มบัว  )" → "(… พุ่มบัว)" ในเอกสาร (พี่โอมแก้แบบ ขว.0002 18 พ.ย. 69 · #54) · รายชื่อที่เก็บไว้ไม่เปลี่ยน */
+  function memoPerson(id){
+    var p = (memoSet && memoSet.people || []).filter(function(x){ return x.id === id; })[0]; if(!p) return null;
+    var o = {}; Object.keys(p).forEach(function(k){ o[k] = p[k]; }); o.name = String(p.name || '').replace(/\s+$/, ''); return o;
+  }
   function memoSign(p){ return p ? p.sign || p.pos || '' : ''; }
 
   /* ตราครุฑ: ลากไฟล์บันทึกข้อความ (.docx) เดิมมาวาง 1 ครั้ง ใช้รูปแรกในไฟล์และขนาดเดิม */
@@ -3408,7 +3412,7 @@
         'ให้เจ้าหน้าที่จัดทำรายงานขอซื้อหรือขอจ้างเสนอหัวหน้าหน่วยงานของรัฐเพื่อความเห็นชอบ โดยเสนอผ่านหัวหน้าเจ้าหน้าที่โดยมีรายการดังต่อไปนี้'), I) +
       wPara(wRun('1. เหตุผลและความจำเป็นที่ต้องจัดซื้อ' + k.what + ' ' + k.need), NUM) +
       wPara(wRun('2. รายละเอียดหรือคุณลักษณะของพัสดุที่จะซื้อ' + k.what + ' จำนวน ' + n + ' รายการ'), NUM) +
-      wPara(wRun('ซื้อจาก ' + doc.company), { left:1418, after:120 }) +
+      wPara(wRun('ซื้อจาก ' + doc.company), { left:960, after:120 }) +                  /* ตรงกับข้อความหลัง "2. " (พี่โอมแก้แบบ ขว.0002 18 พ.ย. 69 · #54) */
       memoItemTable(d, k, t, MEMO_K_TOP) +
       /* ข้อ 3–4 อยู่คนละหน้ากับตาราง (หมายเหตุพี่โอมใน ขย.0450) */
       wPara(wRun('3. ราคากลางของพัสดุที่จะซื้อ จำนวน ' + fmt2(t.ref) + ' บาท (' + bahtText(t.ref) + ')'), { first:720, jc:'thaiDistribute', pageBreak:true }) +
@@ -3424,7 +3428,9 @@
       wPara(wRun('จึงเรียนมาเพื่อโปรดพิจารณา หากเห็นชอบขอได้โปรดอนุมัติให้ดำเนินการจัดซื้อตามรายละเอียดในรายงานขอซื้อดังกล่าวข้างต้นพร้อมลงนามในหนังสือสั่งซื้อตามที่แนบมาพร้อมนี้ด้วย จะเป็นพระคุณ'), { first:720, before:120, jc:'thaiDistribute' }) +
       wPara('', { before:240 }) +
       /* ลงชื่อฝั่งซ้ายชิดขอบ ชื่อ / ตำแหน่งอยู่กลางบรรทัดลงชื่อ ตามตัวอย่าง (พี่โอมเขียนแก้ 4 พ.ย. 69) */
-      wTable([{ cells:[{ t:memoSignBlock(off, 'เจ้าหน้าที่พัสดุ').replace(/\n/g, '\n\t'), jc:'left', tabs:[['center', 1737]] }, { t:memoSignBlock(head, 'หัวหน้าเจ้าหน้าที่พัสดุ') }] }],
+      /* ฝั่งขวา: บรรทัดลงชื่ออยู่กลางช่อง ชื่อ / ตำแหน่งอยู่กลางเส้นจุดแบบฝั่งซ้าย (พี่โอมแก้แบบ ขว.0002 18 พ.ย. 69 · #54) */
+      wTable([{ cells:[{ t:memoSignBlock(off, 'เจ้าหน้าที่พัสดุ').replace(/\n/g, '\n\t'), jc:'left', tabs:[['center', 1737]] },
+        { xml:(function(sb){ return wPara(wRun(sb[0]), { jc:'center' }) + wPara(wRun('\t' + sb.slice(1).map(function(s){ return s.trim(); }).join('\n\t')), { tabs:[['center', 1737]] }); })(memoSignBlock(head, 'หัวหน้าเจ้าหน้าที่พัสดุ').split('\n')) }] }],
         [{ w:4513, jc:'center' }, { w:4513, jc:'center' }], { noBorder:true }) +
       wPara('', { before:240 }) +
       wTable([{ cells:[
@@ -3494,7 +3500,8 @@
       wPara('', { before:240 }) +
       wTable([
         { cells:[{ t:memoSignBlock(off, 'เจ้าหน้าที่พัสดุ') }, { t:memoSignBlock(head, 'หัวหน้าเจ้าหน้าที่พัสดุ') }] },
-        { cells:[{ t:'\nลงชื่อ.................................................\n(' + (dir ? dir.name : '...............................................') + ')\n' + (memoSign(dir) || 'ผู้อำนวยการ' + hosp) },
+        /* ผู้อำนวยการ: เว้นเพิ่ม 1 บรรทัดก่อน "ลงชื่อ" (พี่โอมแก้แบบ ยว.0003 18 พ.ย. 69 · #54) */
+        { cells:[{ t:'\n\nลงชื่อ.................................................\n(' + (dir ? dir.name :'...............................................') + ')\n' + (memoSign(dir) || 'ผู้อำนวยการ' + hosp) },
                  { t:'\n\n\nลงชื่อ................................................ ผู้รับใบสั่งซื้อ\n(.............................................)\n................./............................/............................' }] }],
         [{ w:4808, jc:'center' }, { w:4809, jc:'center' }], { noBorder:true, sz:S, top:true });
     return docxBlob(body, null, { top:568, right:849, bottom:1440, left:1440 });
