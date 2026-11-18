@@ -4,6 +4,8 @@
    --last: ไฟล์ "เลขล่าสุด….json" เลขล่าสุดที่ออกจริงของแต่ละเล่ม (คำตอบข้อ 33) เช่น {"W":"W100-70","WM":"WM010-70","ภย":"0600/2569","ขย":"0010/2570"}
            เล่มบันทึกที่ไม่ใส่ = ไม่ตั้งเลขถัดไป (คนแรกที่ออกเล่มนั้นต้องยืนยันกับเล่มจริง) · ใบเสนอราคาที่ไม่ใส่ = สูงสุดในไฟล์สำรอง
            เลขในบันทึกเก่าที่สูงกว่าเลขล่าสุดของเล่ม = ไม่ได้ออกจริง ล้างทิ้ง
+           ใบเสนอราคาที่สูงกว่าเลขล่าสุดของชุดนั้น = ใบทดสอบ ไม่ย้าย และเลขถัดไป = เลขล่าสุด + 1 (พี่โอม 18 พ.ย. 69: W141-70 เป็นใบลอง เริ่ม W121)
+           "แก้เลข": { "<เลขใบเสนอราคา>": {"pNo":…}, "<เลขที่รับ minpno>": {"rNo":…} } เลขที่พิมพ์จริงต่างจากที่โปรแกรมจำ
    ผล (โฟลเดอร์เดียวกับไฟล์สำรองแรก ไม่ใช่ใน repo):
      สำรองข้อมูลรวม <วันที่>.json         กู้คืนเข้าหน้าโปรแกรม (ยังไม่เชื่อมต่อ) แล้วเชื่อมต่อ Sheet ที่ว่าง → OK = ส่งขึ้นเป็นข้อมูลตั้งต้น
      สำรองข้อมูลรวม <วันที่> รายงาน.csv  ทุกการตัดสินใจของการรวม
@@ -119,6 +121,14 @@ docs.sort(function(a, b){ return String(b.at || '') < String(a.at || '') ? -1 : 
 
 var last = lastFile ? JSON.parse(fs.readFileSync(lastFile, 'utf8')) : null;
 Object.keys(last || {}).forEach(function(s){ if(s !== 'แก้เลข' && !parseNo(last[s])){ console.log('เลขใน --last ไม่ถูกรูปแบบ: ' + s + ' ' + last[s]); process.exit(1); } });
+/* ใบเสนอราคาที่สูงกว่าเลขล่าสุดที่ออกจริง = ใบทดสอบ ไม่ย้ายเข้าข้อมูลกลาง */
+docs = docs.filter(function(d){
+  var p = parseNo(d.no), L = p && last && last[p.pre];
+  if(!L || cmpNo(d.no, L) <= 0) return true;
+  note('ไม่ย้าย ใบทดสอบ', d.sid || d.no, 'สูงกว่าเลขล่าสุดที่ออกจริง ' + L + ' · ' + (d.date || '') + ' · ' + (d.from || ''));
+  console.log('ไม่ย้าย ' + (d.sid || d.no) + ' (สูงกว่าเลขจริง ' + L + ' = ใบทดสอบ)');
+  return false;
+});
 
 /* เลขถัดไปของใบเสนอราคา: สูงสุดของ (เลขที่ใช้ + 1, ที่ทุกเครื่องจำไว้, เลขล่าสุดที่ออกจริง + 1) · ใบในโปรแกรมที่สูงกว่าเลขจริง แจ้งให้ถาม */
 var qNext = {};
@@ -133,8 +143,7 @@ QUOTE_SERIES.forEach(function(s){
     var a = d.q.next && d.q.next[s], b = d.ls['rj2-quote-next-' + s];
     [a, b].forEach(function(v){ var p = parseNo(v); if(p && p.pre === s) cand.push(v); });
   });
-  if(last && last[s]) cand.push(bump(last[s]));
-  var v = maxNo(cand); if(!v) return;
+  var v = last && last[s] ? bump(last[s]) : maxNo(cand); if(!v) return;
   qNext[s] = v;
   var why = last && last[s] ? 'เลขล่าสุดที่ออกจริง ' + last[s] : 'ไม่มีเลขจริง ใช้สูงสุดในไฟล์สำรอง';
   note('เลขถัดไป', s, v + ' (' + why + ')' + (above.length ? ' · ในโปรแกรมมีใบสูงกว่าเลขจริง: ' + above.join(', ') : ''));
@@ -160,7 +169,11 @@ function overLast(s, no){ return last && last[s] && parseNo(no) && cmpNo(no, las
 var fixes = last && last['แก้เลข'] || {};
 Object.keys(fixes).forEach(function(key){
   var d = docs.filter(function(x){ return (x.sid || x.no) === key; })[0];
-  if(!d){ console.log('แก้เลข: ไม่พบใบ ' + key); process.exit(1); }
+  if(!d && ryOut[key]){
+    Object.keys(fixes[key]).forEach(function(f){ note('แก้เลขตามเล่มจริง', 'ตรวจรับ', f + ' ' + (ryOut[key][f] || '-') + ' → ' + fixes[key][f]); ryOut[key][f] = fixes[key][f]; });
+    return;
+  }
+  if(!d){ console.log('แก้เลข: ไม่พบใบหรือเลขที่รับ ' + key); process.exit(1); }
   d.memo = d.memo || {};
   Object.keys(fixes[key]).forEach(function(f){ note('แก้เลขตามเล่มจริง', key, f + ' ' + (d.memo[f] || '-') + ' → ' + fixes[key][f]); d.memo[f] = fixes[key][f]; });
 });

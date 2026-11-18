@@ -3020,7 +3020,7 @@
   function memoDateTh(iso){ var p = String(iso || '').split('-'); return p.length === 3 ? Number(p[2]) + ' ' + TH_MONTHS[Number(p[1]) - 1] + ' ' + (Number(p[0]) + 543) : ''; }
   function memoBE(iso){ return Number(String(iso || todayIso()).slice(0, 4)) + 543; }
   function memoFY(iso){ var p = String(iso || todayIso()).split('-'); return Number(p[0]) + 543 + (Number(p[1]) >= 10 ? 1 : 0); }
-  /* เลขที่: ภย. / ภว. รันตาม พ.ศ. (เริ่มใหม่ ม.ค.) · ขย. / ขว. รันตามปีงบ (เริ่มใหม่ ต.ค.) · ย. ใช้เลขเดียวกับ ขย. — พี่โอม 26 ต.ค. 69 */
+  /* เลขที่: ภย. / ภว. รันตาม พ.ศ. (เริ่มใหม่ ม.ค.) · ขย. / ขว. รันตามปีงบ (เริ่มใหม่ ต.ค.) · ย. ใช้เลขเดียวกับ ขย. — พี่โอม 26 ต.ค. 69 · รย. / รยว. รันตาม พ.ศ. แบบ ภย. — พี่โอม 18 พ.ย. 69 */
   function memoNextNo(series, year){
     var v = memoSet && memoSet.next[series], m = /^(\d+)\/(\d{4})$/.exec(v || '');
     return m && Number(m[2]) === year ? v : '0001/' + year;
@@ -3712,7 +3712,7 @@
      พี่โอม 5–6 พ.ย. 69 (#34, ตัวอย่าง รย.1314, รยว.0044): รย. ต่อจาก ย. (ยา, เภสัชเคมีภัณฑ์) · รยว. ต่อจาก ยว. (เวชภัณฑ์มิใช่ยา) · 1 รย. = 1 ย.
      รายการดึงจาก PO_inven รับจากการสั่งซื้อ (101) ที่รับเข้า HIS แล้ว · ช่อง pono / invdate ใน HIS ว่าง (ไม่มี ERP เชื่อม) จึงเลือก "การรับ 1 ครั้ง" ตามเลขที่รับ minpno
      ดึงจากไฟล์: จำนวนรายการ · จำนวนเงิน (ผลรวม unitcost) · ผู้จำหน่าย · เลขที่เอกสาร (invno) · วันที่ตรวจรับ (minpdate)
-     กรอกเอง: เลขที่ รย. (รันต่อตามปีงบ เหมือน ขย.) · วันที่ · เลขที่ / วันที่ ขย. · วันที่เอกสารส่งของ · เลือกกรรมการ 3 ช่อง (พี่โอม 6 พ.ย. 69: ช่องเลือกเหมือนหน้า ภย. ตั้งต้นจากชุดล่าสุด)
+     กรอกเอง: เลขที่ รย. (รันตาม พ.ศ. เริ่มใหม่ 1 ม.ค. เหมือน ภย. · พี่โอม 18 พ.ย. 69) · วันที่ · เลขที่ / วันที่ ขย. · วันที่เอกสารส่งของ · เลือกกรรมการ 3 ช่อง (พี่โอม 6 พ.ย. 69: ช่องเลือกเหมือนหน้า ภย. ตั้งต้นจากชุดล่าสุด)
      พี่โอมยืนยัน 6 พ.ย. 69: ย. 1 ใบส่งรอบเดียว จึงไม่ต้องรวมหลายการรับ */
   var RY_LINE = 'โรงพยาบาลราชวิถี 2 (รังสิต)  กลุ่มงานเภสัชกรรม  โทร   02-592-9550  ต่อ   70006', RY_LIST_MAX = 100;
   var ryState = { open:false, q:'', d:null, msg:'' }, ryTimer;
@@ -3742,7 +3742,7 @@
     if(saved){ ryState.d = JSON.parse(JSON.stringify(saved)); ryState.d.committee = memoSeats(ryState.d.committee); }
     else {
       var iso = ryIso(g.date), key = ryKindKey(g).key, k = key === 'non' ? MEMO_KIND.non : MEMO_KIND.drug;
-      ryState.d = { no:no, kind:key, rNo:memoNextNo(k.r, memoFY(iso)), rDate:'', kNo:'', kDate:'', company:g.company, bill:g.inv || '', billDate:'', inspect:iso,
+      ryState.d = { no:no, kind:key, rNo:memoNextNo(k.r, memoBE(iso)), rDate:'', kNo:'', kDate:'', company:g.company, bill:g.inv || '', billDate:'', inspect:iso,
         subj:'รายงานผลการตรวจรับยาและเวชภัณฑ์', cat:'หมวดค่าวัสดุ', committee:memoSeats((memoSet.pick || {}).committee), skip:{}, done:false };
     }
     ryState.msg = ''; renderRy();
@@ -3892,7 +3892,7 @@
     memoSet.ry = memoSet.ry || {}; memoSet.ry[d.no] = JSON.parse(JSON.stringify(d));
     memoSet.pick = memoSet.pick || {}; if(d.committee.filter(Boolean).length === 3) memoSet.pick.committee = d.committee.slice();
     memoSaveSet();
-    ryState.msg = 'ส่งออกแล้ว: ' + name + ' · เลขถัดไป ' + k.r + '. ' + memoNextNo(k.r, Number(String(d.rNo).split('/')[1]) || memoFY(d.inspect));
+    ryState.msg = 'ส่งออกแล้ว: ' + name + ' · เลขถัดไป ' + k.r + '. ' + memoNextNo(k.r, Number(String(d.rNo).split('/')[1]) || memoBE(d.inspect));
     renderRy();
   }
   (function wireRy(){
@@ -3912,7 +3912,7 @@
       var t = e.target, d = ryState.d; if(!d) return;
       if(t.getAttribute('data-rf') === 'kind'){
         var was = ryKind(d); d.kind = t.value;
-        if(ryKind(d) !== was && !d.done) d.rNo = memoNextNo(ryKind(d).r, memoFY(d.inspect));
+        if(ryKind(d) !== was && !d.done) d.rNo = memoNextNo(ryKind(d).r, memoBE(d.inspect));
         keep(); renderRy();
       } else if(t.hasAttribute('data-rt')){
         if(t.checked) delete d.skip[t.getAttribute('data-rt')]; else d.skip[t.getAttribute('data-rt')] = 1;
