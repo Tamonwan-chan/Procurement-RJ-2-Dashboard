@@ -1828,6 +1828,12 @@
     return QUOTE_SERIES.filter(function(s){ return g.sheets.some(function(sh){ return sh.series === s; }); }).reduce(function(p, s){
       return p.then(function(){
         var first = g.sheets.filter(function(sh){ return sh.series === s; })[0].no, cur = SH.meta.counters[s] || '', c = cur ? shNoCmp(first, cur) : 1;
+        /* WB / WV: เลขยืมที่พิมพ์เอง ไม่มีชุดเลขรัน (ข้อ 2.13) → ไม่จอง ไม่แตะเลขถัดไปของ W / WM กันแค่เลขซ้ำกับใบที่มีอยู่แล้ว (#46) */
+        if((noParts(first) || {}).pre === SERIES_OLD[s]){
+          var taken = g.sheets.filter(function(sh){ return sh.series === s && qFind(sh.no); })[0];
+          if(taken){ var e0 = new Error('เลข ' + taken.no + ' ใช้ไปแล้วในข้อมูลกลาง · พิมพ์เลข ' + SERIES_OLD[s] + ' ใหม่ แล้วกดส่งออกอีกครั้ง'); e0.input = 'quote-no-' + s; throw e0; }
+          return;
+        }
         function renum(v, why){
           quoteState.nos[s] = v; document.getElementById('quote-no-' + s).value = v;
           var e = new Error(why + ' · เปลี่ยนเลขใบแรกเป็น ' + v + ' ให้แล้ว กดส่งออกอีกครั้ง'); e.input = 'quote-no-' + s; throw e;
@@ -2834,6 +2840,7 @@
       /* เลขถัดไปไม่ย้อนกลับ แม้ส่งออกใบเลขเก่าซ้ำ */
       if(!wasEditing) QUOTE_SERIES.forEach(function(s){
         if(!g.sheets.some(function(sh){ return sh.series === s; })) return;
+        if(shOn() && (noParts(g.next[s]) || {}).pre === SERIES_OLD[s]) return;   /* WB / WV ที่พิมพ์เอง: เลขถัดไปตามข้อมูลกลาง (#46) */
         var nx = laterNo(savedNo(s), g.next[s]);
         quoteHist.next = quoteHist.next || {}; quoteHist.next[s] = nx;
         try{ localStorage.setItem(noKey(s), nx); }catch(e){}
