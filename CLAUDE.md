@@ -3,7 +3,7 @@
 Context for any Claude Code session that opens this repo (the owner works from more than one PC; local memory does not travel with the repo, this file does).
 
 ## People
-- **Owner:** ภญ.ธมลวรรณ จันทร์แก้ว (GitHub `Tamonwan-chan`), pharmacist. Nickname **แป้ง**: when พี่โอม writes "น้องแป้ง" he means her, and in LINE drafts she calls herself แป้ง. Address her directly, not as "คุณธมลวรรณ" in the third person. She relays requests from and questions to **พี่โอม** (ภก.สุทธิพงษ์ เดชก้อง), the procurement pharmacist who uses the program.
+- **Owner:** ภญ.ธมลวรรณ จันทร์แก้ว (GitHub `Tamonwan-chan`), pharmacist. Nickname **แป้ง**: when พี่โอม writes "น้องแป้ง" he means her, and in LINE drafts she calls herself **หนู**, never แป้ง or her name (she asked 18 Nov 2026). Address her directly, not as "คุณธมลวรรณ" in the third person. She relays requests from and questions to **พี่โอม** (ภก.สุทธิพงษ์ เดชก้อง), the procurement pharmacist who uses the program.
 - Any Thai text written for her or for พี่โอม uses the feminine particles **ค่ะ / คะ**, never ครับ.
 - Don't guess requirements: if something is ambiguous, ask (in Thai, for her to forward). Record every question and answer in `ประเด็นที่รอยืนยันจากพี่โอม.md`.
 - When she reports what her screen shows, take it as fact and work out why (a redirect, a different UI label), then explain it plainly; don't send her back to look again. Verify from your side (clasp, API, curl) when you can. Before any browser / Google step, say what she will actually see. (15 Nov: an Apps Script `/exec` address turns into `script.googleusercontent.com/...echo` the moment Enter is pressed; insisting she find `/exec` felt like gaslighting.)

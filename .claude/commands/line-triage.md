@@ -34,7 +34,7 @@ Show her a table first: his point (short, in Thai) | category | issue / Q&A item
 
 ## 4. Draft the LINE reply
 Write a short reply she can copy into LINE. Put it in a code block so it copies cleanly.
-- Thai, from her to him: call him พี่ and use ค่ะ / คะ only, never ครับ.
+- Thai, from her to him: call him พี่, she calls herself หนู (never แป้ง or her name), and use ค่ะ / คะ only, never ครับ.
 - Plain text for LINE: no markdown (no `**`, `#` or tables), at most one emoji per section, short lines.
 - Order:
   1. Thank him for testing. Bugs: what was fixed today, or that it is being fixed now, so his daily work isn't blocked.
