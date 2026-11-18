@@ -306,6 +306,7 @@
   .field-select{ width:auto; max-width:100%; cursor:pointer; }
   /* ช่องเลือกที่พิมพ์ค้นหาได้ (หน้าทำใบเสนอราคา) */
   .combo{ position:relative; display:inline-block; width:min(340px,100%); }
+  .combo.combo-wide{ width:min(520px,100%); }
   .combo select{ display:none; }
   .combo::after{ content:''; position:absolute; right:12px; top:50%; margin-top:-2px; border:5px solid transparent; border-top-color:var(--ink-muted); border-bottom:0; pointer-events:none; }
   .combo .combo-in{ width:100%; box-sizing:border-box; padding-right:28px; text-overflow:ellipsis; }
@@ -4145,6 +4146,7 @@
     fillSelect('quote-hist', docs.length ? docs.map(function(d){
       return [qKey(d), d.no + (d.dup ? ' · ' + d.dup : '') + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '') + (d.src === 'file' ? ' · จากไฟล์' : '')];
     }) : [['', 'ยังไม่มีใบที่ส่งออก']], quoteState.editing ? quoteState.editing.key || quoteState.editing.no : '');
+    quoteHistIdx = null; quoteCombos.forEach(function(c){ c.sync(); });
     document.getElementById('quote-reopen').disabled = !docs.length;
     document.getElementById('quote-delete').disabled = !docs.length;
     document.getElementById('quote-cancel-edit').hidden = !quoteState.editing;
@@ -4270,7 +4272,21 @@
   }
   /* คำค้นเพิ่มของบริษัท: ชื่อใน HIS เป็นภาษาไทย พิมพ์ zuellig / dksh ก็เจอ */
   function companyHint(name){ return { zuellig:'zuellig ซิลลิค', dksh:'dksh ดีเคเอสเอช ดีทแฮล์ม' }[memoLayoutOf(name)] || ''; }
-  var quoteCombos = [searchableSelect('quote-company', companyHint), searchableSelect('quote-mfr')];
+  /* ใบที่ส่งออกแล้ว (พี่โอม 18 พ.ย. 69 · ข้อมูลกลางมีร้อยกว่าใบ เลื่อนหายาก): พิมพ์เลขที่ / บริษัท / hospcode / ชื่อยา / เลข ภย. ขย. / วันที่ 2026-10-29 */
+  var quoteHistIdx = null;
+  function quoteHistHint(key){
+    if(!quoteHistIdx){
+      quoteHistIdx = {};
+      (quoteHist && quoteHist.docs || []).forEach(function(d){
+        var m = d.memo || {}, iss = m.issued || {};
+        quoteHistIdx[qKey(d)] = [d.no, d.date, m.pNo, m.kNo].concat(['p', 'k', 'y'].map(function(w){ return iss[w] && iss[w].no; }),
+          (d.lines || []).map(function(l){ return (l.id || '') + ' ' + (l.name || ''); })).filter(Boolean).join(' ');
+      });
+    }
+    return quoteHistIdx[key] || '';
+  }
+  var quoteCombos = [searchableSelect('quote-company', companyHint), searchableSelect('quote-mfr'), searchableSelect('quote-hist', quoteHistHint)];
+  document.getElementById('quote-hist').parentNode.classList.add('combo-wide');
   /* ล้างทั้งหน้าให้เริ่มใบใหม่ได้ทันที (พี่โอม 5 พ.ย. 69): รายการที่เลือก จำนวน / ราคาที่แก้ ตัวกรอง และคำค้น · เลขที่ใบและวันที่คงไว้ */
   function quoteReset(){
     clearTimeout(quoteTimer);
