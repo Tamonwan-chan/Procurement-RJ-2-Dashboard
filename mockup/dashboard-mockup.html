@@ -271,7 +271,7 @@
   .pb-mark{ position:absolute; top:-4px; bottom:-4px; width:2px; margin-left:-1px; background:var(--ink); }
   .pb-note{ font-size:11.5px; color:var(--ink-faint); }
   @media (max-width:700px){ .pb-row{ grid-template-columns:1fr; } }
-  .pvp-card.over .v{ color:var(--critical); } .pvp-card.within .v{ color:var(--good); } .pvp-card.noplan .v{ color:var(--warning); }
+  .pvp-card.over .v{ color:var(--critical); } .pvp-card.within .v{ color:var(--good); } .pvp-card.noplan .v{ color:var(--critical); }
   /* ป้ายลำดับสีสด (พี่โอมขอเพิ่มความสดใส ตามตารางเดิม: แดง / เขียว) */
   .rank-badge{ display:inline-block; min-width:26px; padding:2px 7px; border-radius:6px; font-weight:700; text-align:center; }
   .rank-badge.hot{ background:#D32A22; color:#FFFFFF; }
@@ -3171,7 +3171,7 @@
     return best ? best.price : '';
   }
   /* ชื่อรายการในตาราง ภย. / ขย. / ย.: GENERIC ความแรง (ชื่อการค้า) ตัวพิมพ์ใหญ่ ตามแบบ ภย.0616 — พี่โอม (ข้อ 2.32 ข้อ 6 · ข้อ 26)
-     ชื่อสามัญ + ความแรงจาก DrugCatNow: ยาผสมจับคู่ตัวยากับความแรงตามลำดับ " + " แล้วคั่นด้วย ", " (ERGOTAMINE TARTRATE 1 MG, CAFFEINE 100 MG (TOFAGO))
+     ชื่อสามัญ + ความแรงจาก DrugCatNow: ยาผสมจับคู่ตัวยากับความแรงตามลำดับ " + " แล้วคั่นด้วย " + " (ERGOTAMINE TARTRATE 1 MG + CAFFEINE 100 MG (TOFAGO) · พี่โอมตอบข้อ 26 18 พ.ย. 69 · ไม่ตัดชื่อวัคซีน)
      จำนวนไม่เท่ากัน = ชื่อสามัญทั้งหมดตามด้วยความแรงทั้งก้อน · ไม่มี generic (เวชภัณฑ์มิใช่ยา) = '' → ใช้ชื่อเดิม · พี่โอมแก้ในช่องได้ก่อนส่งออก */
   var MEMO_NOTE_RX = /[฀-๿]|^(HF|RPP|GPO|\d.*)$/i;
   function memoTradeOf(dc, m, gen){
@@ -3197,7 +3197,7 @@
       var at = gs.map(function(g, i){ var k = tn.indexOf(g.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5)); return { p:parts[i], k:k < 0 ? 1e6 + i : k }; });
       parts = at.sort(function(a, b){ return a.k - b.k; }).map(function(a){ return a.p; });
     }
-    var body = (parts ? parts.join(', ') : gs.join(', ') + (str ? ' ' + str : '')).toUpperCase();
+    var body = (parts ? parts.join(' + ') : gs.join(' + ') + (str ? ' ' + str : '')).toUpperCase();
     var br = memoTradeOf(dc, m, gen);
     if(!str && body === String(dc.tradename || m.name || '').replace(/^[_\s]+/, '').trim().toUpperCase()) return '';   /* เวชภัณฑ์ที่ generic = ชื่อเดิม */
     function words(s){ return ' ' + s.replace(/[^A-Z0-9]+/g, ' ').trim() + ' '; }
@@ -4785,7 +4785,7 @@
     ['all', 'ทั้งหมด', ''],
     ['over', 'เกินแผน', 'var(--critical)'],
     ['within', 'ไม่เกินแผน', 'var(--good)'],
-    ['noplan', 'ซื้อแต่ไม่มีในแผน', 'var(--warning)'],
+    ['noplan', 'ซื้อแต่ไม่มีในแผน', 'var(--critical)'],
     ['unbought', 'มีแผนแต่ยังไม่ซื้อ', 'var(--ink-faint)']
   ];
   function renderPlanVsPo(cur, plan){
@@ -4834,13 +4834,13 @@
       stBox.appendChild(chip(o[1], planTopState.status === o[0], function(){ planTopState.status = o[0]; renderPlanTop(); }, { sm:true, count:S[o[0]].n, color:o[2] || null, empty:!S[o[0]].n }));
     });
     if(!poN) legend.innerHTML = '<span class="pt-up">ยังไม่มีข้อมูล PO_inven ของปีงบ ' + cur + ' — นำเข้าไฟล์รับจากการสั่งซื้อของปีงบนี้ก่อน</span>';
-    else legend.innerHTML = '<span><i style="background:var(--cat-1);opacity:.38"></i>แผน (planfin)</span><span><i style="background:var(--critical)"></i>ซื้อจริง เกินแผน</span><span><i style="background:var(--good)"></i>ซื้อจริง ไม่เกินแผน</span><span><i style="background:var(--warning)"></i>ซื้อแต่ไม่มีในแผน</span>';
+    else legend.innerHTML = '<span><i style="background:var(--cat-1);opacity:.38"></i>แผน (planfin)</span><span><i style="background:var(--critical)"></i>ซื้อจริง เกินแผน</span><span><i style="background:var(--good)"></i>ซื้อจริง ไม่เกินแผน</span><span><i style="background:var(--critical)"></i>ซื้อแต่ไม่มีในแผน</span>';
     var q = planTopState.search.trim().toLowerCase();
     var list = rows.filter(function(r){ return (planTopState.status === 'all' || r.st === planTopState.status) && (!q || [r.id, r.generic, r.name].join(' ').toLowerCase().indexOf(q) >= 0); });
     list.sort(function(a, b){ return shiftedLast(a.id, b.id, a.name, b.name) || (planTopState.status === 'over' ? b.diff - a.diff : Math.max(b.pm, b.bm) - Math.max(a.pm, a.bm)); });
     list.forEach(function(r, i){ r.rank = i + 1; });
     var shown = !q && planTopState.top ? list.slice(0, planTopState.top) : list;
-    var COLOR = { over:'var(--critical)', within:'var(--good)', noplan:'var(--warning)', unbought:'var(--ink-faint)' };
+    var COLOR = { over:'var(--critical)', within:'var(--good)', noplan:'var(--critical)', unbought:'var(--ink-faint)' };   /* ไม่มีในแผน = แดงเหมือนเกินแผน — พี่โอม (18 พ.ย. 69 · ข้อ 17 · #32) */
     var LABEL = { over:'เกินแผน', within:'ไม่เกินแผน', noplan:'ไม่มีในแผน', unbought:'ยังไม่ซื้อ' };
     var inChart = shown.slice(0, PLAN_CHART_MAX);
     var max = Math.max.apply(null, inChart.map(function(r){ return Math.max(r.pm, r.bm); }).concat([1]));
