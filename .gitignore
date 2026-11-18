@@ -29,3 +29,7 @@ tests/out/
 *.zip
 *.rar
 audit-numbers.csv
+
+# รายงานการรวมไฟล์สำรอง (tests/merge-backups.js) มีข้อมูลจริง
+สำรองข้อมูล*.csv
+เลขล่าสุด*.json
