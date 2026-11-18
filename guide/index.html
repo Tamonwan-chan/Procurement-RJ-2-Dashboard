@@ -149,6 +149,14 @@ td code { white-space: nowrap; }
 .fig text.ac { fill: var(--accent); font-weight: 600; }
 .fig text.mono { font-family: var(--font-mono); font-size: 13px; }
 .figcap { font-size: 0.88rem; color: var(--muted); }
+/* Infographic (บทระบบนี้เรียกว่าอะไร): แถบหัวคอลัมน์ วงกลมเลขขั้น กล่องเทียบงานเบิกยา */
+.fig .chip { fill: var(--accent); }
+.fig .dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2.5; }
+.fig text.dn { fill: var(--on-accent); font-family: var(--font-display); font-weight: 700; font-size: 13px; }
+.fig .an { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.fig text.wn { fill: var(--warn); font-weight: 600; }
+.fig text.tech { font-family: var(--font-mono); font-size: 12.5px; fill: var(--accent); }
+ol.steps.flow > li > div strong:first-child { color: var(--accent); }
 
 /* URL breakdown */
 .url { display: flex; flex-wrap: wrap; gap: 2px 0; font-family: var(--font-mono); font-size: 0.95rem; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; row-gap: 14px; }
@@ -188,11 +196,12 @@ html { scroll-behavior: smooth; }
   <p class="credit">สร้างให้พี่โอม โดย <strong>แป้งล่ำน้องรัก</strong> กับเพื่อนซี้ Claude Code</p>
   <div class="kicker">คู่มือสำหรับพี่โอม</div>
   <h1>เขียน HTML ฉบับพี่โอม</h1>
-  <p class="lead">โปรแกรม Dashboard จัดซื้อที่พี่ใช้อยู่ คือไฟล์ HTML ไฟล์เดียว คู่มือนี้อธิบายตั้งแต่ศูนย์ว่าไฟล์แบบนี้ทำงานยังไง เขียน PRD (สเปกของโปรแกรม) แล้วให้ AI ใน Antigravity สร้างโปรแกรมของตัวเองยังไง ใช้โควตาแผนฟรีให้คุ้ม ตอบคำถามว่าทำไมลิงก์โปรแกรมถึงมีชื่อน้องแป้งอยู่ข้างใน และวิธีเชื่อมต่อข้อมูลกลางให้ทุกเครื่องใช้เลขที่ชุดเดียวกัน</p>
+  <p class="lead">โปรแกรม Dashboard จัดซื้อที่พี่ใช้อยู่ คือไฟล์ HTML ไฟล์เดียว คู่มือนี้อธิบายตั้งแต่ศูนย์ว่าไฟล์แบบนี้ทำงานยังไง เขียน PRD (สเปกของโปรแกรม) แล้วให้ AI ใน Antigravity สร้างโปรแกรมของตัวเองยังไง ใช้โควตาแผนฟรีให้คุ้ม ตอบคำถามว่าทำไมลิงก์โปรแกรมถึงมีชื่อน้องแป้งอยู่ข้างใน วิธีเชื่อมต่อข้อมูลกลางให้ทุกเครื่องใช้เลขที่ชุดเดียวกัน และระบบข้อมูลกลางแบบนี้ภาษาคอมพิวเตอร์เรียกว่าอะไร</p>
   <ol class="toc">
     <li><a href="#html">HTML คืออะไร</a></li>
     <li><a href="#local">ทำไมไม่ต้องมีเซิร์ฟเวอร์</a></li>
     <li><a href="#shared">ข้อมูลกลาง: ทุกเครื่องเห็นชุดเดียวกัน</a></li>
+    <li><a href="#api">ระบบแบบนี้เรียกว่าอะไร (API)</a></li>
     <li><a href="#prd">เขียน PRD ก่อนสั่ง AI</a></li>
     <li><a href="#first">สร้างโปรแกรมด้วย Antigravity</a></li>
     <li><a href="#read">อ่านโค้ดให้พอรู้เรื่อง</a></li>
@@ -399,7 +408,172 @@ html { scroll-behavior: smooth; }
   </div>
 </section>
 
-<!-- 3 -->
+<!-- 4 -->
+<section class="chap" id="api">
+  <div class="num"></div>
+  <h2>ระบบแบบนี้เรียกว่าอะไร</h2>
+  <div class="stack">
+    <p>ข้อมูลกลางมี 3 ชิ้นทำงานต่อกัน หน้าโปรแกรมอยู่บน GitHub ข้อมูลอยู่ใน Google Sheet และตรงกลางมีโปรแกรมเล็ก ๆ ของ Google (Apps Script) เป็นทางเข้า หน้าโปรแกรมไม่ได้เปิด Sheet เอง แต่ส่งคำขอไปที่ทางเข้านี้พร้อมรหัสเข้าถึง แล้วรอคำตอบกลับมา</p>
+    <p>ทางเข้าแบบนี้ภาษาคอมพิวเตอร์เรียกว่า <strong>API</strong> ทั้งระบบเรียกรวม ๆ ว่า <strong>หน้าบ้านแบบ static ที่คุยกับ API แบบ serverless และใช้ Google Sheet เป็นฐานข้อมูล</strong></p>
+    <p>เทียบกับงานที่พี่ทำทุกวันคือ <strong>การเบิกยาจากคลัง</strong> ห้องจ่ายยาไม่ได้เดินเข้าไปหยิบของในคลังเอง แต่ยื่นใบเบิกที่ช่องเบิก เจ้าหน้าที่คลังตรวจลายเซ็น หยิบของ ลงบัญชี แล้วส่งของกลับมา</p>
+  </div>
+
+  <div class="fig" role="img" aria-label="แผนภาพ 3 ชิ้น: หน้าโปรแกรมบน GitHub Pages ส่งคำขอพร้อมรหัสเข้าถึงไปที่ Apps Script web app ซึ่งตรวจรหัส ล็อก จองเลข เขียนลง Google Sheet ของบัญชีคลัง แล้วตอบกลับเป็น JSON ด้านล่างเทียบกับห้องจ่ายยา ช่องเบิก และชั้นวางในคลัง">
+    <svg viewBox="0 0 740 418" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="m4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-a" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="m4g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+
+      <!-- หัวคอลัมน์ -->
+      <rect class="chip" x="20" y="6" width="180" height="28" rx="14"/>
+      <text class="dn" x="110" y="25" text-anchor="middle">FRONT END · หน้าบ้าน</text>
+      <rect class="chip" x="280" y="6" width="180" height="28" rx="14"/>
+      <text class="dn" x="370" y="25" text-anchor="middle">API · ทางเข้า</text>
+      <rect class="chip" x="540" y="6" width="180" height="28" rx="14"/>
+      <text class="dn" x="630" y="25" text-anchor="middle">DATABASE · หลังบ้าน</text>
+
+      <!-- คอลัมน์ 1: หน้าโปรแกรม -->
+      <rect class="bx" x="10" y="46" width="200" height="200" rx="10"/>
+      <text class="ac" x="110" y="74" text-anchor="middle">หน้าโปรแกรม</text>
+      <text class="mono" x="110" y="96" text-anchor="middle">GitHub Pages</text>
+      <text class="sm" x="110" y="120" text-anchor="middle">เปิดในเบราว์เซอร์ทุกเครื่อง</text>
+      <text class="sm" x="110" y="140" text-anchor="middle">คำนวณ · ทำไฟล์ Excel / Word</text>
+      <rect class="bx-a" x="24" y="160" width="172" height="72" rx="8"/>
+      <text class="mono" x="110" y="184" text-anchor="middle">IndexedDB</text>
+      <text class="sm" x="110" y="204" text-anchor="middle">สำเนาในเครื่อง</text>
+      <text class="sm" x="110" y="222" text-anchor="middle">เน็ตหลุดยังเปิดดูได้</text>
+
+      <!-- คอลัมน์ 2: web app -->
+      <rect class="bx-a" x="270" y="46" width="200" height="200" rx="10"/>
+      <text class="ac" x="370" y="74" text-anchor="middle">Apps Script web app</text>
+      <text class="mono" x="370" y="96" text-anchor="middle">…/exec</text>
+      <text class="sm" x="370" y="118" text-anchor="middle">ทำงานในนามบัญชีคลัง</text>
+      <rect class="bx" x="284" y="134" width="172" height="42" rx="8"/>
+      <text x="380" y="160" text-anchor="middle">ตรวจรหัสเข้าถึง</text>
+      <rect class="bx" x="284" y="190" width="172" height="42" rx="8"/>
+      <text x="380" y="216" text-anchor="middle">ล็อก แล้วจองเลข</text>
+
+      <!-- คอลัมน์ 3: Sheet -->
+      <rect class="bx" x="530" y="46" width="200" height="200" rx="10"/>
+      <text class="ac" x="630" y="74" text-anchor="middle">Google Sheet</text>
+      <text class="sm" x="630" y="96" text-anchor="middle">ของบัญชีคลัง · 6 แท็บ</text>
+      <text class="sm" x="630" y="126" text-anchor="middle">ใบเสนอราคา · ตรวจรับ</text>
+      <text class="sm" x="630" y="148" text-anchor="middle">รายชื่อ · ตั้งค่า</text>
+      <text class="sm" x="630" y="170" text-anchor="middle">เลขที่ถัดไปของทุกเล่ม</text>
+      <text class="sm" x="630" y="192" text-anchor="middle">บันทึกการแก้</text>
+      <text class="sm" x="630" y="222" text-anchor="middle">(ใครแก้อะไร เมื่อไร)</text>
+
+      <!-- ลูกศรและเลขขั้น -->
+      <line class="ln-a" x1="212" y1="104" x2="266" y2="104" marker-end="url(#m4)"/>
+      <line class="ln-a" x1="472" y1="146" x2="526" y2="146" marker-end="url(#m4)"/>
+      <line class="ln-a" x1="266" y1="226" x2="212" y2="226" marker-end="url(#m4)"/>
+      <circle class="dot" cx="239" cy="104" r="12"/><text class="dn" x="239" y="109" text-anchor="middle">1</text>
+      <circle class="dot" cx="284" cy="155" r="12"/><text class="dn" x="284" y="160" text-anchor="middle">2</text>
+      <circle class="dot" cx="284" cy="211" r="12"/><text class="dn" x="284" y="216" text-anchor="middle">3</text>
+      <circle class="dot" cx="499" cy="146" r="12"/><text class="dn" x="499" y="151" text-anchor="middle">4</text>
+      <circle class="dot" cx="239" cy="226" r="12"/><text class="dn" x="239" y="231" text-anchor="middle">5</text>
+      <circle class="dot" cx="24" cy="196" r="12"/><text class="dn" x="24" y="201" text-anchor="middle">6</text>
+
+      <!-- ชื่อเรียก -->
+      <text class="tech" x="110" y="268" text-anchor="middle">static hosting</text>
+      <text class="tech" x="370" y="268" text-anchor="middle">serverless API + API key</text>
+      <text class="tech" x="630" y="268" text-anchor="middle">Sheet เป็นฐานข้อมูล</text>
+
+      <!-- เทียบกับงานเบิกยา -->
+      <text class="hd" x="10" y="304">เทียบกับงานเบิกยา</text>
+      <rect class="an" x="10" y="316" width="200" height="66" rx="8"/>
+      <text class="wn" x="110" y="343" text-anchor="middle">ห้องจ่ายยา</text>
+      <text class="sm" x="110" y="365" text-anchor="middle">เขียนใบเบิก</text>
+      <rect class="an" x="270" y="316" width="200" height="66" rx="8"/>
+      <text class="wn" x="370" y="343" text-anchor="middle">ช่องเบิกของคลัง</text>
+      <text class="sm" x="370" y="365" text-anchor="middle">ตรวจลายเซ็นผู้มีสิทธิ์เบิก</text>
+      <rect class="an" x="530" y="316" width="200" height="66" rx="8"/>
+      <text class="wn" x="630" y="343" text-anchor="middle">ชั้นวางในคลัง</text>
+      <text class="sm" x="630" y="365" text-anchor="middle">ของจริงอยู่ที่นี่ที่เดียว</text>
+      <line class="ln" x1="212" y1="349" x2="266" y2="349" marker-start="url(#m4g)" marker-end="url(#m4g)"/>
+      <line class="ln" x1="472" y1="349" x2="526" y2="349" marker-start="url(#m4g)" marker-end="url(#m4g)"/>
+      <text class="sm" x="370" y="406" text-anchor="middle">ห้องจ่ายยาไม่เดินเข้าคลังเอง หน้าโปรแกรมก็ไม่เปิด Sheet เอง ทุกอย่างผ่านช่องเบิก</text>
+    </svg>
+  </div>
+
+  <h3>ตอนพี่กดส่งออกใบ W เกิดอะไรขึ้น (ตามเลขในภาพ)</h3>
+  <ol class="steps flow">
+    <li><div><strong>ส่งคำขอ</strong> หน้าโปรแกรมส่งข้อความสั้น ๆ ผ่านอินเทอร์เน็ตไปที่ที่อยู่ <code>/exec</code> ว่า "ขอจองเลข W121-70" แนบรหัสเข้าถึงและชื่อเครื่องไปด้วย</div></li>
+    <li><div><strong>ตรวจรหัส</strong> web app เทียบรหัสกับที่เก็บไว้ ไม่ตรงก็ตอบกลับว่ารหัสผิด ไม่แตะ Sheet เลย</div></li>
+    <li><div><strong>ล็อกแล้วเช็กเลข</strong> ให้คำขอเดียวทำงานในเวลาเดียวกัน แล้วดูว่า W121-70 ยังเป็นเลขถัดไปจริงไหม ถ้าพี่เจี๊ยบกดส่งออกพร้อมกัน คำขอที่มาทีหลังต้องรอ แล้วจะพบว่าเลขนั้นถูกใช้ไปแล้ว จึงไม่มีทางได้เลขเดียวกัน</div></li>
+    <li><div><strong>เขียนลง Sheet</strong> ถ้าเลขว่าง เลื่อนเลขถัดไปของเล่ม W และจดในแท็บบันทึกการแก้ว่าเครื่องไหนจองเลขไหน เมื่อไร ถ้าเลขถูกใช้ไปแล้ว ไม่เขียนอะไร</div></li>
+    <li><div><strong>ตอบกลับ</strong> ส่งคำตอบกลับมาเป็นข้อความรูปแบบ <strong>JSON</strong> จองได้ตอบว่า <code>"status":"ok"</code> เลขถูกใช้ไปแล้วตอบว่า <code>"status":"conflict"</code> พร้อมชื่อเครื่องที่ใช้ไป (คือหน้าต่างเตือนในบทที่แล้ว)</div></li>
+    <li><div><strong>ทำไฟล์</strong> จองได้แล้วหน้าโปรแกรมจึงสร้างไฟล์ Excel บนเครื่องพี่ และเก็บสำเนาไว้ใน IndexedDB ของเครื่อง</div></li>
+  </ol>
+
+  <h3>ชื่อเรียกของแต่ละชิ้น</h3>
+  <div class="trio">
+    <div class="part">
+      <span class="tag">Front end · Static hosting</span>
+      <h3>หน้าบ้าน</h3>
+      <p>ส่วนที่คนเห็นและกด GitHub Pages แค่ฝากไฟล์ HTML ไว้ให้เปิด การทำงานทั้งหมดเกิดในเบราว์เซอร์ของแต่ละเครื่อง</p>
+      <p class="like">เหมือนห้องจ่ายยา</p>
+    </div>
+    <div class="part">
+      <span class="tag">API</span>
+      <h3>ทางเข้าสำหรับโปรแกรม</h3>
+      <p>ที่อยู่ที่โปรแกรมอื่นส่งคำขอเข้ามาได้ ตอบเป็นข้อมูล ไม่มีหน้าจอ ของเรารับคำขอ 4 แบบ: ทดสอบ (ping) ดึงทั้งหมด (pull) บันทึก (put) จองเลข (reserve)</p>
+      <p class="like">เหมือนช่องเบิก รับใบเบิกตามแบบฟอร์มเท่านั้น</p>
+    </div>
+    <div class="part">
+      <span class="tag">API key</span>
+      <h3>รหัสเข้าถึง</h3>
+      <p>รหัสที่ต้องแนบไปกับทุกคำขอ ใครมีที่อยู่กับรหัสก็เข้าข้อมูลกลางได้ จึงห้ามส่งในกลุ่ม</p>
+      <p class="like">เหมือนลายเซ็นผู้มีสิทธิ์เบิก</p>
+    </div>
+    <div class="part">
+      <span class="tag">Back end · Serverless</span>
+      <h3>หลังบ้านที่ไม่ต้องมีเครื่องเอง</h3>
+      <p>Apps Script รันบนเครื่องของ Google เปิดทำงานเมื่อมีคำขอเข้ามา เราไม่ต้องตั้งหรือดูแลเซิร์ฟเวอร์ ทำงานในนามบัญชีคลังเสมอ ไม่ว่าใครเป็นคนกด</p>
+      <p class="like">เหมือนใช้คลังของ รพ. ที่มีอยู่แล้ว ไม่ต้องสร้างคลังเอง</p>
+    </div>
+    <div class="part">
+      <span class="tag">Database</span>
+      <h3>ฐานข้อมูล</h3>
+      <p>ที่เก็บข้อมูลตัวจริง ของเราใช้ Google Sheet ซึ่งพอสำหรับข้อมูลหลักร้อยถึงหลักหมื่นแถว และเปิดดูด้วยตาได้</p>
+      <p class="like">เหมือนชั้นวางและบัญชีคุมคลัง</p>
+    </div>
+    <div class="part">
+      <span class="tag">JSON</span>
+      <h3>รูปแบบคำตอบ</h3>
+      <p>ข้อความที่จัดเป็นหัวข้อ : ค่า ให้โปรแกรมอ่านได้ทันที เช่น <code>"ok":true</code></p>
+      <p class="like">เหมือนใบตอบรับที่มีช่องให้กรอกตายตัว</p>
+    </div>
+    <div class="part">
+      <span class="tag">Lock</span>
+      <h3>ล็อก</h3>
+      <p>ทำได้ทีละคำขอ คำขอที่มาพร้อมกันต้องต่อคิว ป้องกันเลขที่ซ้ำ</p>
+      <p class="like">เหมือนสมุดทะเบียนเล่มเดียว คนอื่นต้องรอจนคนที่ถือเขียนเสร็จ</p>
+    </div>
+    <div class="part">
+      <span class="tag">Cache + sync</span>
+      <h3>สำเนาในเครื่อง</h3>
+      <p>แต่ละเครื่องเก็บสำเนาไว้ใน IndexedDB เปิดเร็วและเน็ตหลุดก็ยังดูได้ แล้วซิงก์ (sync) กับ Sheet เมื่อออนไลน์</p>
+      <p class="like">เหมือนสต็อกย่อยในห้องจ่าย ที่เติมจากคลังเป็นรอบ ๆ</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <div class="label">ทำไมเรียกว่า web app ทั้งที่ไม่มีหน้าจอ</div>
+    <p>ใน Google คำว่า "web app" หมายถึง "ให้ script นี้มีที่อยู่บนเว็บที่รับคำขอได้" ตอนน้องแป้งกด Deploy → Web app จึงได้ที่อยู่ <code>/exec</code> มา web app ของเราไม่มีหน้าจอ ตอบเป็นข้อมูลอย่างเดียว จึงทำหน้าที่เป็น API หน้าจอที่พี่ใช้อยู่บน GitHub Pages ถ้าเปิดที่อยู่ <code>/exec</code> ในเบราว์เซอร์ตรง ๆ จะเห็นแค่ข้อความ JSON สั้น ๆ</p>
+  </div>
+
+  <p>สรุปเป็นประโยคเดียว ใช้บอก AI หรือคนที่ทำโปรแกรมเป็น ว่าระบบของเราเป็นแบบไหน</p>
+  <div class="code">
+    <div class="code-head"><span>สรุประบบในประโยคเดียว</span><button class="copy" type="button" data-copy="api-summary">คัดลอก</button></div>
+<pre id="api-summary">A static web app on GitHub Pages that calls a Google Apps Script web app as its API
+(secured with an API key), stores shared data in a Google Sheet,
+and keeps an offline copy in each browser's IndexedDB.</pre>
+  </div>
+</section>
+
+<!-- 5 -->
 <section class="chap" id="prd">
   <div class="num"></div>
   <h2>เขียน PRD ก่อนสั่ง AI</h2>
@@ -770,7 +944,12 @@ html { scroll-behavior: smooth; }
     <dt>ฐานข้อมูล</dt><dd>ที่เก็บข้อมูลจำนวนมากแบบเป็นระบบ มักอยู่บนเซิร์ฟเวอร์</dd>
     <dt>ข้อมูลกลาง</dt><dd>Google Sheet ของบัญชีคลังที่ทุกเครื่องใช้ร่วมกัน เก็บใบเสนอราคา บันทึก และเลขที่ถัดไป</dd>
     <dt>web app</dt><dd>โปรแกรมเล็ก ๆ (Apps Script) ที่ผูกกับ Sheet เป็นทางเข้าเดียวที่หน้าโปรแกรมใช้อ่านและเขียน Sheet ที่อยู่ลงท้ายด้วย /exec</dd>
-    <dt>รหัสเข้าถึง</dt><dd>รหัสที่ทุกเครื่องต้องใส่ตอนเชื่อมต่อ ไม่มีรหัสก็เข้าข้อมูลกลางไม่ได้</dd>
+    <dt>รหัสเข้าถึง</dt><dd>รหัสที่ทุกเครื่องต้องใส่ตอนเชื่อมต่อ ไม่มีรหัสก็เข้าข้อมูลกลางไม่ได้ ภาษาคอมพิวเตอร์เรียกว่า API key</dd>
+    <dt>API</dt><dd>ทางเข้าที่โปรแกรมหนึ่งส่งคำขอไปให้อีกโปรแกรมหนึ่งทำงานแล้วตอบกลับ ไม่มีหน้าจอ เหมือนช่องเบิกของคลัง</dd>
+    <dt>Front end / Back end</dt><dd>หน้าบ้าน (ส่วนที่คนเห็นและกด) / หลังบ้าน (ส่วนที่เก็บและจัดการข้อมูล)</dd>
+    <dt>Serverless</dt><dd>หลังบ้านที่รันบนเครื่องของผู้ให้บริการ เช่น Google เราไม่ต้องมีหรือดูแลเซิร์ฟเวอร์เอง</dd>
+    <dt>JSON</dt><dd>รูปแบบข้อความแบบหัวข้อ : ค่า ที่ API ใช้ตอบกลับ</dd>
+    <dt>Sync</dt><dd>ทำให้สำเนาในเครื่องกับข้อมูลกลางตรงกัน</dd>
     <dt>PRD</dt><dd>เอกสารบอกว่าโปรแกรมต้องทำอะไร เหมือน TOR หรือสเปกตอนจัดซื้อ เขียนก่อนให้ AI สร้าง</dd>
     <dt>ไฟล์ .md</dt><dd>ไฟล์ข้อความธรรมดาที่ใช้ # ทำหัวข้อ และ - ทำข้อย่อย</dd>
     <dt>GitHub</dt><dd>เว็บเก็บโค้ดที่จำทุกเวอร์ชัน</dd>
