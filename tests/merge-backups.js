@@ -1,8 +1,9 @@
 /* รวมไฟล์สำรองข้อมูลทุกเครื่องเป็นไฟล์เดียว สำหรับย้ายเข้าข้อมูลกลาง (#44) · local only: ผลมีข้อมูลจริง ห้าม commit
    ใช้: node merge-backups.js <ไฟล์ .json หรือโฟลเดอร์> [...] [--last เลขล่าสุด.json]
    ชื่อไฟล์สำรองลงท้ายด้วยชื่อเครื่อง เช่น "สำรองข้อมูลโปรแกรมจัดซื้อ 2026-11-17-เครื่องพี่โอมที่ทำงาน.json"
-   --last: เลขล่าสุดที่ออกจริงของแต่ละเล่ม (คำตอบข้อ 33) เช่น {"ภย":"0664/2569","ขย":"0022/2570","ภว":"0003/2569","ขว":"0003/2570","รย":"0001/2570","รยว":"0000/2570"}
-           ไม่ใส่ = ไม่ตั้งเลขถัดไปของเล่มบันทึก (คนแรกที่ออกแต่ละเล่มต้องเทียบเลขกับเล่มจริง)
+   --last: ไฟล์ "เลขล่าสุด….json" เลขล่าสุดที่ออกจริงของแต่ละเล่ม (คำตอบข้อ 33) เช่น {"W":"W100-70","WM":"WM010-70","ภย":"0600/2569","ขย":"0010/2570"}
+           เล่มบันทึกที่ไม่ใส่ = ไม่ตั้งเลขถัดไป (คนแรกที่ออกเล่มนั้นต้องยืนยันกับเล่มจริง) · ใบเสนอราคาที่ไม่ใส่ = สูงสุดในไฟล์สำรอง
+           เลขในบันทึกเก่าที่สูงกว่าเลขล่าสุดของเล่ม = ไม่ได้ออกจริง ล้างทิ้ง
    ผล (โฟลเดอร์เดียวกับไฟล์สำรองแรก ไม่ใช่ใน repo):
      สำรองข้อมูลรวม <วันที่>.json         กู้คืนเข้าหน้าโปรแกรม (ยังไม่เชื่อมต่อ) แล้วเชื่อมต่อ Sheet ที่ว่าง → OK = ส่งขึ้นเป็นข้อมูลตั้งต้น
      สำรองข้อมูลรวม <วันที่> รายงาน.csv  ทุกการตัดสินใจของการรวม
@@ -20,7 +21,7 @@ var args = process.argv.slice(2), files = [], lastFile = '';
 for(var i = 0; i < args.length; i++){
   if(args[i] === '--last'){ lastFile = args[++i]; continue; }
   var p = args[i];
-  if(fs.statSync(p).isDirectory()) fs.readdirSync(p).filter(function(f){ return /\.json$/i.test(f) && !/^สำรองข้อมูลรวม/.test(f); }).forEach(function(f){ files.push(path.join(p, f)); });
+  if(fs.statSync(p).isDirectory()) fs.readdirSync(p).filter(function(f){ return /\.json$/i.test(f) && !/^(สำรองข้อมูลรวม|เลขล่าสุด)/.test(f); }).forEach(function(f){ files.push(path.join(p, f)); });
   else files.push(p);
 }
 if(!files.length){ console.log('ใช้: node merge-backups.js <ไฟล์สำรอง .json หรือโฟลเดอร์> [--last เลขล่าสุด.json]'); process.exit(1); }
@@ -116,16 +117,28 @@ Object.keys(groups).sort(cmpNo).forEach(function(no){
 });
 docs.sort(function(a, b){ return String(b.at || '') < String(a.at || '') ? -1 : String(b.at || '') > String(a.at || '') ? 1 : 0; });
 
-/* เลขถัดไปของใบเสนอราคา */
+var last = lastFile ? JSON.parse(fs.readFileSync(lastFile, 'utf8')) : null;
+Object.keys(last || {}).forEach(function(s){ if(s !== 'แก้เลข' && !parseNo(last[s])){ console.log('เลขใน --last ไม่ถูกรูปแบบ: ' + s + ' ' + last[s]); process.exit(1); } });
+
+/* เลขถัดไปของใบเสนอราคา: สูงสุดของ (เลขที่ใช้ + 1, ที่ทุกเครื่องจำไว้, เลขล่าสุดที่ออกจริง + 1) · ใบในโปรแกรมที่สูงกว่าเลขจริง แจ้งให้ถาม */
 var qNext = {};
 QUOTE_SERIES.forEach(function(s){
-  var cand = [];
-  docs.forEach(function(d){ var p = parseNo(d.no); if(p && p.pre === s) cand.push(bump(d.no)); });
+  var cand = [], above = [];
+  docs.forEach(function(d){
+    var p = parseNo(d.no); if(!p || p.pre !== s) return;
+    cand.push(bump(d.no));
+    if(last && last[s] && cmpNo(d.no, last[s]) > 0) above.push(d.no + ' (' + (d.date || '') + ', ' + d.from + ')');
+  });
   devs.forEach(function(d){
     var a = d.q.next && d.q.next[s], b = d.ls['rj2-quote-next-' + s];
     [a, b].forEach(function(v){ var p = parseNo(v); if(p && p.pre === s) cand.push(v); });
   });
-  var v = maxNo(cand); if(v){ qNext[s] = v; note('เลขถัดไป', s, v + ' (สูงสุดของเลขที่ใช้ + 1 และที่ทุกเครื่องจำไว้)'); }
+  if(last && last[s]) cand.push(bump(last[s]));
+  var v = maxNo(cand); if(!v) return;
+  qNext[s] = v;
+  var why = last && last[s] ? 'เลขล่าสุดที่ออกจริง ' + last[s] : 'ไม่มีเลขจริง ใช้สูงสุดในไฟล์สำรอง';
+  note('เลขถัดไป', s, v + ' (' + why + ')' + (above.length ? ' · ในโปรแกรมมีใบสูงกว่าเลขจริง: ' + above.join(', ') : ''));
+  console.log('เลขถัดไป ' + s + ' = ' + v + ' (' + why + ')' + (above.length ? '\n  ** ในโปรแกรมมีใบสูงกว่าเลขจริง ถามว่าใบจริงไหม: ' + above.join(', ') : ''));
 });
 
 /* ---------- ตรวจรับ ---------- */
@@ -139,22 +152,39 @@ devs.forEach(function(d){
 });
 var ryOut = {}; Object.keys(ry).forEach(function(n){ ryOut[n] = ry[n].r; });
 
-/* ---------- เล่มบันทึก: เลขที่ใช้ เลขที่แต่ละเครื่องจำไว้ และเลขถัดไป ---------- */
+/* ---------- เล่มบันทึก: เลขที่ใช้ เลขที่แต่ละเครื่องจำไว้ และเลขถัดไป ----------
+   เลขในบันทึกเก่าที่สูงกว่าเลขล่าสุดที่ออกจริงของเล่มนั้น = ไม่เคยออกจริง (เลขที่หน้าจอเติม / ชุดเลขเปลี่ยน) ล้างทิ้ง หน้าโปรแกรมเติมเลขถัดไปให้เอง */
 var used = {}, remembered = {};
+function overLast(s, no){ return last && last[s] && parseNo(no) && cmpNo(no, last[s]) > 0; }
+/* "แก้เลข" ใน --last: เลขที่พิมพ์จริงต่างจากที่โปรแกรมจำ (แก้ตอนพิมพ์) เช่น {"แก้เลข":{"WM004-70":{"pNo":"0102/2569"}}} */
+var fixes = last && last['แก้เลข'] || {};
+Object.keys(fixes).forEach(function(key){
+  var d = docs.filter(function(x){ return (x.sid || x.no) === key; })[0];
+  if(!d){ console.log('แก้เลข: ไม่พบใบ ' + key); process.exit(1); }
+  d.memo = d.memo || {};
+  Object.keys(fixes[key]).forEach(function(f){ note('แก้เลขตามเล่มจริง', key, f + ' ' + (d.memo[f] || '-') + ' → ' + fixes[key][f]); d.memo[f] = fixes[key][f]; });
+});
 docs.forEach(function(d){
   var m = d.memo; if(!m) return;
   var k = KIND[m.kind || (d.series === 'WM' || d.series === 'WC' ? 'non' : 'drug')];
-  if(m.pNo) (used[k.p] = used[k.p] || []).push(m.pNo);
-  if(m.kNo) (used[k.k] = used[k.k] || []).push(m.kNo);
+  [['pNo', k.p], ['kNo', k.k]].forEach(function(x){
+    var f = x[0], s = x[1]; if(!m[f]) return;
+    if(overLast(s, m[f])){ note('ล้างเลขที่ไม่ได้ออกจริง', d.sid || d.no, s + '. ' + m[f] + ' สูงกว่าเลขล่าสุดที่ออกจริง ' + last[s]); m[f] = ''; return; }
+    (used[s] = used[s] || []).push(m[f]);
+  });
 });
-Object.keys(ryOut).forEach(function(n){ var r = ryOut[n]; if(r.rNo){ var s = r.kind === 'non' ? 'รยว' : 'รย'; (used[s] = used[s] || []).push(r.rNo); } });
+Object.keys(ryOut).forEach(function(n){
+  var r = ryOut[n]; if(!r.rNo) return;
+  var s = r.kind === 'non' ? 'รยว' : 'รย';
+  if(overLast(s, r.rNo)){ note('ล้างเลขที่ไม่ได้ออกจริง', n, s + '. ' + r.rNo + ' สูงกว่าเลขล่าสุดที่ออกจริง ' + last[s]); r.rNo = ''; return; }
+  (used[s] = used[s] || []).push(r.rNo);
+});
 devs.forEach(function(d){ Object.keys(d.m.next || {}).forEach(function(s){ (remembered[s] = remembered[s] || []).push(d.name + ' ' + d.m.next[s]); }); });
-var last = lastFile ? JSON.parse(fs.readFileSync(lastFile, 'utf8')) : null, memoNext = {};
+var memoNext = {};
 console.log('\n=== เล่มบันทึก ===');
 BOOKS.forEach(function(s){
   var line = s + ': ในข้อมูลสูงสุด ' + (maxNo(used[s] || []) || '-') + ' · เครื่องจำเลขถัดไป ' + ((remembered[s] || []).join(', ') || '-');
   if(last && last[s] !== undefined){
-    if(!parseNo(last[s])){ console.log('เลขใน --last ไม่ถูกรูปแบบ 0001/2570: ' + s + ' ' + last[s]); process.exit(1); }
     memoNext[s] = bump(last[s]); line += ' → เลขถัดไป ' + memoNext[s] + ' (ต่อจากเลขล่าสุดที่ออกจริง ' + last[s] + ')';
   }else line += ' → ยังไม่ตั้ง (คนแรกที่ออกเล่มนี้ต้องเทียบกับเล่มจริง)';
   console.log(line); note('เล่มบันทึก', s, line);
