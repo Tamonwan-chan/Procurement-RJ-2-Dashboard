@@ -394,7 +394,7 @@
     <img id="brand-logo" alt="" hidden>
     <div>
       <h1 id="brand-name">ระบบจัดซื้อยาและเวชภัณฑ์ โรงพยาบาลราชวิถี 2 (รังสิต)</h1>
-      <div class="sub">คลังยา/เวชภัณฑ์และการจัดซื้อห้องยา</div>
+      <div class="sub">คลังยา/เวชภัณฑ์และการจัดซื้อห้องยา · <span id="app-version" title="รุ่นของโปรแกรมที่เปิดอยู่ ถ้าไม่ตรงกับที่แจ้งไว้ กด Ctrl + F5"></span></div>
     </div>
   </div>
   <div class="mock-badge" id="mode-badge"><span class="dot"></span>ยังไม่มีข้อมูล — ลากไฟล์จาก HIS มาวางด้านล่าง</div>
@@ -761,7 +761,7 @@
 </section>
 
 <footer>
-  <div><span id="footer-name">ระบบจัดซื้อยาและเวชภัณฑ์ โรงพยาบาลราชวิถี 2 (รังสิต)</span> · ทำงานในเบราว์เซอร์ทั้งหมด ไฟล์ไม่ถูกส่งออกไปที่ไหน</div>
+  <div><span id="footer-name">ระบบจัดซื้อยาและเวชภัณฑ์ โรงพยาบาลราชวิถี 2 (รังสิต)</span> · <span id="footer-version"></span> · ทำงานในเบราว์เซอร์ทั้งหมด ไฟล์ไม่ถูกส่งออกไปที่ไหน</div>
   <!-- CREDIT: ห้ามลบ ย้าย ซ่อน หรือแก้ไข (ดูหมายเหตุบนสุดของไฟล์) -->
   <div class="credit" id="credit">
     <span class="credit-for">พัฒนาขึ้นเฉพาะสำหรับ กลุ่มงานเภสัชกรรม โรงพยาบาลราชวิถี 2</span>
@@ -783,6 +783,10 @@
      logo = ชื่อไฟล์รูปที่วางไว้ในโฟลเดอร์เดียวกับไฟล์นี้ เช่น 'logo.png' (เว้นว่าง = ไม่แสดงโลโก้) */
   var BRAND = { name:'ระบบจัดซื้อยาและเวชภัณฑ์ โรงพยาบาลราชวิถี 2 (รังสิต)', logo:'logo-rj2.jpg' };
 
+  /* VERSION: รุ่นที่ขึ้นหน้าจริง แสดงใต้ชื่อโปรแกรมและท้ายหน้า
+     แก้ทุกครั้งที่ติด tag ออกรุ่นใหม่บน master (เช่น v2.0.1) ให้ตรงกับ tag */
+  var APP_VERSION = { tag:'v2.0', date:'19 พ.ย. 2569' };
+
   /* CREDIT: ห้ามลบหรือแก้ไข */
   var CREDIT = {
     author:'ภญ.ธมลวรรณ จันทร์แก้ว',
@@ -793,6 +797,9 @@
   document.title = BRAND.name;
   document.getElementById('brand-name').textContent = BRAND.name;
   document.getElementById('footer-name').textContent = BRAND.name;
+  var verText = 'เวอร์ชัน ' + APP_VERSION.tag + ' (' + APP_VERSION.date + ')';
+  document.getElementById('app-version').textContent = verText;
+  document.getElementById('footer-version').textContent = verText;
   if(BRAND.logo){
     var brandLogo = document.getElementById('brand-logo');
     brandLogo.src = BRAND.logo;

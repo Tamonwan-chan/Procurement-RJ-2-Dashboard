@@ -12,6 +12,7 @@ Context for any Claude Code session that opens this repo (the owner works from m
 - One self-contained page: `index.html` at the repo root (vanilla ES5-style JS, SheetJS 0.18.5 from cdnjs; ExcelJS 4.4.0 is lazy-loaded only for quote export).
 - Live on GitHub Pages: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/ (repo is public). Moved there from `…/mockup/dashboard-mockup.html` on 19 Nov 2026 (her go, after v2.0); the old address is a small forwarding page that keeps `?…` / `#…`. Browser data (IndexedDB, localStorage, shared-store connection) is per site, not per path, so nothing was lost.
 - พี่โอม drags HIS Excel exports onto the page; each file type is recognised from its column headers (`detectSlot`). Everything runs in the browser; imported data, the KPI table, quote history and next quote numbers are stored in the browser's IndexedDB (`rj2-procurement-dashboard`) on that PC only (quote numbers also in `localStorage`). The "สำรองข้อมูล" button saves the hand-entered part to a .json file; it must never include `quoteTpl` (the signature).
+- The live version shows under the program name and in the footer, from `APP_VERSION` next to `BRAND` (she asked 19 Nov 2026). **Every time a release tag goes on `master` (`v2.0.1`, …), set `APP_VERSION` to the same tag and date in that commit**; it is how she and พี่โอม check that Ctrl + F5 loaded the latest page.
 - `guide/index.html` is a Thai user guide. `README.md` documents the files and calculation rules.
 
 ## Folder map
