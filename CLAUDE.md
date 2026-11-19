@@ -9,15 +9,16 @@ Context for any Claude Code session that opens this repo (the owner works from m
 - When she reports what her screen shows, take it as fact and work out why (a redirect, a different UI label), then explain it plainly; don't send her back to look again. Verify from your side (clasp, API, curl) when you can. Before any browser / Google step, say what she will actually see. (15 Nov: an Apps Script `/exec` address turns into `script.googleusercontent.com/...echo` the moment Enter is pressed; insisting she find `/exec` felt like gaslighting.)
 
 ## What the app is
-- One self-contained page: `mockup/dashboard-mockup.html` (vanilla ES5-style JS, SheetJS 0.18.5 from cdnjs; ExcelJS 4.4.0 is lazy-loaded only for quote export).
-- Live on GitHub Pages: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/mockup/dashboard-mockup.html (repo is public).
+- One self-contained page: `index.html` at the repo root (vanilla ES5-style JS, SheetJS 0.18.5 from cdnjs; ExcelJS 4.4.0 is lazy-loaded only for quote export).
+- Live on GitHub Pages: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/ (repo is public). Moved there from `…/mockup/dashboard-mockup.html` on 19 Nov 2026 (her go, after v2.0); the old address is a small forwarding page that keeps `?…` / `#…`. Browser data (IndexedDB, localStorage, shared-store connection) is per site, not per path, so nothing was lost.
 - พี่โอม drags HIS Excel exports onto the page; each file type is recognised from its column headers (`detectSlot`). Everything runs in the browser; imported data, the KPI table, quote history and next quote numbers are stored in the browser's IndexedDB (`rj2-procurement-dashboard`) on that PC only (quote numbers also in `localStorage`). The "สำรองข้อมูล" button saves the hand-entered part to a .json file; it must never include `quoteTpl` (the signature).
 - `guide/index.html` is a Thai user guide. `README.md` documents the files and calculation rules.
 
 ## Folder map
 ```
-mockup/dashboard-mockup.html   the program (path is the live Pages URL: never move or rename)
-mockup/logo-rj2.jpg            logo, set in BRAND
+index.html                     the program (the live Pages URL is the repo root: never move or rename)
+logo-rj2.jpg, icon-inventory.png  logo (set in BRAND) and corner icon, next to index.html
+mockup/dashboard-mockup.html   forwarding page from the old address (bookmarks, LINE messages): never delete
 guide/index.html               Thai user guide (Pages)
 appscript/                     Apps Script for the shared Google Sheet store (clasp; no data, key or address)
 tests/                         headless harness: harness.js (load page, drop files), smoke.js;
@@ -57,7 +58,7 @@ Local-only, never commit: `สรุปบทบาทและงานที�
 - **Apps Script (shared data store) lives in `appscript/` and is pushed with clasp** (she lifted the old "no clasp" rule on 15 Nov 2026). Still never in the repo: data, the access key, the web-app address, `.clasp.json` (git-ignored; it names the department's script) or `~/.clasprc.json` (her Google login token). The key lives only in Script Properties and on each device. The web app must be deployed by the **inventory (คลัง) Google account** (his choice, 15 Nov 2026, instead of the pharmacy department account) so it runs as that account, never as her or him personally. (The sibling folder "Dashboard พี่โอม" is a different project, ME-RJ-2-Dashboard.)
 
 ## Version status
-**v2.0 released 19 Nov 2026** (tag `v2.0` on `master`, she called it done): every v2.0 question answered and built (Q&A 2.41). Left open on purpose, outside the v2.0 milestone: #44 until พี่โอม (work + home) and พี่เจี๊ยบ have all connected to the shared store, and #34 until the first real รย. inspection (end of Nov 2026); bugs found there ship as `v2.0.1`, `v2.0.2` … on `master`. Not yet asked: ขย. ข้อ 4 prints "เงินบำรุง" as fixed text (budget-funded purchases, Q&A 2.41). Next: the shorter address (below, waiting for her go) and the ICEBOX / v3.0 items she picks.
+**v2.0 released 19 Nov 2026** (tag `v2.0` on `master`, she called it done): every v2.0 question answered and built (Q&A 2.41). Left open on purpose, outside the v2.0 milestone: #44 until พี่โอม (work + home) and พี่เจี๊ยบ have all connected to the shared store, and #34 until the first real รย. inspection (end of Nov 2026); bugs found there ship as `v2.0.1`, `v2.0.2` … on `master`. Not yet asked: ขย. ข้อ 4 prints "เงินบำรุง" as fixed text (budget-funded purchases, Q&A 2.41). Shorter address done 19 Nov (see "What the app is"). Next: the ICEBOX / v3.0 items she picks.
 
 **v1.0 closed on 5 Nov 2026** (issues #1–#20, git tag `v1.0`). His last answer closed #16: hide nothing more. The scope freeze of 2 Nov is over.
 
@@ -87,7 +88,7 @@ Local-only, never commit: `สรุปบทบาทและงานที�
 **Branches (she decided 5 Nov 2026).** `master` is the live page พี่โอม works on; GitHub Pages publishes only `master`. New features go on the `v2` branch and reach `master` only after testing, by merging when she says to. Bug fixes and docs go straight on `master`; afterwards merge `master` into `v2` so the fix isn't lost.
 
 1. `git fetch` and check status and the current branch first (work happens on several PCs).
-2. Edit `mockup/dashboard-mockup.html` (small, targeted edits; match the surrounding ES5 style and Thai comments).
+2. Edit `index.html` (small, targeted edits; match the surrounding ES5 style and Thai comments).
 3. Test headlessly before pushing: `cd tests && npm install` once per PC, then `node smoke.js` (drops every HIS export at the top of `ลาก/`, ~10 s; lists each slot's row count, exits 1 on a script error or an unrecognised file) or `node smoke.js <files…>`. After any change to a Word memo (ภย. / ขย. / ย. / รย. and their ว versions) also run `node memo-test.js` (~5 s, made-up data, 619 checks on 19 documents: table widths and indents, cell alignment, committee tabs, signature blocks, 2.1 / 2.2, totals); when he changes a format rule on purpose, update the matching check in the same commit. `load({ inside:true })` gives `page.inside.get(name)` / `.set(name, v)` for the page script's own functions and variables. For a specific check, write a throwaway script in the session scratchpad that does `require('<repo>/tests/harness')`: `load()` gives a fresh page + empty IndexedDB, `page.drop(paths)` imports like a real drop, then inspect `page.document` (the SheetJS cross-realm shim is built in). Don't commit checks that print real figures. Use real Chrome via puppeteer-core for visuals / export. Quote output can be checked by opening it in Excel.
 4. Commit with a clear message and push the branch. If it is on `master` (or a merge to it), wait for the Pages build, then tell her to press Ctrl + F5.
 5. Update `ประเด็นที่รอยืนยันจากพี่โอม.md` (open questions, answers, changes) and `README.md` when rules change.

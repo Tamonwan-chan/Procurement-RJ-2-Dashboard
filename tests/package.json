@@ -1,7 +1,7 @@
 {
   "name": "rj2-procurement-dashboard-tests",
   "private": true,
-  "description": "Headless checks for mockup/dashboard-mockup.html (jsdom + fake-indexeddb + SheetJS). Real data stays in ../ลาก/ and is never committed.",
+  "description": "Headless checks for index.html (the program) (jsdom + fake-indexeddb + SheetJS). Real data stays in ../ลาก/ and is never committed.",
   "scripts": {
     "smoke": "node smoke.js",
     "gas": "node gas-test.js",

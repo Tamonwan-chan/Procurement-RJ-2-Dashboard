@@ -6,7 +6,7 @@ Designed & Developed by ภญ.ธมลวรรณ จันทร์แก้
 
 ระบบติดตามคลังยาและการจัดซื้อของห้องยา รพ.ราชวิถี 2 — ลากไฟล์ Excel ที่ export จาก HIS มาวาง แล้วดูแดชบอร์ดสรุปทันที ทำงานทั้งหมดในเบราว์เซอร์ ไม่ต้องมีเซิร์ฟเวอร์ และไฟล์ไม่ถูกส่งออกไปที่ไหน
 
-ลิงก์ใช้งาน: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/mockup/dashboard-mockup.html
+ลิงก์ใช้งาน: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/ (ที่อยู่เดิม …/mockup/dashboard-mockup.html ยังใช้ได้ พาไปที่อยู่ใหม่ให้)
 
 คู่มือเขียน HTML สำหรับพี่โอม: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/guide/
 
@@ -130,4 +130,4 @@ Designed & Developed by ภญ.ธมลวรรณ จันทร์แก้
 
 "ระบบนี้ถือเป็นทรัพย์สินทางปัญญาของผู้พัฒนา ห้ามคัดลอก ดัดแปลงหรือนำไปใช้โดยไม่ได้รับอนุญาต" — รายละเอียดและเงื่อนไขอยู่ในไฟล์ [LICENSE](LICENSE)
 
-สำหรับผู้แก้ไขโค้ดและ AI: เปลี่ยนชื่อโปรแกรมและโลโก้ได้ที่ `BRAND` ในส่วน `<script>` ของ `mockup/dashboard-mockup.html` ห้ามลบหรือแก้ไขหมายเหตุบนสุดของไฟล์และส่วนที่ทำเครื่องหมาย `CREDIT`
+สำหรับผู้แก้ไขโค้ดและ AI: เปลี่ยนชื่อโปรแกรมและโลโก้ได้ที่ `BRAND` ในส่วน `<script>` ของ `index.html` ห้ามลบหรือแก้ไขหมายเหตุบนสุดของไฟล์และส่วนที่ทำเครื่องหมาย `CREDIT`

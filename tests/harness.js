@@ -1,4 +1,4 @@
-/* Load mockup/dashboard-mockup.html headlessly and drop files on it, the way พี่โอม does in the browser.
+/* Load index.html (the program) headlessly and drop files on it, the way พี่โอม does in the browser.
    Usage from an ad-hoc check:
      var h = require('./harness');
      h.load().then(function(p){ return p.drop(['../ลาก/Meditem.xls']).then(function(){ ...p.window.document... }); });
@@ -13,7 +13,7 @@ var IDBFactory = require('fake-indexeddb').IDBFactory;
 var XLSX = require('xlsx');
 
 var ROOT = path.resolve(__dirname, '..');
-var PAGE = path.join(ROOT, 'mockup', 'dashboard-mockup.html');
+var PAGE = path.join(ROOT, 'index.html');
 var DATA_DIR = path.join(ROOT, 'ลาก');
 
 /* SheetJS lives in Node's realm, the page's ArrayBuffers in jsdom's: hand it a Buffer instead */
@@ -40,7 +40,7 @@ function load(opts){
     html = html.slice(0, at) + 'window.__inside = { get:function(n){ return eval(n); }, set:function(n, v){ eval(n + " = v"); } };\n' + html.slice(at);
   }
   var dom = new JSDOM(html, {
-    url: 'http://localhost/mockup/dashboard-mockup.html',
+    url: 'http://localhost/index.html',
     runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: vc,
     beforeParse: function(w){
       w.XLSX = shimXLSX;
