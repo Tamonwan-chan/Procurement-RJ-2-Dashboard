@@ -1823,6 +1823,7 @@
   }
   function shIssuedHere(series, no, owner){
     var x;
+    if(owner.cr) return false;   /* รายงานเจ้าหนี้: เลขซ้ำตรวจในหน้าแล้ว (crWarn) · ส่งออกซ้ำไม่จองเลข */
     if(owner.ry){ x = memoSet && memoSet.ry && memoSet.ry[owner.ry]; return !!(x && x.issued && x.issued.no === no); }
     var d = qFind(owner.doc), iss = d && d.memo && d.memo.issued || {};
     return ['p', 'k', 'y'].some(function(w){ return iss[w] && iss[w].no === no; });
@@ -3134,7 +3135,7 @@
   /* head = หัวหน้ากลุ่มงานเภสัชกรรม (คุณธมลวรรณ 4 พ.ย. 69) ลงนาม ภย. / ภว. · ขย. / ขว. / ย. / ยว. ลงชื่อ…(หัวหน้าเจ้าหน้าที่พัสดุ) ใช้คนในช่อง supHead (9 พ.ย. 69) */
   /* 2 หน้าที่ใหม่ "เพราะมีโอกาสเปลี่ยน" (พี่โอม 9 พ.ย. 69 · ข้อ 2.32 ข้อ 4): ประธานกรรมการตรวจรับ = ช่องประธานกรรมการ · หัวหน้าเจ้าหน้าที่พัสดุ = ผู้ลงนาม ขย. / ขว. / ย. / ยว.
      หัวหน้ากลุ่มงานเภสัชกรรมลงนาม ภย. / ภว. (ข้อ 24 รอยืนยัน) */
-  var MEMO_ROLES = [['committee', 'กรรมการตรวจรับ'], ['chair', 'ประธานกรรมการตรวจรับ'], ['officer', 'เจ้าหน้าที่พัสดุ'], ['supHead', 'หัวหน้าเจ้าหน้าที่พัสดุ'], ['head', 'หัวหน้ากลุ่มงานเภสัชกรรม'], ['exec', 'ผู้บริหารเสนอความเห็น'], ['director', 'ผู้อำนวยการ']];
+  var MEMO_ROLES = [['committee', 'กรรมการตรวจรับ'], ['chair', 'ประธานกรรมการตรวจรับ'], ['officer', 'เจ้าหน้าที่พัสดุ'], ['supHead', 'หัวหน้าเจ้าหน้าที่พัสดุ'], ['head', 'หัวหน้ากลุ่มงานเภสัชกรรม'], ['exec', 'ผู้บริหารเสนอความเห็น'], ['director', 'ผู้อำนวยการ'], ['crSend', 'ผู้ส่งรายงานเจ้าหนี้']];
   /* ตั้งต้นครั้งเดียวจากคนเดิม เอกสารจะได้ไม่ว่าง: คนที่ติ๊กหัวหน้ากลุ่มงานได้ติ๊กหัวหน้าเจ้าหน้าที่พัสดุ · ประธานในชุดล่าสุดและในบันทึกที่เก็บไว้ได้ติ๊กประธาน */
   function memoRolesUp(){
     if(!memoSet || memoSet.rolesV >= 2) return;
@@ -3903,6 +3904,13 @@
   function ryKind(d){ return d.kind === 'non' ? MEMO_KIND.non : MEMO_KIND.drug; }
   function ryRows(g, d){ return g.rows.filter(function(r, i){ return !d.skip[i]; }); }
   function ryTotal(g, d){ return Math.round(ryRows(g, d).reduce(function(a, r){ return a + (r.value || 0); }, 0) * 100) / 100; }
+  /* เก็บบันทึก รย. ที่แก้ · รายงานเจ้าหนี้ (cr) ยึดของที่เก็บไว้ ไม่ใช่สำเนาบนหน้าจอ (ทำรายงานหลังเปิดการรับนี้ไว้ หรือเครื่องอื่นซิงก์มา) */
+  function ryStore(d){
+    memoSet.ry = memoSet.ry || {};
+    var old = memoSet.ry[d.no], x = JSON.parse(JSON.stringify(d));
+    if(old && old.cr) x.cr = old.cr; else delete x.cr;
+    memoSet.ry[d.no] = x;
+  }
   function ryPick(no){
     var g = ryGroup(no); if(!g) return;
     var saved = memoSet.ry && memoSet.ry[no];
@@ -3935,26 +3943,31 @@
   function ryListHtml(){
     var q = ryState.q.toLowerCase(), cur = ryState.d && ryState.d.no, done = memoSet.ry || {};
     var all = ryGroups().filter(function(g){
+      if(crState.only && !crCan(done[g.no])) return false;
       if(!q) return true;
       return (g.no + ' ' + g.company + ' ' + g.inv + ' ' + g.rows.map(function(r){ return r.name; }).join(' ')).toLowerCase().indexOf(q) >= 0;
     });
+    /* พี่โอม 18 พ.ย. 69: สถานะ รย. ย้ายมาหน้าแถวพร้อมช่องติ๊กทำรายงานเจ้าหนี้ · เลขรายงานอยู่ท้ายแถว (#55) */
     var rows = all.slice(0, RY_LIST_MAX).map(function(g){
-      var s = done[g.no], names = g.rows.map(function(r){ return r.name; });
-      return '<tr' + (g.no === cur ? ' style="background:var(--surface-2,#eef3f8)"' : '') + '><td><button type="button" class="btn-ghost" data-rp="' + esc(g.no) + '">' + (g.no === cur ? 'เลือกอยู่' : 'เลือก') + '</button></td>' +
+      var s = done[g.no], names = g.rows.map(function(r){ return r.name; }), can = crCan(s);
+      return '<tr' + (g.no === cur ? ' style="background:var(--surface-2,#eef3f8)"' : '') + '>' +
+        '<td><input type="checkbox" data-cr="' + esc(g.no) + '"' + (can ? (crState.pick[g.no] ? ' checked' : '') : ' disabled') + ' aria-label="ติ๊กทำรายงานเจ้าหนี้" title="' + (can ? 'ติ๊กเพื่อทำรายงานเจ้าหนี้การค้า' : s && s.cr ? 'ทำรายงานเจ้าหนี้แล้ว' : 'ออก รย. / รยว. ก่อน จึงทำรายงานเจ้าหนี้ได้') + '"></td>' +
+        '<td style="white-space:nowrap">' + (s && s.done ? '<b>ออกแล้ว ' + esc(ryKind(s).r + '.' + s.rNo) + '</b>' : '') + '</td>' +
+        '<td><button type="button" class="btn-ghost" data-rp="' + esc(g.no) + '">' + (g.no === cur ? 'เลือกอยู่' : 'เลือก') + '</button></td>' +
         '<td style="white-space:nowrap">' + esc(memoDateTh(ryIso(g.date))) + '</td><td class="mono">' + esc(g.no) + '</td><td>' + esc(g.company) + '</td><td class="mono">' + esc(g.inv) + '</td>' +
         '<td>' + g.rows.length + ' · ' + esc(names[0]) + (names.length > 1 ? ' …' : '') + '</td><td class="mono">' + fmt2(g.rows.reduce(function(a, r){ return a + (r.value || 0); }, 0)) + '</td>' +
-        '<td style="white-space:nowrap">' + (s && s.done ? '<b>ออกแล้ว ' + esc(ryKind(s).r + '.' + s.rNo) + '</b>' : '') + '</td></tr>';
+        '<td style="white-space:nowrap">' + (s && s.cr ? '<b>รายงาน ' + esc(crLabel(s.cr)) + '</b>' : '') + '</td></tr>';
     }).join('');
-    return '<table style="min-width:1000px"><thead><tr><th></th><th>วันที่รับ</th><th>เลขที่รับ</th><th>ผู้จำหน่าย</th><th>เลขที่เอกสาร</th><th>รายการ</th><th class="mono">มูลค่า</th><th>สถานะ</th></tr></thead><tbody>' +
-      (rows || '<tr><td colspan="8" class="table-note" style="padding:10px">ไม่พบการรับที่ตรงกับคำค้น</td></tr>') + '</tbody></table>' +
+    return '<table style="min-width:1100px"><thead><tr><th title="ติ๊กทำรายงานเจ้าหนี้">เจ้าหนี้</th><th>สถานะ</th><th></th><th>วันที่รับ</th><th>เลขที่รับ</th><th>ผู้จำหน่าย</th><th>เลขที่เอกสาร</th><th>รายการ</th><th class="mono">มูลค่า</th><th>รายงานเจ้าหนี้</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="10" class="table-note" style="padding:10px">' + (crState.only ? 'ไม่มีการรับที่ออก รย. แล้วและยังไม่ได้ทำรายงานเจ้าหนี้' : 'ไม่พบการรับที่ตรงกับคำค้น') + '</td></tr>') + '</tbody></table>' +
       (all.length > RY_LIST_MAX ? '<div class="table-note" style="margin:6px 0 0">แสดง ' + RY_LIST_MAX + ' ครั้งล่าสุดจาก ' + all.length + ' ครั้ง · ค้นหาเพื่อดูเพิ่ม</div>' : '');
   }
   function renderRy(){
     var box = document.getElementById('ry-box'); box.hidden = !ryState.open;
     if(!ryState.open) return;
     var groups = ryGroups(), d = ryState.d, g = d ? ryGroup(d.no) : null, top =
-      '<div class="rd-top"><div><div class="rd-name">ออกบันทึกตรวจรับ รย. / รยว. (Word)</div>' +
-      '<div class="table-note" style="margin:2px 0 0">รายการจาก PO_inven รับจากการสั่งซื้อที่รับเข้า HIS แล้ว · 1 รย. ต่อ 1 ย. · จำค่าที่แก้ไว้กับการรับครั้งนั้น</div></div>' +
+      '<div class="rd-top"><div><div class="rd-name">ออกบันทึกตรวจรับ รย. / รยว. (Word) · รายงานเจ้าหนี้การค้า (Excel)</div>' +
+      '<div class="table-note" style="margin:2px 0 0">รายการจาก PO_inven รับจากการสั่งซื้อที่รับเข้า HIS แล้ว · 1 รย. ต่อ 1 ย. · จำค่าที่แก้ไว้กับการรับครั้งนั้น · ติ๊กช่องหน้าแถวที่ออก รย. แล้ว เพื่อทำรายงานเจ้าหนี้</div></div>' +
       '<button type="button" class="btn-ghost" data-ract="close">ปิด</button></div>';
     if(!groups.length){
       box.innerHTML = top + '<div class="table-note" style="margin:10px 0 0">' + ((state.lookups && state.lookups.po || []).length ? 'PO_inven ที่นำเข้าไว้ยังไม่มีเลขที่รับ — ลากไฟล์ PO_inven เข้ามาอีกครั้ง 1 ครั้ง' : 'ยังไม่มีข้อมูล — ลากไฟล์ PO_inven (รับจากการสั่งซื้อ) มาวาง') + '</div>';
@@ -3962,8 +3975,10 @@
     }
     function F(label, key, attrs){ return '<label class="q-field">' + label + ' <input class="q-in" data-rf="' + key + '" value="' + esc(d[key] == null ? '' : d[key]) + '"' + (attrs || '') + '></label>'; }
     var html = top + '<div class="memo-step">1. เลือกการรับจาก PO_inven</div>' +
-      '<div class="table-tools"><input class="search" id="ry-q" type="search" placeholder="ค้นหาบริษัท / เลขที่เอกสาร / เลขที่รับ / ชื่อยา" value="' + esc(ryState.q) + '" aria-label="ค้นหาการรับ" style="min-width:320px"></div>' +
-      '<div class="table-scroll" id="ry-list" style="max-height:280px">' + ryListHtml() + '</div>';
+      '<div class="table-tools"><input class="search" id="ry-q" type="search" placeholder="ค้นหาบริษัท / เลขที่เอกสาร / เลขที่รับ / ชื่อยา" value="' + esc(ryState.q) + '" aria-label="ค้นหาการรับ" style="min-width:320px">' +
+        '<label class="check"><input type="checkbox" id="cr-only"' + (crState.only ? ' checked' : '') + '> เฉพาะที่ออก รย. แล้ว ยังไม่ได้ทำรายงานเจ้าหนี้</label></div>' +
+      '<div class="table-scroll" id="ry-list" style="max-height:280px">' + ryListHtml() + '</div>' +
+      '<div id="cr-panel">' + crPanelHtml() + '</div>';
     if(d && g){
       var k = ryKind(d);
       var hist = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.memo && x.memo.kNo && memoKindOf(x) === k; });
@@ -4056,7 +4071,9 @@
     saveBlob(blob, name);
     d.done = true;
     d.issued = { no:String(d.rNo).trim(), at:new Date().toISOString(), by:SH.by || '' };
-    memoSet.ry = memoSet.ry || {}; memoSet.ry[d.no] = JSON.parse(JSON.stringify(d));
+    /* เก็บยอดและชื่อรายการไว้กับบันทึก: รายงานเจ้าหนี้ยังทำได้หลัง PO_inven ชุดใหม่ไม่มีการรับนี้แล้ว */
+    d.total = ryTotal(g, d); d.items = ryRows(g, d).map(function(r){ return r.name; });
+    ryStore(d);
     memoSet.pick = memoSet.pick || {}; if(d.committee.filter(Boolean).length === 3) memoSet.pick.committee = d.committee.slice();
     memoSaveSet();
     ryState.msg = 'ส่งออกแล้ว: ' + name + ' · เลขถัดไป ' + k.r + '. ' + memoNextNo(k.r, Number(String(d.rNo).split('/')[1]) || memoBE(d.inspect));
@@ -4066,7 +4083,7 @@
     var box = document.getElementById('ry-box');
     function keep(){
       var d = ryState.d; if(!d || !d.done) return;
-      memoSet.ry[d.no] = JSON.parse(JSON.stringify(d));
+      ryStore(d);
       clearTimeout(ryTimer); ryTimer = setTimeout(memoSaveSet, 400);
     }
     function sum(){ var d = ryState.d, g = d ? ryGroup(d.no) : null, el = document.getElementById('ry-sum'); if(g && el) el.innerHTML = rySumHtml(g, d); }
@@ -4102,6 +4119,237 @@
       memoRolesUp();
       ryState.open = true; renderRy();
       document.getElementById('ry-box').scrollIntoView({ behavior:'smooth', block:'start' });
+    });
+  })();
+
+  /* ---------------- รายงานเจ้าหนี้การค้า (Excel) · v3.0 #55 ----------------
+     พี่โอม 18 พ.ย. 69: หลังออก รย. แล้วต้องทำสรุป มีใบนำส่งเป็นใบปะหน้าตั้งหนี้ ส่งการเงิน · ติ๊กการรับในรายการ PO_inven ของหน้าตรวจรับ → ส่งออก Excel → เลขรายงานอยู่ท้ายแถว
+     แบบตามตัวอย่าง "รายงานเจ้าหนี้การค้า.การเงิน" (เงินบำรุง) และ "(งบประมาณ)": 1 แถว = การรับ 1 ครั้ง = 1 รย. · จำนวนเงิน = ยอดใน รย.
+     ค่าตั้งต้นตามคำถามข้อ 38–44 (ส่ง 19 พ.ย. 69 รอคำตอบ): เล่ม ภ- ของกลุ่มงาน โปรแกรมรันต่อ · ครั้งแรกพิมพ์เลขเอง ไม่เริ่มใหม่เอง (ท้ายเลขเป็น พ.ศ. ของวันที่รายงาน)
+       · เงินบำรุงกับงบประมาณใช้เลขชุดเดียวกัน · รย. กับ รยว. แยกใบ · ค่าปรับกรอกก่อนส่งออก · เลือกแหล่งเงินต่อรายงาน ตั้งต้นเงินบำรุง
+     เก็บ: รายงานติดไว้กับบันทึก รย. ของแต่ละการรับ (memoSet.ry[minpno].cr) จึงใช้ร่วมผ่านแท็บตรวจรับเดิมในข้อมูลกลาง ไม่ต้องแก้ Apps Script
+       · เลข ภ- จองในชุด 'ภ' · เลขที่เอกสาร = เลขสูงสุดในรายงานที่มี + 1 */
+  var CR_SERIES = 'ภ', CR_FUND = { keep:'เงินบำรุง', budget:'เงินงบประมาณ' }, CR_FONT = 'TH SarabunPSK';
+  var crState = { pick:{}, only:false, date:'', no:'', doc:'', fund:'keep', cat:'', sender:null, fine:{}, items:{}, msg:'' };
+  function crCan(s){ return !!(s && s.done && !s.cr); }
+  function crNum(no){ return Number(String(no || '').split('/')[0]) || String(no || ''); }
+  function crLabel(c){ return c.doc + 'ภ.' + crNum(c.no); }
+  function crCat(k){ return k === MEMO_KIND.non ? 'วัสดุเวชภัณฑ์ไม่ใช่ยา' : 'วัสดุยาและเวชภัณฑ์'; }
+  function crDate(){ return crState.date || todayIso(); }
+  /* เลข ภ- ถัดไป: ข้อมูลกลางเป็นหลัก · ปีท้ายเลขเลื่อนตาม พ.ศ. ของวันที่รายงาน แต่เลขรันต่อ (ยังไม่รู้ว่าเล่มเริ่มใหม่เมื่อไร ข้อ 40) */
+  function crNextNo(iso){
+    var v = shOn() && SH.meta.counters[CR_SERIES] || memoSet.next && memoSet.next[CR_SERIES] || '';
+    if(!v){ var top = crReports()[0]; if(top) v = nextNo(top.no); }   /* ยังไม่มีเลขถัดไปในเครื่อง (รายงานซิงก์มาจากเครื่องอื่น) */
+    var m = /^(\d+)\/(\d{4})$/.exec(v);
+    return m ? m[1] + '/' + Math.max(Number(m[2]), memoBE(iso)) : '';
+  }
+  function crReports(){
+    var by = {}, list = [];
+    Object.keys(memoSet && memoSet.ry || {}).forEach(function(n){
+      var c = memoSet.ry[n] && memoSet.ry[n].cr; if(!c || !c.no) return;
+      var x = by[c.no]; if(!x){ x = by[c.no] = { no:c.no, doc:c.doc, date:c.date, fund:c.fund, cat:c.cat, sender:c.sender, nos:[] }; list.push(x); }
+      x.nos.push(n);
+    });
+    list.forEach(function(x){ x.nos.sort(function(a, b){ return (memoSet.ry[a].cr.order || 0) - (memoSet.ry[b].cr.order || 0); }); });
+    return list.sort(function(a, b){ return shNoCmp(b.no, a.no) || 0; });
+  }
+  function crNextDoc(){ var mx = 0; crReports().forEach(function(x){ if(Number(x.doc) > mx) mx = Number(x.doc); }); return mx ? String(mx + 1) : ''; }
+  /* แถวในรายงาน: ยอดและชื่อรายการจาก PO_inven ที่นำเข้าอยู่ (ตาม รย.) ถ้าไม่มีแล้ว ใช้ที่เก็บไว้ตอนออก รย. */
+  function crRow(no){
+    var r = memoSet.ry[no], k = ryKind(r), g = ryGroup(no);
+    var names = g ? ryRows(g, r).map(function(x){ return x.name; }) : (r.items || []);
+    return { no:no, k:k, memo:r.kNo ? k.k + '.' + r.kNo : '', company:r.company || '', bill:r.bill || '', ry:k.r + '.' + r.rNo, rNo:r.rNo,
+      total:g ? ryTotal(g, r) : (r.total == null ? null : r.total), items:names.join(', '), fine:'' };
+  }
+  function crPicked(){
+    return Object.keys(crState.pick).filter(function(n){ return crCan(memoSet.ry && memoSet.ry[n]); }).map(crRow).sort(function(a, b){
+      return shNoCmp(a.rNo, b.rNo) || (a.no < b.no ? -1 : 1);
+    }).map(function(x){
+      if(crState.items[x.no] != null) x.items = crState.items[x.no];
+      if(crState.fine[x.no] != null) x.fine = crState.fine[x.no];
+      return x;
+    });
+  }
+  function crHead(rows){
+    var iso = crDate(), k = rows[0] ? rows[0].k : MEMO_KIND.drug;
+    if(!crState.no){ crState.no = crNextNo(iso); crState.noAuto = true; }
+    if(!crState.doc) crState.doc = crNextDoc();
+    if(crState.sender === null){   /* ผู้ส่งล่าสุด · ถ้ายังไม่เคยเลือกและมีผู้ส่งคนเดียว ใช้คนนั้น */
+      var only = (memoSet.people || []).filter(function(p){ return p.roles && p.roles.crSend; });
+      crState.sender = (memoSet.pick || {}).crSend || (only.length === 1 ? only[0].id : '');
+    }
+    return { date:iso, no:String(crState.no).trim(), doc:String(crState.doc).trim(), fund:crState.fund, cat:crState.cat || crCat(k), sender:crState.sender };
+  }
+  function crWarn(rows, h){
+    var block = [], soft = [];
+    if(!rows.length) block.push('ยังไม่ได้ติ๊กการรับ');
+    if(rows.some(function(x){ return x.k !== rows[0].k; })) block.push('ติ๊กทั้ง รย. และ รยว. — ทำรายงานแยกใบตามหมวดพัสดุ');
+    rows.forEach(function(x){ if(x.total == null) block.push('การรับ ' + x.no + ' ไม่มีใน PO_inven ที่นำเข้า (ไม่รู้ยอดเงิน) — ลาก PO_inven ที่มีการรับนี้ หรือออก ' + x.ry + ' ซ้ำ 1 ครั้ง'); });
+    if(!/^\d+\/\d{4}$/.test(h.no)) block.push('เลขชุด ภ- ควรเป็นรูปแบบ 0071/2569' + (crNextNo(h.date) ? '' : ' (ครั้งแรก พิมพ์เลขถัดจากเล่มจริง แล้วโปรแกรมรันต่อให้)'));
+    else if(crReports().some(function(x){ return x.no === h.no; })) block.push('ภ-' + h.no + ' ออกไปแล้วกับรายงานอื่น');
+    if(!/^\d+$/.test(h.doc)) block.push('เลขที่เอกสารควรเป็นตัวเลข' + (crNextDoc() ? '' : ' (ครั้งแรก พิมพ์เลขถัดจากรายงานล่าสุด)'));
+    if(!h.date) block.push('ยังไม่ได้ใส่วันที่รายงาน');
+    if(!h.sender) soft.push('ยังไม่ได้เลือกผู้ส่ง (ชื่อใต้เส้นผู้ส่งจะว่าง)');
+    rows.forEach(function(x){ if(String(x.fine).trim() && !isFinite(Number(String(x.fine).replace(/,/g, '')))) block.push('ค่าปรับของ ' + x.ry + ' ไม่ใช่ตัวเลข'); });
+    return { block:block, soft:soft };
+  }
+  function crPanelHtml(){
+    if(!memoSet) return '';
+    var rows = crPicked(), reps = crReports();
+    if(!rows.length && !reps.length) return '<div class="table-note" style="margin:6px 0 0">รายงานเจ้าหนี้การค้า: ติ๊กช่องหน้าแถวของการรับที่ออก รย. / รยว. แล้ว เพื่อทำรายงานส่งการเงิน</div>';
+    var html = '<div class="memo-step">รายงานเจ้าหนี้การค้า (Excel) — ใบปะหน้าตั้งหนี้ส่งการเงิน</div>';
+    if(rows.length){
+      var h = crHead(rows), w = crWarn(rows, h), total = rows.reduce(function(a, x){ return a + (x.total || 0); }, 0);
+      function F(label, key, attrs){ return '<label class="q-field">' + label + ' <input class="q-in" data-cf="' + key + '" value="' + esc(h[key] == null ? '' : h[key]) + '"' + (attrs || '') + '></label>'; }
+      html += '<div class="table-tools">' + F('วันที่รายงาน', 'date', ' type="date"') + F('เลขที่เอกสาร', 'doc', ' style="width:70px" placeholder="25"') + F('เลขชุด ภ-', 'no', ' style="width:110px" placeholder="0091/2569"') +
+          '<label class="q-field">แหล่งเงิน <select class="search field-select" data-cf="fund">' + Object.keys(CR_FUND).map(function(f){ return '<option value="' + f + '"' + (h.fund === f ? ' selected' : '') + '>' + CR_FUND[f] + '</option>'; }).join('') + '</select></label></div>' +
+        '<div class="table-tools">' + F('หมวดพัสดุ', 'cat', ' style="width:200px"') +
+          '<label class="q-field">ผู้ส่ง <select class="search field-select" data-cf="sender">' + memoOpts('crSend', h.sender) + '</select></label>' +
+          '<span class="table-note" style="margin:0">เพิ่มผู้ส่งได้ที่ ออกบันทึก ภย. / ขย. / ย. → ตั้งค่ารายชื่อ แล้วติ๊กหน้าที่ ผู้ส่งรายงานเจ้าหนี้</span></div>' +
+        '<div class="table-scroll" style="max-height:260px"><table style="min-width:1000px"><thead><tr><th>ลำดับ</th><th>เลขบันทึก</th><th>ชื่อเจ้าหนี้</th><th>เลขที่ใบส่งของ</th><th>รายการยา (แก้ได้)</th><th class="mono">จำนวนเงิน</th><th>ค่าปรับ</th><th>เลขที่ใบตรวจรับ</th></tr></thead><tbody>' +
+        rows.map(function(x, i){
+          return '<tr><td>' + (i + 1) + '</td><td class="mono" style="white-space:nowrap">' + esc(x.memo) + '</td><td>' + esc(x.company) + '</td><td class="mono">' + esc(x.bill) + '</td>' +
+            '<td><input class="q-in" data-ci="' + esc(x.no) + '" value="' + esc(x.items) + '" style="width:260px" aria-label="รายการยา"></td>' +
+            '<td class="mono">' + (x.total == null ? '–' : fmt2(x.total)) + '</td>' +
+            '<td><input class="q-in" data-cfine="' + esc(x.no) + '" value="' + esc(x.fine) + '" style="width:80px" inputmode="decimal" aria-label="ค่าปรับ"></td>' +
+            '<td class="mono" style="white-space:nowrap">' + esc(x.ry) + '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<div class="table-note" style="margin:8px 0 0">' + rows.length + ' ใบ รวมทั้งสิ้น ฿' + fmt2(Math.round(total * 100) / 100) +
+          (w.block.length || w.soft.length ? '<br><b class="pt-up">' + w.block.concat(w.soft).map(esc).join(' · ') + '</b>' : '') + (crState.msg ? shMsgHtml(crState.msg) : '') + '</div>' +
+        '<div class="table-tools" style="margin:10px 0 0"><button type="button" class="btn-solid" data-cact="export">ส่งออกรายงานเจ้าหนี้ (.xlsx)</button>' +
+          '<button type="button" class="btn-ghost" data-cact="clear">ล้างที่ติ๊ก</button></div>';
+    } else if(crState.msg) html += '<div class="table-note" style="margin:6px 0 0">' + shMsgHtml(crState.msg).replace(/^<br>/, '') + '</div>';
+    if(reps.length){
+      html += '<div class="table-note" style="margin:12px 0 4px"><b>รายงานที่ออกแล้ว</b> (ส่งออกซ้ำได้ เลขเดิม)</div>' +
+        '<div class="table-scroll" style="max-height:200px"><table style="min-width:760px"><thead><tr><th>รายงาน</th><th>เลขชุด</th><th>วันที่</th><th>แหล่งเงิน</th><th>จำนวน</th><th class="mono">ยอดเงิน</th><th></th></tr></thead><tbody>' +
+        reps.map(function(x){
+          var sum = x.nos.reduce(function(a, n){ var t = crRow(n).total; return a + (t || 0); }, 0);
+          return '<tr><td style="white-space:nowrap"><b>' + esc(crLabel(x)) + '</b></td><td class="mono">ภ-' + esc(x.no) + '</td><td style="white-space:nowrap">' + esc(memoDateTh(x.date)) + '</td><td>' + esc(CR_FUND[x.fund] || '') + '</td>' +
+            '<td>' + x.nos.length + ' ใบ</td><td class="mono">' + fmt2(Math.round(sum * 100) / 100) + '</td>' +
+            '<td style="white-space:nowrap"><button type="button" class="btn-ghost" data-cact="again" data-cno="' + esc(x.no) + '">ส่งออกซ้ำ</button> ' +
+            '<button type="button" class="btn-ghost" data-cact="cancel" data-cno="' + esc(x.no) + '">ยกเลิกรายงาน</button></td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    return html;
+  }
+  function crPanel(){ var el = document.getElementById('cr-panel'); if(el) el.innerHTML = crPanelHtml(); }
+  /* ไฟล์ตามที่พี่โอมตั้งชื่อในโฟลเดอร์งาน: "รายงานเจ้าหนี้การค้า.การเงิน -2.3.69 (4ภ.70)" · งบประมาณ "รายงานเจ้าหนี้การค้า. (งบประมาณ) 30.9.69 (52ภ.118)" */
+  function crFileName(h){
+    var p = String(h.date || '').split('-'), d = p.length === 3 ? Number(p[2]) + '.' + Number(p[1]) + '.' + String((Number(p[0]) + 543) % 100) : '';
+    return ('รายงานเจ้าหนี้การค้า.' + (h.fund === 'budget' ? ' (งบประมาณ) ' : 'การเงิน -') + d + ' (' + crLabel(h) + ').xlsx').replace(/[\\\/:*?"<>|]/g, '');
+  }
+  /* แบบตามตัวอย่าง: แนวนอน A4 · TH SarabunPSK 16 · ความกว้างคอลัมน์เดิม · หัว แหล่งเงิน / หน่วยงาน · ตาราง 9 คอลัมน์ · แถวรวม SUM · ผู้ส่ง (ชื่อ ตำแหน่ง) / ผู้รับ (ว่าง) */
+  function crBuild(h, rows){
+    return loadExcelJS().then(function(ExcelJS){
+      var wb = new ExcelJS.Workbook(), hosp = memoSet.org.hosp, fund = CR_FUND[h.fund] || CR_FUND.keep, p = memoPerson(h.sender);
+      wb.creator = CREDIT.author; wb.company = CREDIT.org; wb.description = CREDIT.notice; wb.title = 'รายงานเจ้าหนี้การค้า ภ-' + h.no;
+      var ws = wb.addWorksheet('รายงานเจ้าหนี้', { pageSetup:{ paperSize:9, orientation:'landscape', horizontalCentered:true, fitToPage:true, fitToWidth:1, fitToHeight:0,
+        margins:{ left:0.315, right:0.315, top:0.394, bottom:0.394, header:0.3, footer:0.3 } } });
+      ws.columns = [8.8, 14.6, 34.6, 14.8, 21.2, 26.1, 14.2, 7.6, 19.5, 20.5].map(function(w){ return { width:w }; });
+      var THIN = { style:'thin' }, BOX = { top:THIN, left:THIN, bottom:THIN, right:THIN };
+      function put(addr, v, o){
+        var c = ws.getCell(addr); o = o || {}; c.value = v;
+        c.font = { name:CR_FONT, size:o.sz || 16, bold:!!o.b };
+        c.alignment = { horizontal:o.h, vertical:'middle', wrapText:!!o.wrap };
+        if(o.fmt) c.numFmt = o.fmt;
+        if(o.box) c.border = BOX;
+        return c;
+      }
+      var dp = h.date.split('-').map(Number);
+      put('A1', 'วันที่พิมพ์', { b:1 }); put('B1', Date.UTC(dp[0], dp[1] - 1, dp[2]) / 86400000 + 25569, { sz:14, h:'left', fmt:'[$-107041E]d\\ mmmm\\ yyyy;@' });
+      put('H1', 'เลขชุด :', { b:1, h:'center' }); put('I1', 'ภ-' + h.no, { b:1 });
+      put('A2', hosp, { b:1 });
+      put('D4', 'รายงานเจ้าหนี้การค้า', { b:1, sz:18, h:'right' });
+      put('A5', 'แหล่งเงิน', { b:1 }); put('B5', fund + ' ' + hosp + ' หมวดค่าวัสดุ'); put('G5', 'ประเภทงบ', { b:1, h:'center' }); put('H5', fund + hosp);
+      put('A6', 'หน่วยงาน', { b:1 }); put('B6', memoSet.org.dept); put('G6', 'หมวดพัสดุ', { b:1, h:'center' }); put('H6', h.cat);
+      ['ลำดับ', 'เลขบันทึก', 'ชื่อเจ้าหนี้', 'หมวดพัสดุ', 'เลขที่ใบส่งของ', 'รายการยา', 'จำนวนเงิน', 'ค่าปรับ', 'เลขที่ใบตรวจรับ'].forEach(function(t, i){ put(String.fromCharCode(65 + i) + '7', t, { b:1, h:'center', box:1 }); });
+      ws.getRow(1).height = 21.75; ws.getRow(2).height = 21; ws.getRow(4).height = 19.5; ws.getRow(5).height = 21; ws.getRow(6).height = 19.5; ws.getRow(7).height = 24;
+      rows.forEach(function(x, i){
+        var r = 8 + i, fine = String(x.fine).trim() ? Number(String(x.fine).replace(/,/g, '')) : null;
+        put('A' + r, i + 1, { h:'center', box:1 }); put('B' + r, x.memo, { h:'center', box:1 }); put('C' + r, x.company, { box:1, wrap:1 });
+        put('D' + r, h.cat, { h:'center', box:1 }); put('E' + r, x.bill, { h:'center', box:1 }); put('F' + r, x.items, { sz:14, box:1, wrap:1 });
+        put('G' + r, x.total, { sz:14, fmt:'#,##0.00', box:1 }); put('H' + r, fine, { sz:14, fmt:'#,##0.00', box:1 }); put('I' + r, x.ry, { h:'left', box:1 });
+      });
+      var t = 8 + rows.length, sum = Math.round(rows.reduce(function(a, x){ return a + (x.total || 0); }, 0) * 100) / 100;
+      put('C' + t, rows.length, { b:1, h:'center', box:1 }); put('D' + t, 'ใบ', { b:1, h:'center', box:1 }); put('E' + t, 'รวมทั้งสิ้น', { b:1, h:'center', box:1 });
+      put('G' + t, { formula:'SUM(G8:G' + (t - 1) + ')', result:sum }, { b:1, fmt:'#,##0.00', box:1 });
+      ws.getRow(t).height = 20.1;
+      var s = t + 2, dots = '......................................................................';
+      put('B' + s, 'ผู้ส่ง', { b:1 }); put('C' + s, dots, { b:1, h:'center' }); put('G' + s, 'ผู้รับ', { b:1 }); put('H' + s, dots, { h:'center' });
+      put('C' + (s + 1), '(' + (p ? p.name : '...................................................') + ')', { h:'center' }); put('H' + (s + 1), '(...................................................)', { h:'center' });
+      put('C' + (s + 2), p ? memoSign(p) : '', { h:'center' });
+      return wb.xlsx.writeBuffer();
+    }).then(function(buf){ return new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); });
+  }
+  function crSave(h, rows, isNew){
+    return crBuild(h, rows).then(function(blob){
+      var name = crFileName(h);
+      saveBlob(blob, name);
+      if(isNew){
+        var at = new Date().toISOString();
+        rows.forEach(function(x, i){
+          memoSet.ry[x.no].cr = { no:h.no, doc:h.doc, date:h.date, fund:h.fund, cat:h.cat, sender:h.sender, items:x.items, fine:String(x.fine || ''), order:i, at:at, by:SH.by || '' };
+        });
+        memoBump(CR_SERIES, h.no);
+        memoSet.pick = memoSet.pick || {}; if(h.sender) memoSet.pick.crSend = h.sender;
+        memoSaveSet();
+        crState.pick = {}; crState.fine = {}; crState.items = {}; crState.no = ''; crState.doc = ''; crState.cat = ''; crState.noAuto = false;
+      }
+      crState.msg = 'ส่งออกแล้ว: ' + name + (isNew ? ' · เลขถัดไป ภ-' + crNextNo(crDate()) : '');
+      renderRy();
+    }, function(err){ crState.msg = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err); crPanel(); });
+  }
+  function crExport(){
+    var rows = crPicked(), h = crHead(rows), w = crWarn(rows, h);
+    if(w.block.length){ crState.msg = 'ยังไม่ได้ส่งออก: ' + w.block.join(' · '); crPanel(); return; }
+    if(!shOn()){ crSave(h, rows, true); return; }
+    crState.msg = 'กำลังจองเลข ภ-' + h.no + ' ในข้อมูลกลาง…'; crPanel();
+    shTake(CR_SERIES, h.no, { cr:h.no }).then(function(){ crSave(h, rows, true); }, function(err){
+      crState.msg = 'ยังไม่ได้ส่งออก: ' + err.message; crPanel();
+      shRefused(err.message, document.querySelector('#ry-box [data-cf="no"]'), err.quiet);
+    });
+  }
+  function crAgain(no){
+    var x = crReports().filter(function(r){ return r.no === no; })[0]; if(!x) return;
+    var rows = x.nos.map(function(n){ var b = crRow(n), c = memoSet.ry[n].cr; b.items = c.items != null ? c.items : b.items; b.fine = c.fine || ''; return b; });
+    var miss = rows.filter(function(b){ return b.total == null; });
+    if(miss.length){ crState.msg = 'ยังไม่ได้ส่งออก: ไม่รู้ยอดเงินของการรับ ' + miss.map(function(b){ return b.no; }).join(', ') + ' — ลาก PO_inven ที่มีการรับนี้'; crPanel(); return; }
+    crSave({ no:x.no, doc:x.doc, date:x.date, fund:x.fund, cat:x.cat || crCat(rows[0].k), sender:x.sender }, rows, false);
+  }
+  function crCancel(no){
+    var x = crReports().filter(function(r){ return r.no === no; })[0]; if(!x) return;
+    if(!window.confirm('ยกเลิกรายงาน ' + crLabel(x) + ' (ภ-' + x.no + ')?\n\nการรับ ' + x.nos.length + ' ครั้งในรายงานนี้จะกลับมาติ๊กทำรายงานใหม่ได้\nเลข ภ-' + x.no + ' ไม่นำกลับมาใช้ (รายงานใหม่ใช้เลขถัดไป)')) return;
+    x.nos.forEach(function(n){ delete memoSet.ry[n].cr; });
+    memoSaveSet();
+    crState.msg = 'ยกเลิกรายงาน ' + crLabel(x) + ' แล้ว'; renderRy();
+  }
+  (function wireCr(){
+    var box = document.getElementById('ry-box');
+    box.addEventListener('input', function(e){
+      var t = e.target;
+      if(t.hasAttribute('data-ci')){ crState.items[t.getAttribute('data-ci')] = t.value; return; }
+      if(t.hasAttribute('data-cfine')){ crState.fine[t.getAttribute('data-cfine')] = t.value; return; }
+      var f = t.getAttribute('data-cf'); if(!f || t.tagName === 'SELECT') return;
+      crState[f] = t.value; crState.msg = '';
+      if(f === 'no') crState.noAuto = false;
+    });
+    box.addEventListener('change', function(e){
+      var t = e.target;
+      if(t.id === 'cr-only'){ crState.only = t.checked; document.getElementById('ry-list').innerHTML = ryListHtml(); return; }
+      if(t.hasAttribute('data-cr')){ if(t.checked) crState.pick[t.getAttribute('data-cr')] = 1; else delete crState.pick[t.getAttribute('data-cr')]; crState.msg = ''; crPanel(); return; }
+      if(t.hasAttribute('data-cfine')){ crPanel(); return; }
+      var f = t.getAttribute('data-cf'); if(!f) return;
+      crState[f] = t.value; crState.msg = '';
+      if(f === 'date' && crState.noAuto) crState.no = '';   /* เลขที่เติมให้ ปีท้ายเลขตามวันที่ใหม่ · เลขที่พิมพ์เองคงไว้ */
+      crPanel();
+    });
+    box.addEventListener('click', function(e){
+      var b = e.target.closest('[data-cact]'); if(!b) return;
+      var a = b.getAttribute('data-cact');
+      if(a === 'export') crExport();
+      else if(a === 'clear'){ crState.pick = {}; crState.msg = ''; renderRy(); }
+      else if(a === 'again') crAgain(b.getAttribute('data-cno'));
+      else if(a === 'cancel') crCancel(b.getAttribute('data-cno'));
     });
   })();
 
