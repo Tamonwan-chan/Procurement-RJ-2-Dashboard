@@ -160,7 +160,8 @@ device('เครื่อง ก').then(p => { A = p; return A.restore(backup);
   assert.ok(![].some.call(A.$('quote-hist').options, o => o.value === 'W002-70'), 'gone on A');
   return until(() => (quoteRow('W002-70') || {})['ลบแล้ว'] === 'ลบ', 5000, 'delete pushed');
 }).then(() => B.sync()).then(() => {
-  assert.deepStrictEqual([].map.call(B.$('quote-hist').options, o => o.value).filter(Boolean), ['W001-70']);
+  /* ข้อ 37 (19 พ.ย. 69): เลขของใบที่ลบกลับมาเป็นเลขว่าง ใช้ใหม่ได้ */
+  assert.deepStrictEqual([].map.call(B.$('quote-hist').options, o => o.value).filter(Boolean), ['W001-70', '__head', 'gap:W002-70']);
   assert.strictEqual(counter('W'), 'W003-70', 'next number unchanged');
   assert.ok(rows('บันทึกการแก้').some(r => /เครื่อง ก ลบ quote W002-70/.test(r[1] + ' ' + r[2] + ' ' + r[3] + ' ' + r[4])), 'logged');
   // ผู้ดูแลกู้คืนใน Sheet (ลบคำว่า ลบ): ทุกเครื่องเห็นใบกลับมา

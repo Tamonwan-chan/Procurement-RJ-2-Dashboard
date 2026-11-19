@@ -1107,6 +1107,18 @@
       lastPack(L.po, function(r){ return r.date || r.ym * 100; }),
       lastPack(L.disp, function(r){ return r.ym * 100; })
     ];
+    /* planfin ลงขนาดบรรจุไม่ตรงกับกล่องจริง (เช่น แผนนับเป็นแอมป์ รับจริงกล่องละ 50): แปลงแผนเป็นกล่องจริงผ่านจำนวนหน่วยย่อย — พี่โอม 19 พ.ย. 69 "คำนวณต่อกล่อง" (ข้อ 21 · #42)
+       จำนวน = แผน × ขนาดบรรจุในแผน ÷ กล่องจริง · ราคาต่อกล่อง = ราคาในแผน ÷ ขนาดบรรจุในแผน × กล่องจริง · มูลค่าเท่าเดิม
+       กล่องจริง = ขนาดบรรจุจากไฟล์ที่มีการเคลื่อนไหวเท่านั้น (คลังยา → รับ 101 ล่าสุด → จ่ายล่าสุด) · ไม่มี = ใช้แผนตามเดิม (Meditem / DrugCatNow ผิดบางรายการ #41) */
+    Object.keys(L.planByYear).forEach(function(y){
+      var by = L.planByYear[y];
+      Object.keys(by).forEach(function(id){
+        var x = by[id], real = movePack(L, id);
+        if(!(x.pack > 0) || !(real > 0) || x.pack === real) return;
+        x.planPack = x.pack; x.planQty = x.qty;
+        x.qty = x.qty * x.pack / real; x.cost = Math.round(x.cost / x.pack * real * 100) / 100; x.pack = real;
+      });
+    });
     /* Meditem เก็บหน่วยเป็นรหัส — เรียนชื่อหน่วยจาก planfin / dispen_inven ของยาตัวเดียวกัน */
     L.unitOf = {}; var votes = {};
     function vote(id, name){
@@ -1144,10 +1156,22 @@
   function acctOf(L, id){ var r = L.reg[id], m = L.med[id]; return r && r.accName ? acctKey(r.accName) : (m && ACC_KEY[m.acc]) || 'other'; }
   /* จำนวนต่อกล่อง: Meditem / DrugCatNow บางรายการไม่ตรงกับกล่องที่คลังยาใช้จริง (เช่น เก็บ 1 ทั้งที่กล่องละ 100)
      จึงยึดไฟล์ที่มีการเคลื่อนไหวก่อน ให้ตรงกับ "ขนาดบรรจุ" ในหน้าปริมาณคงคลังของ HIS และตรงกับหน่วยกล่องที่คลังยานับจริง */
-  function packOf(L, id){
+  function movePack(L, id){
     for(var i = 0; i < L.packs.length; i++){ if(L.packs[i][id] > 0) return L.packs[i][id]; }
+    return 0;
+  }
+  /* รับจากการสั่งซื้อเป็นกล่องจริงตอนนี้: ครั้งที่รับด้วยขนาดบรรจุอื่น (เช่น เคยกล่องละ 5 ตอนนี้ 1) แปลงผ่านหน่วยย่อย ให้ลบ / เทียบกับแผนได้ */
+  function poBoxes(L, r){
+    var real = movePack(L, r.id);
+    return r.pack > 0 && real > 0 && r.pack !== real ? r.qty * r.pack / real : r.qty;
+  }
+  function packOf(L, id){
+    var mp = movePack(L, id); if(mp) return mp;
     var d = L.dc[id], m = L.med[id];
     return m && m.packqty > 0 ? m.packqty : d && d.packsize > 0 ? d.packsize : 0;
+  }
+  function planTip(p){
+    return 'แผนจัดซื้อ ฿' + fmt(p.value) + (p.planPack ? ' · planfin ลง ' + fmt1(p.planQty) + ' × ' + fmt1(p.planPack) + ' แปลงเป็นกล่องจริงละ ' + fmt1(p.pack) : '');
   }
 
   function buildItems(L){
@@ -1750,6 +1774,14 @@
     renderQuote(); if(ryState.open) renderRy();
   }
 
+  /* ซิงก์แบบรอผล: ติดต่อไม่ได้ = error (ใช้ก่อนออกเลขเก่าซ้ำ ต้องเห็นใบของเครื่องอื่นก่อน) */
+  function shSyncStrict(){
+    return (SH.busy || Promise.resolve()).then(function(){
+      var p = shPush().then(function(){ return shCall('pull'); }).then(function(j){ shApply(j, false); });
+      SH.busy = p.catch(function(){});
+      return p.then(function(){ SH.busy = null; shUi(); }, function(e){ SH.busy = null; shUi(); throw e; });
+    });
+  }
   function shSync(){
     if(!shOn()) return Promise.resolve();
     if(SH.busy) return SH.busy;
@@ -1830,6 +1862,7 @@
     if(!shOn() || quoteState.editing) return Promise.resolve();
     return QUOTE_SERIES.filter(function(s){ return g.sheets.some(function(sh){ return sh.series === s; }); }).reduce(function(p, s){
       return p.then(function(){
+        if(g.reuse && g.reuse[s]) return;   /* ใช้เลขเก่า (เลขว่าง / ทับใบเดิม) ยืนยันแล้วใน quoteReuseCheck: ไม่จองเลขใหม่ */
         var first = g.sheets.filter(function(sh){ return sh.series === s; })[0].no, cur = SH.meta.counters[s] || '', c = cur ? shNoCmp(first, cur) : 1;
         /* WB / WV: เลขยืมที่พิมพ์เอง ไม่มีชุดเลขรัน (ข้อ 2.13) → ไม่จอง ไม่แตะเลขถัดไปของ W / WM กันแค่เลขซ้ำกับใบที่มีอยู่แล้ว (#46) */
         if((noParts(first) || {}).pre === SERIES_OLD[s]){
@@ -1841,7 +1874,7 @@
           quoteState.nos[s] = v; document.getElementById('quote-no-' + s).value = v;
           var e = new Error(why + ' · เปลี่ยนเลขใบแรกเป็น ' + v + ' ให้แล้ว กดส่งออกอีกครั้ง'); e.input = 'quote-no-' + s; throw e;
         }
-        if(c === null || c < 0) renum(cur, 'เลข ' + first + ' ใช้ไปแล้วในข้อมูลกลาง');
+        if(c === null || c < 0) renum(cur, 'เลข ' + first + (c === null ? ' ไม่อยู่ในรูปแบบ ' + cur : ' ต่ำกว่าเลขถัดไปในข้อมูลกลาง'));
         return shCall('reserve', { series:s, expect:cur, next:g.next[s] }).then(function(j){
           if(j.status !== 'ok'){ SH.meta.counters[s] = j.current; shSaveMeta(); renum(j.current, (j.by || 'เครื่องอื่น') + ' เพิ่งออกใบ ' + s); }
           SH.meta.counters[s] = j.next; shSaveMeta();
@@ -2445,7 +2478,7 @@
       '<td class="mono">' + (isOut(it) ? OUT_PILL : fmt1(sq)) + invNote + '</td>' +
       rooms.map(q).join('') +
       '<td class="mono"><b>' + esc(total > 0 && total < 0.05 ? '<0.1' : fmt1(total)) + '</b></td>' +
-      '<td class="mono plan"' + (it.plan ? ' title="แผนจัดซื้อ ฿' + fmt(it.plan.value) + '"' : '') + '>' + (it.plan ? fmt1(it.plan.qty) : '–') + '</td>' +
+      '<td class="mono plan"' + (it.plan ? ' title="' + esc(planTip(it.plan)) + '"' : '') + '>' + (it.plan ? fmt1(it.plan.qty) : '–') + '</td>' +
       '<td class="mono">' + fmt(value) + '</td>' +
       '<td' + (exp ? '' : ' class="zero"') + '>' + esc(exp || '–') + '</td>' +
       '<td>' + esc(it.distribute) + '</td><td>' + esc(it.manufact || '') + '</td></tr>';
@@ -2560,6 +2593,7 @@
     /* ราคาตั้งต้น: ราคาทุนต่อกล่องจาก planfin (ราคาที่ซื้อจริง เช่น 185 บาท/1000 เม็ด) ถ้าไม่มีจึงใช้ costrate × packqty */
     var pl = L.plan && L.plan[it.hospcode];
     if(pl && pl.cost > 0 && pl.pack > 0) pack = pl.pack;
+    if(pl && pl.planPack && pack > 1 && big === small) big = 'กล่อง';   /* แผนแปลงเป็นกล่องจริง (#42) แต่ Meditem ลงหน่วยซื้อเป็นหน่วยย่อย */
     var price = pl && pl.cost > 0 ? pl.cost : m.costrate ? Math.round(m.costrate * pack * 100) / 100 : Math.round((it.boxCost || 0) * 100) / 100;
     /* จำนวนซื้อตั้งต้น = planfin ปีงบนั้น ลบที่ซื้อไปแล้วในปีงบนี้ (PO_inven) · ซื้อเกินแผนแล้ว = 0 — พี่โอมยืนยัน 22 ต.ค. 69 */
     var bought = boughtOf(it.hospcode);
@@ -2812,7 +2846,7 @@
       return;
     }
     var btn = document.getElementById('quote-export'); btn.disabled = true; msg.textContent = shOn() && !quoteState.editing ? 'กำลังจองเลขที่ในข้อมูลกลาง…' : 'กำลังสร้างไฟล์…';
-    shTakeQuotes(g).then(loadExcelJS).then(function(ExcelJS){
+    quoteReuseCheck(g).then(function(){ return shTakeQuotes(g); }).then(loadExcelJS).then(function(ExcelJS){
       var src = new ExcelJS.Workbook();
       return src.xlsx.load(tpl.buf).then(function(){
         var tws = src.worksheets.filter(function(w){ return w.name.trim() === String(tpl.sheetName).trim(); })[0];
@@ -2850,13 +2884,16 @@
       });
       dbPut([quoteHist]).catch(function(){ storageOk = false; });
       QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = savedNo(s); });
-      quoteState.note = (wasEditing ? 'แก้ไขใบ ' + wasEditing.no + ' แล้ว (เลขเดิม)' : 'ส่งออกแล้ว ' + g.sheets.length + ' ใบ (' + ranges.join(', ') + ')') +
+      var reused = Object.keys(g.reuse || {}).map(function(s){ return g.reuse[s]; });
+      quoteState.note = (wasEditing && !wasEditing.gap ? 'แก้ไขใบ ' + wasEditing.no + ' แล้ว (เลขเดิม)'
+        : reused.length ? 'ส่งออกใบเลขเก่า ' + reused.join(', ') + ' แล้ว (' + (g.reusedOld ? 'ทับใบเดิม' : 'เลขว่าง') + ')'
+        : 'ส่งออกแล้ว ' + g.sheets.length + ' ใบ (' + ranges.join(', ') + ')') +
         ' ไฟล์ ' + name + ' · เลขที่ใบถัดไป ' + QUOTE_SERIES.map(function(s){ return SERIES_LABEL[s] + ' ' + quoteState.nos[s]; }).join(' / ');
       renderQuote();
     }).catch(function(err){
       if(err && err.shared){
         msg.innerHTML = shMsgHtml('ยังไม่ได้ส่งออก: ' + err.message);
-        shRefused(err.message, err.input ? document.getElementById(err.input) : null);
+        shRefused(err.message, err.input ? document.getElementById(err.input) : null, err.quiet);
       }else msg.textContent = 'สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
     }).then(function(){ btn.disabled = false; });
   }
@@ -2864,10 +2901,74 @@
   /* ใบในประวัติ: key = sid (ใบเลขซ้ำที่เก็บไว้ทั้ง 2 ใบตอนย้ายเข้าข้อมูลกลาง เช่น W103-70~2) หรือเลขที่ · เลขที่ที่พิมพ์ในเอกสารยังเป็น d.no */
   function qKey(d){ return d.sid || d.no; }
   function qFind(key){ return (quoteHist && quoteHist.docs || []).filter(function(d){ return qKey(d) === key; })[0] || null; }
+
+  /* ---- ใช้เลขเก่าซ้ำ (พี่โอม 19 พ.ย. 69 · ข้อ 37 · #52) ----
+     เลขว่าง = เลขในปีงบนี้ที่ต่ำกว่าเลขถัดไป แต่ไม่มีใบในประวัติ (ลบไปแล้ว หรือไม่เคยเข้าโปรแกรม เช่น W004 / W008) → เลือกจากรายการ "ใบที่ส่งออกแล้ว" หรือพิมพ์เลขเองแล้วออกใบเลขนั้นได้
+     เลขที่มีใบอยู่แล้ว = ทับใบเดิมได้ แต่เตือนก่อน พร้อมรายการเดิมในใบ · ใช้เลขเก่าได้ทีละ 1 ใบ · เลขถัดไปไม่เปลี่ยน */
+  var QUOTE_GAP = 'gap:';
+  function quoteGaps(){
+    var have = {}, out = [];
+    (quoteHist && quoteHist.docs || []).forEach(function(d){ have[String(d.no || '').toUpperCase()] = 1; });
+    QUOTE_SERIES.forEach(function(s){
+      var nx = String(savedNo(s)), m = /^([A-Z]+)(\d+)(-\d+)$/.exec(nx.toUpperCase());
+      if(!m || m[1] !== s) return;
+      for(var i = 1; i < Number(m[2]); i++){
+        var v = String(i); while(v.length < m[2].length) v = '0' + v;
+        if(!have[s + v + m[3]]) out.push(s + v + m[3]);
+      }
+    });
+    return out;
+  }
+  function qByNo(no){ var u = String(no || '').toUpperCase(); return (quoteHist && quoteHist.docs || []).filter(function(d){ return String(d.no || '').toUpperCase() === u; }); }
+  /* ใบที่ใช้เลขเก่า (ต่ำกว่าเลขถัดไปของชุด หรือมีใบเลขนั้นอยู่แล้ว) ในการส่งออกครั้งนี้ */
+  function quoteOldNos(g){
+    return g.sheets.filter(function(sh){
+      if(qByNo(sh.no).length) return true;
+      var c = shNoCmp(sh.no, savedNo(sh.series));
+      return c !== null && c < 0;
+    });
+  }
+  function quoteDocText(d){
+    var m = d.memo || {}, iss = m.issued || {}, k = MEMO_KIND[m.kind || memoKindRule(d)], memos = [];
+    var p = iss.p ? iss.p.no : m.pNo, kk = iss.k ? iss.k.no : iss.y ? iss.y.no : m.kNo;
+    if(p) memos.push(k.p + '. ' + p); if(kk) memos.push(k.k + '. / ' + k.y + '. ' + kk);
+    return d.company + ' · ' + isoShortTh(d.date) + '\n' + (d.lines || []).map(function(l, i){ return '  ' + (i + 1) + '. ' + l.name + '  ' + fmt1(+l.qty || 0) + ' ' + (l.unitP || ''); }).join('\n') +
+      (memos.length ? '\n⚠ ใบนี้ออกบันทึกแล้ว: ' + memos.join(' · ') + ' (เลขบันทึกคงเดิม รายการในบันทึกจะเปลี่ยนตามใบใหม่)' : '');
+  }
+  /* ก่อนสร้างไฟล์: ใช้เลขเก่า = ซิงก์ข้อมูลกลางก่อน (เครื่องอื่นอาจเพิ่งใช้เลขนั้น) แล้วถามยืนยัน · g.reuse[ชุด] = ไม่ต้องจองเลขใหม่ */
+  function quoteReuseCheck(g){
+    var ed = quoteState.editing;
+    if(ed && !ed.gap) return Promise.resolve();
+    if(!quoteOldNos(g).length) return Promise.resolve();
+    var typed = {}; QUOTE_SERIES.forEach(function(s){ typed[s] = quoteState.nos[s]; });
+    return (shOn() ? shSyncStrict() : Promise.resolve()).then(function(){
+      QUOTE_SERIES.forEach(function(s){ quoteState.nos[s] = typed[s]; var el = document.getElementById('quote-no-' + s); if(el) el.value = typed[s]; });   /* ซิงก์แล้วช่องเลขถูกเติมเลขถัดไป: คืนเลขที่พิมพ์ไว้ */
+      var old = quoteOldNos(g);
+      old.forEach(function(sh){
+        if(g.sheets.filter(function(x){ return x.series === sh.series; }).length > 1){
+          var e1 = new Error('ใช้เลขเก่า ' + sh.no + ' ได้ทีละ 1 ใบ · รายการที่เลือกจะได้ ' + g.sheets.filter(function(x){ return x.series === sh.series; }).length + ' ใบ (' + seriesRanges(g.sheets).join(', ') + ') ส่งออกทีละบริษัท');
+          e1.input = 'quote-no-' + sh.series; e1.shared = true; throw e1;
+        }
+      });
+      g.reuse = {};
+      old.forEach(function(sh){
+        var have = qByNo(sh.no), x = have[0], n = sh.items.length;
+        var msg = have.length
+          ? sh.no + ' ได้มีการออกใบขอใบเสนอราคาแล้ว จำนวน ' + (x.lines || []).length + ' รายการ\n\nใบเดิม: ' + quoteDocText(x) +
+            '\n\nทับใบเดิมด้วยรายการใหม่ ' + n + ' รายการ (' + sh.company + ') กด OK\nดูหรือแก้ใบเดิมก่อน กด ยกเลิก แล้วเลือก ' + sh.no + ' ในช่อง "ใบที่ส่งออกแล้ว" กด เปิดมาแก้ไข'
+          : sh.no + ' เป็นเลขว่าง ยังไม่มีใบเลขนี้' + (shOn() ? 'ในข้อมูลกลาง' : 'ในเครื่องนี้') + '\n\nออกใบ ' + sh.no + ' ให้ ' + sh.company + ' ' + n + ' รายการ กด OK\n(เลขถัดไปยังเป็น ' + savedNo(sh.series) + ' ไม่เปลี่ยน)';
+        if(!window.confirm(msg)){
+          var e2 = new Error('ยังไม่ได้ยืนยันการใช้เลข ' + sh.no + (have.length ? ' (มีใบเดิมอยู่แล้ว)' : '')); e2.shared = true; e2.quiet = true; e2.input = 'quote-no-' + sh.series; throw e2;
+        }
+        g.reuse[sh.series] = sh.no;
+        if(x){ sh.key = qKey(x); g.reusedOld = true; }   /* ใบเลขซ้ำที่เก็บไว้ 2 ใบ (W103-70~2): ทับใบที่แสดงในคำเตือน */
+      });
+    }, function(err){ var e = new Error('ใช้เลขเก่าต้องตรวจกับข้อมูลกลางก่อน: ' + err.message); e.shared = true; throw e; });
+  }
   function recordQuotes(sheets, file){
     if(!quoteHist) quoteHist = { slot:QUOTE_HIST_SLOT, docs:[] };
     sheets.forEach(function(sh){
-      var key = quoteState.editing && quoteState.editing.no === sh.no ? quoteState.editing.key || sh.no : sh.no, old = qFind(key);
+      var key = sh.key || (quoteState.editing && quoteState.editing.no === sh.no ? quoteState.editing.key || sh.no : sh.no), old = qFind(key);   /* sh.key = ทับใบเดิมที่ยืนยันแล้ว */
       var doc = { no:sh.no, series:sh.series, company:sh.company, date:quoteState.date || todayIso(), at:new Date().toISOString(), file:file,
         revisions:old ? (old.revisions || 1) + 1 : 1,
         lines:sh.items.map(function(it, i){ var l = sh.lines[i]; return { id:it.hospcode, name:l.name, qty:l.qty, price:l.price, unitS:l.unitS, unitP:l.unitP, pack:l.pack }; }) };
@@ -2962,7 +3063,7 @@
     if(res.nos.length) dbPut([quoteHist]).catch(function(){ storageOk = false; });
     return res;
   }
-  /* ลบใบเสนอราคาออกจากประวัติ (#47 · ค่าตั้งต้นข้อ 37): เลขที่ของใบที่ลบไม่นำกลับมาใช้ เลขถัดไปไม่ย้อน · ใบที่มีเลขบันทึกแล้วลบได้ แต่เตือนก่อน
+  /* ลบใบเสนอราคาออกจากประวัติ (#47 · ข้อ 37 พี่โอมตอบ 19 พ.ย. 69): เลขที่ของใบที่ลบกลับมาเป็นเลขว่าง ใช้ใหม่ได้ เลขถัดไปไม่ย้อน · ใบที่มีเลขบันทึกแล้วลบได้ แต่เตือนก่อน
      ข้อมูลกลาง: ทำเครื่องหมาย "ลบ" ในแถวของ Sheet (ไม่ลบแถว ผู้ดูแลกู้คืนได้) ทุกเครื่องหายตามเมื่อซิงก์ */
   function deleteQuote(key){
     var doc = qFind(key); if(!doc) return;
@@ -2971,7 +3072,7 @@
     if(p) memos.push(k.p + '. ' + p); if(kk) memos.push(k.k + '. / ' + k.y + '. ' + kk);
     var msg = 'ลบใบ ' + doc.no + (doc.dup ? ' (' + doc.dup + ')' : '') + '?\n\n' + doc.company + ' · ' + (doc.lines || []).length + ' รายการ · ' + isoShortTh(doc.date) + '\n\n' +
       (memos.length ? '⚠ ใบนี้มีเลขบันทึก ' + memos.join(' · ') + ' — เลขบันทึกนั้นยังนับว่าออกไปแล้ว ไม่นำกลับมาใช้\n' : '') +
-      'เลขที่ ' + doc.no + ' ไม่นำกลับมาใช้ เลขถัดไปไม่เปลี่ยน\n' +
+      'เลขที่ ' + doc.no + ' กลับมาใช้ได้ (ขึ้นเป็นเลขว่างในช่อง "ใบที่ส่งออกแล้ว") เลขถัดไปไม่เปลี่ยน\n' +
       (shOn() ? 'ลบจากข้อมูลกลางด้วย ทุกเครื่องจะไม่เห็นใบนี้ (ผู้ดูแลกู้คืนจาก Sheet ได้)' : 'ลบเฉพาะในเครื่องนี้');
     if(!window.confirm(msg)) return;
     if(quoteState.editing && (quoteState.editing.key || quoteState.editing.no) === key) quoteReset();
@@ -2983,6 +3084,16 @@
     renderQuote();
   }
   function reopenQuote(no){
+    if(no.indexOf(QUOTE_GAP) === 0){   /* เลขว่าง: เปิดใบเปล่าเลขนั้น เลือกบริษัทและรายการเอง */
+      var gno = no.slice(QUOTE_GAP.length), gs = (/^[A-Z]+/.exec(gno) || [''])[0];
+      if(QUOTE_SERIES.indexOf(gs) < 0) return;
+      quoteReset();
+      quoteState.editing = { no:gno, key:gno, series:gs, gap:true };
+      quoteState.nos[gs] = gno;
+      quoteState.note = '';
+      renderQuote();
+      return;
+    }
     var doc = qFind(no); if(!doc) return;
     var byId = {}; state.items.forEach(function(it){ byId[it.hospcode] = it; });
     var gone = [];
@@ -3234,7 +3345,7 @@
      dksh:    ราคาต่อหน่วย (รวม VAT) · ราคาต่อหน่วย (ไม่รวม VAT) · วงเงิน (รวม VAT)
      other:   ราคาต่อหน่วย (รวม VAT) · วงเงิน (รวม VAT)
      เลือกอัตโนมัติจากชื่อบริษัท (ดีทแฮล์ม เคลเลอร์ = กลุ่ม DKSH) · เปลี่ยนเองได้ในหน้าออกบันทึก */
-  var MEMO_LAYOUTS = [['zuellig', 'Zuellig'], ['dksh', 'DKSH'], ['other', 'บริษัทอื่น ๆ']];
+  var MEMO_LAYOUTS = [['zuellig', 'Zuellig/SIAM'], ['dksh', 'DKSH'], ['other', 'บริษัทอื่น ๆ']];
   function memoLayoutOf(company){
     var c = String(company || '');
     return /ซิลลิค|zuellig/i.test(c) ? 'zuellig' : /ดีเคเอสเอช|dksh|ดีทแฮล์ม/i.test(c) ? 'dksh' : 'other';
@@ -4147,7 +4258,7 @@
       return '<tr data-hc="' + hc + '"' + (on ? ' class="on"' : '') + '>' +
         '<td style="white-space:nowrap"><input type="checkbox" data-k="sel"' + (on ? ' checked' : '') + ' aria-label="เลือก ' + esc(l.name) + '"> <span class="q-ord" data-ord></span></td>' +
         '<td>' + hc + '</td><td>' + esc(l.name) + (seriesOf(it) !== 'W' ? ' <span class="pill">' + SERIES_LABEL[seriesOf(it)] + ' · ' + seriesOf(it) + '</span>' : '') + (quoteState.company === 'all' || (it.distribute || NO_COMPANY) !== quoteState.company ? '<br><small class="rate-inv">' + esc(it.distribute || NO_COMPANY) + '</small>' : '') + '</td>' +
-        '<td class="mono plan"' + (it.plan ? ' title="แผนจัดซื้อ ฿' + fmt(it.plan.value) + '"' : '') + '>' + (it.plan ? fmt1(it.plan.qty) : '–') + '</td>' +
+        '<td class="mono plan"' + (it.plan ? ' title="' + esc(planTip(it.plan)) + '"' : '') + '>' + (it.plan ? fmt1(it.plan.qty) : '–') + '</td>' +
         boughtCell(it) +
         hospCell(it) +
         '<td class="mono">' + fmt1(l.pack) + ' <input class="q-in unit" data-k="unitS" list="quote-units" value="' + esc(l.unitS) + '" aria-label="หน่วยย่อย"></td>' +
@@ -4161,12 +4272,15 @@
     QUOTE_SERIES.forEach(function(s){ if(!quoteState.nos[s]) quoteState.nos[s] = savedNo(s); });
     if(!quoteState.date) quoteState.date = todayIso();
     QUOTE_SERIES.forEach(function(s){ document.getElementById('quote-no-' + s).value = quoteState.nos[s]; });
-    var docs = quoteHist && quoteHist.docs || [];
-    fillSelect('quote-hist', docs.length ? docs.map(function(d){
+    var docs = quoteHist && quoteHist.docs || [], gaps = quoteGaps(), ed = quoteState.editing;
+    var histOpts = docs.map(function(d){
       return [qKey(d), d.no + (d.dup ? ' · ' + d.dup : '') + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '') + (d.src === 'file' ? ' · จากไฟล์' : '')];
-    }) : [['', 'ยังไม่มีใบที่ส่งออก']], quoteState.editing ? quoteState.editing.key || quoteState.editing.no : '');
+    });
+    if(gaps.length) histOpts = histOpts.concat([[COMBO_HEAD, 'เลขว่าง ' + gaps.length + ' เลข (ยังไม่มีใบ · เลือกแล้วกด เปิดมาแก้ไข เพื่อออกใบเลขนั้น)']],
+      gaps.map(function(no){ return [QUOTE_GAP + no, no + ' · เลขว่าง ยังไม่มีใบ']; }));
+    fillSelect('quote-hist', histOpts.length ? histOpts : [['', 'ยังไม่มีใบที่ส่งออก']], ed ? (ed.gap ? QUOTE_GAP + ed.no : ed.key || ed.no) : '');
     quoteHistIdx = null; quoteCombos.forEach(function(c){ c.sync(); });
-    document.getElementById('quote-reopen').disabled = !docs.length;
+    document.getElementById('quote-reopen').disabled = !histOpts.length;
     document.getElementById('quote-delete').disabled = !docs.length;
     document.getElementById('quote-cancel-edit').hidden = !quoteState.editing;
     document.getElementById('quote-date').value = quoteState.date;
@@ -4180,7 +4294,7 @@
       (L.po || []).forEach(function(r){
         if(!L.planYear || fiscalOf(r.ym) !== L.planYear) return;
         var b = L._bought[r.id] || (L._bought[r.id] = { list:[], total:0 });
-        b.list.push(r); b.total += r.qty;
+        b.list.push(r); b.total += poBoxes(L, r);
       });
       Object.keys(L._bought).forEach(function(k){ L._bought[k].list.sort(function(a, b){ return (a.date || a.ym * 100) - (b.date || b.ym * 100); }); });
     }
@@ -4333,7 +4447,8 @@
     else if(g.count && (quoteState.mfr !== 'all' || quoteState.company !== 'all')) extra = 'ล็อกตามรายการแรก: ' + [quoteState.company !== 'all' ? quoteState.company : '', quoteState.mfr !== 'all' ? 'ผู้ผลิต ' + quoteState.mfr : ''].filter(Boolean).join(' · ') + ' (เลือก "ทุกบริษัท" / "ทุกผู้ผลิต" เพื่อปลดล็อก)' + (extra ? ' · ' + extra : '');
     g.sheets.forEach(function(s){ s.items.forEach(function(it){ var l = quoteLine(it), r = refPick(it.hospcode); if(r && (+l.price || 0) > r.r.price * (l.pack || 1) + 0.005) over.push(l.name); }); });
     if(over.length) extra = '⚠ ราคาเกินราคากลาง ' + over.length + ' รายการ: ' + over.slice(0, 3).join(', ') + (over.length > 3 ? ' …' : '') + (extra ? ' · ' + extra : '');
-    document.getElementById('quote-summary').textContent = (ed ? 'กำลังแก้ไขใบ ' + ed.no + ' — เพิ่ม / ลบ / แก้จำนวนได้ แล้วกดส่งออก จะได้ไฟล์เลขเดิม (เลขถัดไปไม่เปลี่ยน) · ' : '') + (g.count
+    document.getElementById('quote-summary').textContent = (ed ? (ed.gap ? 'กำลังออกใบเลขว่าง ' + ed.no + ' — เลือกบริษัท ติ๊กรายการ (บริษัทเดียวกัน ไม่เกิน ' + QUOTE_MAX + ' รายการ) แล้วกดส่งออก (เลขถัดไปไม่เปลี่ยน) · '
+      : 'กำลังแก้ไขใบ ' + ed.no + ' — เพิ่ม / ลบ / แก้จำนวนได้ แล้วกดส่งออก จะได้ไฟล์เลขเดิม (เลขถัดไปไม่เปลี่ยน) · ') : '') + (g.count
       ? 'เลือกแล้ว ' + g.count + ' รายการ จาก ' + g.companies + ' บริษัท → ' + g.sheets.length + ' ใบ (' + seriesRanges(g.sheets).join(', ') + ') · ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ'
       : 'ติ๊กเลือกรายการ ตรวจจำนวนซื้อ (ตั้งต้น = planfin ปีงบนั้น ลบที่ซื้อแล้ว แก้ได้) แล้วกดส่งออก · แยกใบตามบริษัท (distribute) ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ · เลขที่แยกชุด: ยา W / เวชภัณฑ์ที่มิใช่ยา วัสดุ อื่น ๆ WM / เภสัชเคมีภัณฑ์ WC') + (extra ? ' · ' + extra : '');
   }
@@ -4358,7 +4473,7 @@
   var quoteTimer;
   document.getElementById('quote-search').addEventListener('input', function(e){ clearTimeout(quoteTimer); var v = e.target.value; quoteTimer = setTimeout(function(){ quoteState.search = v; renderQuote(); }, 150); });
   QUOTE_SERIES.forEach(function(s){
-    document.getElementById('quote-no-' + s).addEventListener('input', function(e){ quoteState.nos[s] = e.target.value.trim(); quoteSummary(''); });
+    document.getElementById('quote-no-' + s).addEventListener('input', function(e){ quoteState.nos[s] = e.target.value.trim().toUpperCase(); quoteSummary(''); });
   });
   document.getElementById('quote-reopen').addEventListener('click', function(){ var v = document.getElementById('quote-hist').value; if(v) reopenQuote(v); });
   document.getElementById('quote-cancel-edit').addEventListener('click', quoteReset);
@@ -4819,7 +4934,7 @@
     var bought = {}, poN = 0;
     (L.po || []).forEach(function(r){
       if(fiscalOf(r.ym) !== cur) return; poN++;
-      var b = bought[r.id] || (bought[r.id] = { qty:0, value:0, n:0, name:r.name }); b.qty += r.qty; b.value += r.value; b.n++;
+      var b = bought[r.id] || (bought[r.id] = { qty:0, value:0, n:0, name:r.name }); b.qty += poBoxes(L, r); b.value += r.value; b.n++;
     });
     var items = {}; state.items.forEach(function(it){ items[it.hospcode] = it; });
     var ids = {}; Object.keys(plan || {}).forEach(function(id){ ids[id] = 1; }); Object.keys(bought).forEach(function(id){ ids[id] = 1; });
