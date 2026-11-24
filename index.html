@@ -4221,6 +4221,8 @@
        ยังรอ: แหล่งเงินเลือกต่อรายงาน ตั้งต้นเงินบำรุง (ข้อ 44) · เลขที่เอกสารยังรันต่อ ไม่เริ่มใหม่เอง (ข้อ 47)
      เก็บ: รายงานติดไว้กับบันทึก รย. ของแต่ละการรับ (memoSet.ry[minpno].cr) จึงใช้ร่วมผ่านแท็บตรวจรับเดิมในข้อมูลกลาง ไม่ต้องแก้ Apps Script
        · เลข ภ- จองในชุด 'ภ' · เลขที่เอกสาร = เลขสูงสุดในรายงานที่มี + 1 */
+  /* รายงานละไม่เกิน 15 ใบ ตามแบบ Excel ของพี่โอม (ตัวอย่าง 4ภ.70 มี 15 แถว · "Max สุด 15 เลขบันทึก" 24 พ.ย. 69 · ข้อ 2.44) */
+  var CR_MAX = 15;
   var CR_SERIES = 'ภ', CR_FUND = { keep:'เงินบำรุง', budget:'เงินงบประมาณ' }, CR_FONT = 'TH SarabunPSK';
   var crState = { pick:{}, only:false, date:'', no:'', doc:'', fund:'keep', cat:'', sender:null, fine:{}, items:{}, msg:'' };
   function crCan(s){ return !!(s && s.done && !s.cr); }
@@ -4276,6 +4278,7 @@
     var block = [], soft = [];
     if(!rows.length) block.push('ยังไม่ได้ติ๊กการรับ');
     if(rows.some(function(x){ return x.k !== rows[0].k; })) block.push('ติ๊กทั้ง รย. และ รยว. — ทำรายงานแยกใบตามหมวดพัสดุ');
+    if(rows.length > CR_MAX) block.push('รายงานละไม่เกิน ' + CR_MAX + ' ใบ (ติ๊กไว้ ' + rows.length + ') — เอาติ๊กออก ' + (rows.length - CR_MAX) + ' ใบ แล้วทำรายงานใหม่สำหรับที่เหลือ');
     rows.forEach(function(x){ if(x.total == null) block.push('การรับ ' + x.no + ' ไม่มีใน PO_inven ที่นำเข้า (ไม่รู้ยอดเงิน) — ลาก PO_inven ที่มีการรับนี้ หรือออก ' + x.ry + ' ซ้ำ 1 ครั้ง'); });
     if(!/^\d+\/\d{4}$/.test(h.no)) block.push('เลขชุด ภ- ควรเป็นรูปแบบ 0071/2569' + (crNextNo(h.date) ? '' : ' (ครั้งแรก พิมพ์เลขถัดจากเล่มจริง แล้วโปรแกรมรันต่อให้)'));
     else if(crReports().some(function(x){ return x.no === h.no; })) block.push('ภ-' + h.no + ' ออกไปแล้วกับรายงานอื่น');
@@ -4306,7 +4309,7 @@
             '<td><input class="q-in" data-cfine="' + esc(x.no) + '" value="' + esc(x.fine) + '" style="width:80px" inputmode="decimal" aria-label="ค่าปรับ"></td>' +
             '<td class="mono" style="white-space:nowrap">' + esc(x.ry) + '</td></tr>';
         }).join('') + '</tbody></table></div>' +
-        '<div class="table-note" style="margin:8px 0 0">' + rows.length + ' ใบ รวมทั้งสิ้น ฿' + fmt2(Math.round(total * 100) / 100) +
+        '<div class="table-note" style="margin:8px 0 0">' + rows.length + ' ใบ (รายงานละไม่เกิน ' + CR_MAX + ') รวมทั้งสิ้น ฿' + fmt2(Math.round(total * 100) / 100) +
           (w.block.length || w.soft.length ? '<br><b class="pt-up">' + w.block.concat(w.soft).map(esc).join(' · ') + '</b>' : '') + (crState.msg ? shMsgHtml(crState.msg) : '') + '</div>' +
         '<div class="table-tools" style="margin:10px 0 0"><button type="button" class="btn-solid" data-cact="export">ส่งออกรายงานเจ้าหนี้ (.xlsx)</button>' +
           '<button type="button" class="btn-ghost" data-cact="clear">ล้างที่ติ๊ก</button></div>';
@@ -4415,6 +4418,7 @@
     var x = crReports().filter(function(r){ return r.no === no; })[0], rows = crPicked(); if(!x || !rows.length) return;
     var k = crRow(x.nos[0]).k, block = [];
     if(rows.some(function(r){ return r.k !== k; })) block.push('รายงาน ' + crLabel(x) + ' เป็นรายงาน ' + k.r + ' — ติ๊กเฉพาะการรับที่ออก ' + k.r + ' (แยกใบตามหมวดพัสดุ)');
+    if(x.nos.length + rows.length > CR_MAX) block.push('รายงาน ' + crLabel(x) + ' มีแล้ว ' + x.nos.length + ' ใบ เพิ่มได้อีก ' + Math.max(0, CR_MAX - x.nos.length) + ' ใบ (รายงานละไม่เกิน ' + CR_MAX + ')');
     rows.forEach(function(r){ if(r.total == null) block.push('การรับ ' + r.no + ' ไม่มีใน PO_inven ที่นำเข้า (ไม่รู้ยอดเงิน)'); });
     rows.forEach(function(r){ if(String(r.fine).trim() && !isFinite(Number(String(r.fine).replace(/,/g, '')))) block.push('ค่าปรับของ ' + r.ry + ' ไม่ใช่ตัวเลข'); });
     if(block.length){ crState.msg = 'ยังไม่ได้เพิ่ม: ' + block.join(' · '); crPanel(); return; }
