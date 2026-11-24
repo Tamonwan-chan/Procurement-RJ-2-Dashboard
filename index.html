@@ -345,6 +345,7 @@
   .quote-box .memo-amt{ display:grid; grid-template-columns:auto 130px; gap:4px 10px; justify-content:end; align-items:center; margin:8px 0 0; font-size:13px; }
   .quote-box .memo-amt .q-in{ width:130px; text-align:right; font-family:'IBM Plex Mono', monospace; }
   .quote-box .memo-amt .q-in.edited{ background:#FFF6D6; }
+  .quote-box .memo-amt .q-in[readonly]{ cursor:pointer; }
   .quote-box .memo-amt-note{ text-align:right; font-size:12px; margin:4px 0 0; }
   .quote-box .memo-step{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:14px 0 6px; font-size:13px; font-weight:600; color:var(--ink); }
   .quote-box .memo-set{ border:1px dashed var(--border-strong); border-radius:8px; padding:10px 12px; margin:4px 0 8px; background:var(--surface-2); }
@@ -3373,10 +3374,9 @@
     });
     total = Math.round(total * 100) / 100; exSum = Math.round(exSum * 100) / 100;
     /* Zuellig: วงเงินในตารางไม่รวม VAT → มูลค่าไม่รวมภาษี = ผลรวมคอลัมน์ แล้ว × 1.07 (ภย.0492: 19,150.00 → 20,490.50)
-       DKSH: วงเงินรวม VAT แต่มีราคาไม่รวม VAT ต่อหน่วย → มูลค่าไม่รวมภาษี = จำนวน × ราคาไม่รวม VAT (ภย.0506: 27,600.00 / 29,532.00) */
+       DKSH / อื่น ๆ: มูลค่าไม่รวมภาษี = วงเงิน ÷ 1.07 แบบใบ W (พี่โอม 24 พ.ย. 69 ข้อ 48 เลือก ข. · เดิม DKSH = จำนวน × ราคาไม่รวม VAT ตาม ภย.0506 ต่างจากใบ W หลักสตางค์) */
     var lay = d.layout || 'other', ex = Math.round(total / 1.07 * 100) / 100;
     if(lay === 'zuellig'){ ex = exSum; total = Math.round(exSum * 1.07 * 100) / 100; }
-    else if(lay === 'dksh') ex = exSum;
     return { total:total, ex:ex, vat:Math.round((total - ex) * 100) / 100, ref:Math.round(refSum * 100) / 100 };
   }
   /* ยอดท้ายตาราง 3 แถว แก้เองได้บนหน้าจอ (พี่โอม 24 พ.ย. 69 ตอบข้อ 48: "อยากให้เพิ่มต่อข้างล่าง ให้ตรวจง่าย … เอาแบบแก้ได้เหมือนช่องข้างบน")
@@ -3660,7 +3660,7 @@
     if(!memoSet) memoSet = memoSeed();
     memoRolesUp();
     var s = doc.memo || {}, kind = s.kind || (s.pNo && doc.series === 'WC' ? 'drug' : memoKindRule(doc)), k = MEMO_KIND[kind], pick = memoSet.pick || {}, today = todayIso();
-    memoState.no = no; memoState.msg = '';
+    memoState.no = no; memoState.msg = ''; memoState.amtOk = false;
     memoState.d = { kind:kind,
       pNo:s.pNo || memoNextNo(k.p, memoBE(today)), pDate:s.pDate || today,
       planRef:s.planRef != null ? s.planRef : memoSet.planRef[memoFY(s.pDate || today)] || '',
@@ -3741,21 +3741,32 @@
     var a = t.auto ? memoState.d.amt : null, typed = a && memoAmtVal(a[key]) !== null;
     return { val:typed ? a[key] : fmt2(t[key]), mine:!!t.auto && t[key] !== t.auto[key] };
   }
+  /* แก้ยอดต้องยืนยันก่อน 1 ครั้งต่อการเปิดบันทึก (คุณธมลวรรณ 24 พ.ย. 69) · ใบที่แก้ยอดไว้แล้วเปิดให้แก้ต่อเลย */
+  function memoAmtOpen(t){ return !!(memoState.amtOk || t.edited); }
+  function memoAmtUnlock(el){
+    var lab = (MEMO_AMT.filter(function(m){ return m[0] === el.getAttribute('data-amt'); })[0] || ['', 'ยอด'])[1];
+    if(!window.confirm('แก้ "' + lab + '" เอง?\n\nค่าตอนนี้โปรแกรมคำนวณจากรายการ' + (memoState.d.layout === 'zuellig' ? '' : ' (มูลค่าไม่รวมภาษี = วงเงิน ÷ 1.07 แบบใบ W)') +
+      '\nค่าที่แก้จะออกในไฟล์ ภย. / ขย. / ย. · ถ้าแก้รายการ จำนวน หรือราคาทีหลัง ยอดจะกลับไปคำนวณใหม่')) return;
+    memoState.amtOk = true;
+    Array.prototype.forEach.call(document.querySelectorAll('#memo-amt [data-amt]'), function(x){ x.removeAttribute('readonly'); x.removeAttribute('title'); });
+    try{ el.focus(); el.select(); }catch(e){}
+    memoAmtRefresh(false);
+  }
   function memoAmtHtml(){
-    var t = memoTotals(memoState.d);
+    var t = memoTotals(memoState.d), open = memoAmtOpen(t);
     return MEMO_AMT.map(function(m){
       var x = memoAmtShow(t, m[0]);
       return '<label for="memo-amt-' + m[0] + '"' + (m[0] === 'total' ? ' style="font-weight:600"' : '') + '>' + m[1] + '</label>' +
-        '<input class="q-in' + (x.mine ? ' edited' : '') + '" id="memo-amt-' + m[0] + '" data-amt="' + m[0] + '" inputmode="decimal" value="' + esc(x.val) + '">';
+        '<input class="q-in' + (x.mine ? ' edited' : '') + '" id="memo-amt-' + m[0] + '" data-amt="' + m[0] + '" inputmode="decimal" value="' + esc(x.val) + '"' +
+          (open ? '' : ' readonly title="คลิกเพื่อแก้เอง (ยืนยันก่อน)"') + '>';
     }).join('');
   }
-  /* ตรวจง่าย: ไม่รวมภาษี + VAT ต้องเท่ารวม · บอกค่าที่คำนวณเดิม · ทางเลือกแบบใบ W (วงเงิน ÷ 1.07) */
+  /* ตรวจง่าย: ไม่รวมภาษี + VAT ต้องเท่ารวม · บอกค่าที่คำนวณเดิม */
   function memoAmtNote(){
     var d = memoState.d, t = memoTotals(d), au = memoTotalsAuto(d), out = [];
-    var wEx = Math.round(au.total / 1.07 * 100) / 100, wVat = Math.round((au.total - wEx) * 100) / 100;
     if(Math.round((t.ex + t.vat) * 100) !== Math.round(t.total * 100)) out.push('<b class="pt-up">ไม่รวมภาษี + VAT = ฿' + fmt2(Math.round((t.ex + t.vat) * 100) / 100) + ' ไม่เท่ากับรวม ฿' + fmt2(t.total) + '</b>');
     if(t.edited) out.push('ช่องสีเหลือง = แก้เอง (คำนวณได้ ไม่รวมภาษี ฿' + fmt2(au.ex) + ' · VAT ฿' + fmt2(au.vat) + ' · รวม ฿' + fmt2(au.total) + ') <button type="button" class="btn-ghost" data-act="amt-reset">ใช้ค่าที่คำนวณ</button>');
-    if(wEx !== t.ex && d.layout !== 'zuellig') out.push('แบบใบ W (วงเงิน ÷ 1.07): ไม่รวมภาษี ฿' + fmt2(wEx) + ' · VAT ฿' + fmt2(wVat) + ' <button type="button" class="btn-ghost" data-act="amt-w">ใช้แบบใบ W</button>');
+    if(!t.edited) out.push((d.layout === 'zuellig' ? 'ไม่รวมภาษี = ผลรวมคอลัมน์วงเงิน' : 'ไม่รวมภาษี = วงเงิน ÷ 1.07 (แบบใบ W)') + ' · คลิกช่องเพื่อแก้เอง');
     return out.join('<br>');
   }
   function memoAmtRefresh(full){
@@ -3912,6 +3923,10 @@
       memoAmtRefresh(true);
       memoPlanRefresh(box);
     });
+    box.addEventListener('keydown', function(e){
+      var t = e.target;
+      if(t.hasAttribute && t.hasAttribute('data-amt') && t.readOnly && !/^(Tab|Shift|Control|Alt|Meta|Escape|Arrow)/.test(e.key)){ e.preventDefault(); memoAmtUnlock(t); }
+    });
     box.addEventListener('change', function(e){
       var t = e.target, d = memoState.d; if(!d) return;
       if(t.hasAttribute('data-who')){
@@ -3929,6 +3944,7 @@
       }
     });
     box.addEventListener('click', function(e){
+      if(e.target.hasAttribute && e.target.hasAttribute('data-amt') && e.target.readOnly){ memoAmtUnlock(e.target); return; }
       var b = e.target.closest('[data-act]'); if(!b) return;
       var act = b.getAttribute('data-act');
       if(act === 'close'){ memoState.no = ''; renderMemo(); }
@@ -3941,11 +3957,6 @@
           var nb = box.querySelector('[data-act="mv"][data-i="' + j + '"][data-dir="' + b.getAttribute('data-dir') + '"]'); if(nb && !nb.disabled) nb.focus(); }
       }
       else if(act === 'amt-reset'){ memoState.d.amt = null; memoKeep(); memoAmtRefresh(true); document.getElementById('memo-sum').innerHTML = memoSumHtml(); }
-      else if(act === 'amt-w'){
-        var au = memoTotalsAuto(memoState.d), wEx = Math.round(au.total / 1.07 * 100) / 100;
-        memoState.d.amt = { base:memoAmtBase(au), ex:fmt2(wEx) };
-        memoKeep(); memoAmtRefresh(true); document.getElementById('memo-sum').innerHTML = memoSumHtml();
-      }
       else if(act === 'reset-lines'){ var doc = memoDoc(); if(doc){ memoState.d.lines = memoLinesFrom(doc); memoKeep(); renderMemo(); } }
       else if(/^exp-/.test(act)) memoExport(act.slice(4));
     });
