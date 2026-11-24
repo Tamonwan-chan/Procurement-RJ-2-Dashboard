@@ -149,6 +149,14 @@ h.load({ inside:true }).then(function(p){
   jobs.push(Promise.resolve().then(function(){ return blobBytes(w, I.get('buildMemoR')(g, ry)); })
     .then(function(buf){ GOT.R = { m:'R', files:unzip(buf) }; }, function(e){ GOT.R = { err:e }; }));
 
+  /* totals typed on the screen (question 48): the W-sheet ex-VAT typed, VAT follows; a stale entry (items changed) falls back to the calculated values */
+  var amtD = memoData('dksh'), amtAuto = I.get('memoTotalsAuto')(amtD), AMT = {};
+  amtD.amt = { base:I.get('memoAmtBase')(amtAuto), ex:'20,560.75' };
+  AMT.t = I.get('memoTotals')(amtD);
+  var stale = memoData('dksh'); stale.amt = { base:'1|1', ex:'1' }; AMT.stale = I.get('memoTotals')(stale);
+  jobs.push(Promise.resolve().then(function(){ return blobBytes(w, I.get('buildMemoK')({ no:'W009-70', series:'W', company:'บริษัท ทดสอบ จำกัด', lines:[] }, amtD)); })
+    .then(function(buf){ AMT.files = unzip(buf); }, function(e){ AMT.err = e; }));
+
   return Promise.all(jobs).then(function(){
     Object.keys(GOT).forEach(function(name){
       var r = GOT[name]; scope = name;
@@ -206,6 +214,15 @@ h.load({ inside:true }).then(function(p){
         ok(d.tables[0].rows.every(function(row){ return row.cells.every(function(c){ return c.v === 'top'; }); }), 'payment box cells aligned to the top');
       }
     });
+    scope = 'typed totals';
+    eq(amtAuto.ex, 20561, 'DKSH ex-VAT = qty × unit price before VAT');
+    ok(AMT.t.ex === 20560.75 && AMT.t.vat === 1439.25 && AMT.t.total === 22000 && AMT.t.edited, 'typed ex-VAT used, VAT follows, total unchanged');
+    ok(AMT.stale.ex === 20561 && !AMT.stale.edited, 'stale typed value ignored');
+    if(AMT.err) ok(false, 'build threw: ' + (AMT.err.stack || AMT.err));
+    else {
+      var rowsT = parse(w, AMT.files).tables[0].rows.map(function(r){ return r.cells.map(function(c){ return c.text; }).join('|'); });
+      ok(rowsT.indexOf('มูลค่าที่ไม่รวมภาษี|20,560.75') >= 0 && rowsT.indexOf('ภาษีมูลค่าเพิ่ม 7%|1,439.25') >= 0 && rowsT.indexOf('รวมจำนวนเงินทั้งสิ้น|22,000.00') >= 0, 'typed totals printed in the ขย. table');
+    }
     scope = 'page';
     ok(!p.errors.length, 'no script errors' + (p.errors.length ? ': ' + p.errors.join(' | ') : ''));
     console.log((fails ? 'FAILED ' + fails + ' of ' : 'passed all ') + (passes + fails) + ' checks on ' + Object.keys(GOT).length + ' documents');
