@@ -8,6 +8,8 @@ Designed & Developed by ภญ.ธมลวรรณ จันทร์แก้
 
 ลิงก์ใช้งาน: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/ (ที่อยู่เดิม …/mockup/dashboard-mockup.html ยังใช้ได้ พาไปที่อยู่ใหม่ให้)
 
+คู่มือใช้โปรแกรมจัดซื้อ (ผู้ใช้ทุกคน: ข้อมูลกลาง ใบตรวจรับ รย. / รยว. รายงานเจ้าหนี้): https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/manual/
+
 คู่มือเขียน HTML สำหรับพี่โอม: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/guide/
 
 บันทึกการเปลี่ยนแปลงตามเวอร์ชัน: [CHANGELOG.md](CHANGELOG.md) · หลักฐานการพัฒนาสำหรับงานวิจัย: [research/README.md](research/README.md)

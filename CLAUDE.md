@@ -14,14 +14,15 @@ Context for any Claude Code session that opens this repo (the owner works from m
 - Live on GitHub Pages: https://tamonwan-chan.github.io/Procurement-RJ-2-Dashboard/ (repo is public). Moved there from `…/mockup/dashboard-mockup.html` on 19 Nov 2026 (her go, after v2.0); the old address is a small forwarding page that keeps `?…` / `#…`. Browser data (IndexedDB, localStorage, shared-store connection) is per site, not per path, so nothing was lost.
 - พี่โอม drags HIS Excel exports onto the page; each file type is recognised from its column headers (`detectSlot`). Everything runs in the browser; imported data, the KPI table, quote history and next quote numbers are stored in the browser's IndexedDB (`rj2-procurement-dashboard`) on that PC only (quote numbers also in `localStorage`). The "สำรองข้อมูล" button saves the hand-entered part to a .json file; it must never include `quoteTpl` (the signature).
 - The live version shows under the program name and in the footer, from `APP_VERSION` next to `BRAND` (she asked 19 Nov 2026). **Every time a release tag goes on `master` (`v2.0.1`, …), set `APP_VERSION` to the same tag and date in that commit**; it is how she and พี่โอม check that Ctrl + F5 loaded the latest page.
-- `guide/index.html` is a Thai user guide. `README.md` documents the files and calculation rules.
+- `manual/index.html` "คู่มือใช้โปรแกรมจัดซื้อ" is the how-to for every user (chapters `#shared`, `#ry`, `#creditor`); `guide/index.html` "เขียน HTML ฉบับพี่โอม" teaches him HTML / AI coding and how the program works. Split 24 Nov 2026 (her go); the guide forwards the old `#shared` / `#ry` / `#creditor` links to the manual. New how-to text goes in the manual. `README.md` documents the files and calculation rules.
 
 ## Folder map
 ```
 index.html                     the program (the live Pages URL is the repo root: never move or rename)
 logo-rj2.jpg, icon-inventory.png  logo (set in BRAND) and corner icon, next to index.html
 mockup/dashboard-mockup.html   forwarding page from the old address (bookmarks, LINE messages): never delete
-guide/index.html               Thai user guide (Pages)
+manual/index.html              คู่มือใช้โปรแกรมจัดซื้อ: how-to for every user (Pages)
+guide/index.html               เขียน HTML ฉบับพี่โอม: HTML / AI learning guide; forwards old how-to links to manual/
 appscript/                     Apps Script for the shared Google Sheet store (clasp; no data, key or address)
 tests/                         headless harness: harness.js (load page, drop files), smoke.js;
                                memo-test.js (every Word memo built from made-up data, layout rules checked); creditor-test.js (creditor report .xlsx from made-up deliveries);
@@ -113,7 +114,7 @@ Local-only, never commit: `สรุปบทบาทและงานที�
 4. Commit with a clear message and push the branch. If it is on `master` (or a merge to it), wait for the Pages build, then tell her to press Ctrl + F5. A release tag also needs the evidence steps in "Research mode" (tests recorded, screenshots, CHANGELOG).
 5. Update `ประเด็นที่รอยืนยันจากพี่โอม.md` (open questions, answers, changes) and `README.md` when rules change.
 6. Track work in **GitHub Issues** (`gh issue list`): one issue per feature / bug / open question, short neutral Thai title, labels `enhancement` / `bug` / `question` + `waiting` (blocked on พี่โอม's answer or files), milestone "v2.0". The repo is public, so issues hold no real data, prices, figures or names; details stay in the Q&A file. พี่โอม never uses GitHub: she relays his messages and Claude opens / updates the issues. Close them from the commit (`Fixes #n`). Bug issues follow `.github/ISSUE_TEMPLATE/bug.md` (found by, date, version, severity). New requests outside the v2.0 scope go to `ICEBOX.md`, not to issues, until she picks them.
-7. Days worked on the project = distinct commit dates (weekend dates are hospital shifts and count): `git log --format=%ad --date=short | sort -u | wc -l`. After every push, rerun it; each time it reaches a multiple of **20** (20 reached 2026-11-02; next 40, 60, …), tell her plainly in that reply (she asked to be notified, on whichever PC she is using). **At 40, also remind her of the manual split** (she asked 18 Nov, not before): move the how-to chapters (`#shared`, `#ry`) out of the HTML guide into a new `manual/index.html` "คู่มือใช้โปรแกรมจัดซื้อ" for all users, forward the old `#shared` / `#ry` links, and point the unsent พี่กุ้ง message at the manual; wait for her go.
+7. Days worked on the project = distinct commit dates (weekend dates are hospital shifts and count): `git log --format=%ad --date=short | sort -u | wc -l`. After every push, rerun it; each time it reaches a multiple of **20** (20 reached 2026-11-02; next 40, 60, …), tell her plainly in that reply (she asked to be notified, on whichever PC she is using). (The manual split planned for 40 days was done early, 24 Nov, at her request.)
 
 ## Key business rules (details in the .md and README)
 - Items join on meditem = hospcode = รหัสเวชภัณฑ์ = hospdrugid. Central stock (inventory_exp) is in boxes; dispensing rooms are in units ÷ packqty, taken from inventory_exp, then the latest PO_inven type 101, the latest dispen_inven, Meditem, DrugCatNow (`packOf`; Meditem and DrugCatNow are wrong for some items, #41).

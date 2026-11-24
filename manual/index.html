@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>คู่มือใช้โปรแกรมจัดซื้อ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@500;600;700&family=IBM+Plex+Sans+Thai+Looped:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column like a ward handbook; numbered chapters because the guide is a real learning sequence */
+:root {
+  --bg: #f5f8f6;
+  --surface: #ffffff;
+  --sunk: #e8efeb;
+  --fg: #17211d;
+  --muted: #56645d;
+  --line: #d2ddd7;
+  --line-strong: #7b8b84;
+  --accent: #0d6b58;
+  --accent-soft: #dcefe7;
+  --on-accent: #ffffff;
+  --warn: #8f5300;
+  --warn-soft: #fbeed6;
+  --code-bg: #15211d;
+  --code-fg: #e2eee8;
+  --code-dim: #8fa69c;
+  --font-display: "Bai Jamjuree", "IBM Plex Sans Thai Looped", "Leelawadee UI", Tahoma, sans-serif;
+  --font-body: "IBM Plex Sans Thai Looped", "Leelawadee UI", Tahoma, sans-serif;
+  --font-mono: "IBM Plex Mono", "IBM Plex Sans Thai Looped", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1613; --surface: #16201c; --sunk: #1c2924; --fg: #e3ebe7; --muted: #9cada5;
+    --line: #2b3a34; --line-strong: #71847b; --accent: #52c3a6; --accent-soft: #173a31; --on-accent: #07231c;
+    --warn: #f0b350; --warn-soft: #3a2a10; --code-bg: #0a100e; --code-fg: #dbe8e2; --code-dim: #7f978c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1613; --surface: #16201c; --sunk: #1c2924; --fg: #e3ebe7; --muted: #9cada5;
+  --line: #2b3a34; --line-strong: #71847b; --accent: #52c3a6; --accent-soft: #173a31; --on-accent: #07231c;
+  --warn: #f0b350; --warn-soft: #3a2a10; --code-bg: #0a100e; --code-fg: #dbe8e2; --code-dim: #7f978c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.75;
+  padding-inline: 16px;
+  padding-block: 0 64px;
+}
+.wrap { max-width: 760px; margin: 0 auto; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.3; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 6vw, 2.9rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; font-weight: 600; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--font-mono); font-size: 0.88em; background: var(--sunk); padding: 1px 6px; border-radius: 4px; }
+strong { font-weight: 600; }
+
+/* Header */
+header { padding-block: 48px 32px; display: grid; gap: 18px; border-bottom: 1px solid var(--line); }
+.credit { justify-self: start; transform: rotate(-2deg); border: 2px dashed var(--accent); color: var(--accent); border-radius: 8px; padding: 6px 14px; font-family: var(--font-display); font-weight: 500; font-size: 0.95rem; line-height: 1.5; max-width: 100%; }
+.credit strong { font-weight: 700; }
+.kicker { font-family: var(--font-display); font-weight: 600; color: var(--accent); letter-spacing: 0.04em; font-size: 0.95rem; }
+.lead { font-size: 1.12rem; color: var(--muted); max-width: 62ch; }
+.toc { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 20px; counter-reset: toc; }
+.toc li { counter-increment: toc; display: flex; gap: 10px; align-items: baseline; }
+.toc li::before { content: counter(toc); font-family: var(--font-display); font-weight: 700; color: var(--accent); min-width: 1.2em; font-variant-numeric: tabular-nums; }
+.toc a { color: var(--fg); text-decoration: none; border-bottom: 1px solid var(--line); }
+.toc a:hover { border-color: var(--accent); }
+
+/* Chapters */
+main { counter-reset: chap; }
+section.chap { counter-increment: chap; padding-block: 44px 8px; display: grid; gap: 18px; scroll-margin-top: 16px; }
+.chap > .num { font-family: var(--font-display); font-weight: 600; font-size: 0.9rem; color: var(--muted); letter-spacing: 0.06em; }
+.chap > .num::before { content: "บทที่ " counter(chap); }
+.stack { display: grid; gap: 14px; }
+ul.plain, ol.plain { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+
+/* Three parts of a page */
+.trio { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.part { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.part .tag { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); font-weight: 500; }
+.part h3 { font-size: 1.05rem; }
+.part p { font-size: 0.95rem; color: var(--muted); }
+.part .like { font-size: 0.9rem; color: var(--fg); border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 4px; }
+
+/* Notes */
+.note { background: var(--accent-soft); border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px; }
+.note.warn { background: var(--warn-soft); }
+.note .label { font-family: var(--font-display); font-weight: 600; font-size: 0.82rem; letter-spacing: 0.06em; color: var(--accent); }
+.note.warn .label { color: var(--warn); }
+.note p, .note li { font-size: 0.97rem; }
+
+/* Steps */
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: step; }
+ol.steps > li { counter-increment: step; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+ol.steps > li::before {
+  content: counter(step); width: 30px; height: 30px; border-radius: 50%;
+  background: var(--accent); color: var(--on-accent); display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; margin-top: 2px;
+}
+ol.steps > li > div { min-width: 0; }
+kbd { font-family: var(--font-mono); font-size: 0.82em; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--surface); }
+
+/* Code */
+.code { background: var(--code-bg); color: var(--code-fg); border-radius: 10px; overflow: hidden; min-width: 0; }
+.code-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 12px 8px 16px; border-bottom: 1px solid rgba(127,127,127,0.25); font-size: 0.85rem; color: var(--code-dim); }
+.code pre { margin: 0; padding: 14px 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.86rem; line-height: 1.6; white-space: pre; }
+.copy { font: 500 0.85rem var(--font-body); color: var(--code-fg); background: transparent; border: 1px solid var(--code-dim); border-radius: 6px; padding: 3px 12px; cursor: pointer; }
+.copy:hover { border-color: var(--code-fg); }
+
+/* Anatomy */
+.anat { display: flex; flex-wrap: wrap; gap: 4px; font-family: var(--font-mono); font-size: 1.05rem; }
+.anat > span { display: grid; gap: 4px; text-align: center; }
+.anat b { font-weight: 500; padding: 6px 8px; border-radius: 6px; background: var(--sunk); }
+.anat b.t { color: var(--accent); }
+.anat small { font-family: var(--font-body); font-size: 0.8rem; color: var(--muted); }
+
+/* Tables */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-display); font-weight: 600; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.03em; background: var(--sunk); }
+td code { white-space: nowrap; }
+
+/* Diagrams */
+.fig { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.fig svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.fig .bx { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.fig .bx-a { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.fig .grp { fill: none; stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 5 5; }
+.fig .ln { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+.fig .ln-a { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.fig .ah { fill: var(--line-strong); }
+.fig .ah-a { fill: var(--accent); }
+.fig text { fill: var(--fg); font-family: var(--font-body); font-size: 14px; }
+.fig text.sm { fill: var(--muted); font-size: 12.5px; }
+.fig text.hd { font-family: var(--font-display); font-weight: 600; font-size: 13.5px; fill: var(--muted); }
+.fig text.ac { fill: var(--accent); font-weight: 600; }
+.fig text.mono { font-family: var(--font-mono); font-size: 13px; }
+.figcap { font-size: 0.88rem; color: var(--muted); }
+/* Infographic (บทระบบนี้เรียกว่าอะไร): แถบหัวคอลัมน์ วงกลมเลขขั้น กล่องเทียบงานเบิกยา */
+.fig .chip { fill: var(--accent); }
+.fig .dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2.5; }
+.fig text.dn { fill: var(--on-accent); font-family: var(--font-display); font-weight: 700; font-size: 13px; }
+.fig .an { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.fig text.wn { fill: var(--warn); font-weight: 600; }
+.fig text.tech { font-family: var(--font-mono); font-size: 12.5px; fill: var(--accent); }
+ol.steps.flow > li > div strong:first-child { color: var(--accent); }
+
+/* URL breakdown */
+.url { display: flex; flex-wrap: wrap; gap: 2px 0; font-family: var(--font-mono); font-size: 0.95rem; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; row-gap: 14px; }
+.url > span { display: grid; gap: 4px; min-width: 0; }
+.url b { font-weight: 500; padding-bottom: 3px; border-bottom: 3px solid var(--line); overflow-wrap: anywhere; }
+.url small { font-family: var(--font-body); font-size: 0.78rem; color: var(--muted); padding-right: 6px; line-height: 1.4; }
+.url .u1 b { border-color: var(--line-strong); color: var(--muted); }
+.url .u2 b { border-color: var(--accent); color: var(--accent); }
+.url .u3 b { border-color: var(--line-strong); }
+.url .u4 b { border-color: var(--warn); }
+.url .u5 b { border-color: var(--line-strong); color: var(--muted); }
+
+/* Two-column comparisons */
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.pair > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.pair h3 { font-size: 1.02rem; }
+.pair ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: 0.95rem; }
+.yes h3 { color: var(--accent); }
+.no h3 { color: var(--warn); }
+
+/* Glossary */
+dl.gloss { display: grid; grid-template-columns: max-content 1fr; gap: 10px 20px; margin: 0; }
+dl.gloss dt { font-family: var(--font-display); font-weight: 600; }
+dl.gloss dd { margin: 0; color: var(--muted); }
+@media (max-width: 520px) { dl.gloss { grid-template-columns: 1fr; gap: 2px; } dl.gloss dd { margin-bottom: 10px; } }
+
+footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 0.9rem; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <div class="kicker">คู่มือผู้ใช้ · ทุกคนที่ใช้โปรแกรม</div>
+  <h1>คู่มือใช้โปรแกรมจัดซื้อ</h1>
+  <p class="lead">วิธีใช้ ระบบจัดซื้อยาและเวชภัณฑ์ โรงพยาบาลราชวิถี 2 (รังสิต) สำหรับทุกคนที่ออกเอกสารจากโปรแกรม: เชื่อมต่อข้อมูลกลางให้ทุกเครื่องใช้เลขที่ชุดเดียวกัน ออกใบตรวจรับ รย. / รยว. และทำรายงานเจ้าหนี้การค้าส่งการเงิน</p>
+  <p class="lead">โปรแกรม: <a href="../">tamonwan-chan.github.io/Procurement-RJ-2-Dashboard</a> · เปิดครั้งแรกหรือหลังแจ้งเวอร์ชันใหม่ กด <strong>Ctrl + F5</strong> 1 ครั้ง แล้วดูเลขเวอร์ชันใต้ชื่อโปรแกรม · อยากรู้ว่าโปรแกรมทำงานอย่างไร ดู <a href="../guide/">เขียน HTML ฉบับพี่โอม</a></p>
+  <ol class="toc">
+    <li><a href="#shared">ข้อมูลกลาง: ทุกเครื่องเห็นชุดเดียวกัน</a></li>
+    <li><a href="#ry">ออกใบตรวจรับ รย. / รยว.</a></li>
+    <li><a href="#creditor">รายงานเจ้าหนี้การค้า</a></li>
+  </ol>
+</header>
+
+<main>
+
+<!-- 1 -->
+<section class="chap" id="shared">
+  <div class="num"></div>
+  <h2>ข้อมูลกลาง: ทุกเครื่องเห็นชุดเดียวกัน</h2>
+  <div class="stack">
+    <p>เดิมแต่ละเครื่องจำประวัติใบเสนอราคาและเลขที่ถัดไปเอง ถ้าพี่ออกใบ W ที่โรงพยาบาล แล้วพี่เจี๊ยบออกใบ W จากอีกเครื่องในวันเดียวกัน ทั้ง 2 เครื่องไม่รู้จักกัน จึงออกเลขเดียวกันได้ และต้องทำใบซ้ำในอีกเครื่องเพื่อออก ภย. / ขย. / ย. ต่อ</p>
+    <p>ตอนนี้ทุกเครื่องต่อเข้า <strong>Google Sheet ของบัญชีคลัง</strong> ไฟล์เดียว เหมือนสมุดทะเบียนกลางที่วางไว้ที่เคาน์เตอร์ ใครจะออกเลขต้องมาเปิดสมุดเล่มเดียวกัน คนที่จองก่อนได้เลขนั้น คนถัดไปได้เลขถัดไป</p>
+  </div>
+  <div class="fig" role="img" aria-label="เครื่องของพี่โอมที่ทำงาน ที่บ้าน และเครื่องพี่เจี๊ยบ ต่อเข้า Google Sheet ของบัญชีคลังเครื่องเดียวกัน ไฟล์ HIS อยู่เฉพาะแต่ละเครื่อง">
+    <svg viewBox="0 0 740 270" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="m3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-a" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+      <text class="hd" x="10" y="20">แต่ละเครื่อง</text>
+      <rect class="bx" x="10" y="32" width="210" height="58" rx="8"/>
+      <text x="115" y="57" text-anchor="middle">เครื่องพี่โอม ที่ทำงาน</text>
+      <text class="sm" x="115" y="77" text-anchor="middle">ไฟล์ HIS อยู่ในเครื่องนี้</text>
+      <rect class="bx" x="10" y="106" width="210" height="58" rx="8"/>
+      <text x="115" y="131" text-anchor="middle">เครื่องพี่โอม ที่บ้าน</text>
+      <text class="sm" x="115" y="151" text-anchor="middle">ไฟล์ HIS อยู่ในเครื่องนี้</text>
+      <rect class="bx" x="10" y="180" width="210" height="58" rx="8"/>
+      <text x="115" y="205" text-anchor="middle">เครื่องพี่เจี๊ยบ</text>
+      <text class="sm" x="115" y="225" text-anchor="middle">ไฟล์ HIS อยู่ในเครื่องนี้</text>
+      <line class="ln-a" x1="224" y1="61" x2="436" y2="118" marker-start="url(#m3)" marker-end="url(#m3)"/>
+      <line class="ln-a" x1="224" y1="135" x2="436" y2="135" marker-start="url(#m3)" marker-end="url(#m3)"/>
+      <line class="ln-a" x1="224" y1="209" x2="436" y2="152" marker-start="url(#m3)" marker-end="url(#m3)"/>
+      <text class="sm" x="330" y="244" text-anchor="middle">ผ่านอินเทอร์เน็ต ใช้รหัสเข้าถึง</text>
+      <text class="hd" x="440" y="20">ที่กลาง (บัญชีคลัง)</text>
+      <rect class="bx-a" x="440" y="70" width="290" height="130" rx="10"/>
+      <text x="585" y="100" text-anchor="middle" class="ac">Google Sheet ข้อมูลกลาง</text>
+      <text class="sm" x="585" y="126" text-anchor="middle">ประวัติใบเสนอราคา + ค่าในบันทึก</text>
+      <text class="sm" x="585" y="146" text-anchor="middle">ตรวจรับ · รายชื่อกรรมการ</text>
+      <text class="sm" x="585" y="166" text-anchor="middle">เลขที่ถัดไปของทุกเล่ม</text>
+      <text class="sm" x="585" y="186" text-anchor="middle">บันทึกว่าใครแก้อะไร เมื่อไร</text>
+    </svg>
+  </div>
+
+  <div class="pair">
+    <div class="yes">
+      <h3>ใช้ร่วมกันทุกเครื่อง</h3>
+      <ul>
+        <li>ประวัติใบเสนอราคา W / WM / WC พร้อมค่าในบันทึก ภ. / ข. / ย.</li>
+        <li>ตรวจรับ รย. / รยว. ที่ออกแล้ว</li>
+        <li>รายชื่อกรรมการและผู้ลงนาม</li>
+        <li>เลขที่ถัดไปของทุกเล่ม</li>
+      </ul>
+    </div>
+    <div class="no">
+      <h3>ยังอยู่เฉพาะเครื่อง</h3>
+      <ul>
+        <li>ไฟล์ HIS ที่ลากเข้า</li>
+        <li>DATA Template (มีลายเซ็น จึงไม่ขึ้นที่กลาง)</li>
+        <li>ตราครุฑ</li>
+        <li>ตารางเดือนสำรองคงคลังและคงคลังย้อนหลัง</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>เชื่อมต่อเครื่อง (ทำครั้งเดียวต่อเครื่อง)</h3>
+  <ol class="steps">
+    <li><div>เปิดโปรแกรมจากลิงก์เดิม กด <kbd>Ctrl</kbd> + <kbd>F5</kbd> ให้ได้หน้าล่าสุด</div></li>
+    <li><div>ที่แถบ <strong>ข้อมูลที่ใช้อยู่</strong> กดปุ่ม <strong>ข้อมูลกลาง</strong></div></li>
+    <li><div>กรอก 3 ช่อง: <strong>ที่อยู่ web app</strong> และ <strong>รหัสเข้าถึง</strong> (น้องแป้งส่งให้ทางแชตส่วนตัว) กับ <strong>ชื่อผู้ใช้ / เครื่อง</strong> ตั้งเองให้รู้ว่าเครื่องไหน เช่น <code>โอม-ที่ทำงาน</code> ชื่อนี้จะโชว์ใน Sheet ว่าใครออกเลขไหน</div></li>
+    <li><div>กด <strong>เชื่อมต่อ</strong> ปุ่มจะเปลี่ยนเป็น <strong>ข้อมูลกลาง · เชื่อมต่อแล้ว</strong> และประวัติใบเสนอราคาจะเป็นชุดเดียวกับเครื่องอื่น ข้อมูลเดิมของเครื่องนี้โปรแกรมเก็บสำเนาไว้ในเครื่อง ไม่ได้ลบ</div></li>
+  </ol>
+  <div class="note warn">
+    <div class="label">ถ้าเห็นหน้าต่าง "ข้อมูลกลางยังว่าง"</div>
+    <p>กด <strong>ยกเลิก</strong> แล้วบอกน้องแป้ง หน้าต่างนี้ใช้ครั้งเดียวตอนย้ายข้อมูลเริ่มต้น ถ้าเห็นตอนเชื่อมต่อเครื่องของพี่ แปลว่าใส่ที่อยู่ผิด Sheet</p>
+  </div>
+
+  <h3>ปุ่มข้อมูลกลางบอกอะไร</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>ปุ่มเขียนว่า</th><th>หมายความว่า</th></tr></thead>
+      <tbody>
+        <tr><td>ข้อมูลกลาง · เชื่อมต่อแล้ว</td><td>ใช้งานได้ปกติ แก้อะไรโปรแกรมส่งขึ้นที่กลางเองภายในไม่กี่วินาที เปิดหน้าใหม่ หรือกลับมาที่แท็บหลังไปทำอย่างอื่นเกิน 1 นาที โปรแกรมดึงของเครื่องอื่นมาให้</td></tr>
+        <tr><td>ข้อมูลกลาง · ออฟไลน์</td><td>อินเทอร์เน็ตหลุด ดูและแก้ได้ แต่ <strong>ออกเลขใหม่ไม่ได้</strong> จนกว่าจะกลับมาออนไลน์</td></tr>
+        <tr><td>ดึงข้อมูลล่าสุด (ในกล่อง)</td><td>กดเมื่ออยากเห็นใบที่อีกเครื่องเพิ่งทำ โดยไม่ต้องรอ</td></tr>
+        <tr><td>ข้อมูลกลาง (เฉย ๆ)</td><td>เครื่องนี้ยังไม่ได้เชื่อมต่อ เลขที่ยังนับแยกในเครื่อง</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>หน้าต่างเตือนตอนส่งออก</h3>
+  <p>โปรแกรมจองเลขที่กลางก่อนสร้างไฟล์ทุกครั้ง ถ้าจองไม่ได้ จะไม่สร้างไฟล์ แล้วเด้งหน้าต่าง ช่องเลขที่กะพริบสีแดง และมีกล่องแดงใต้ปุ่ม</p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>หน้าต่างเขียนว่า</th><th>เกิดอะไรขึ้น</th><th>พี่ทำอะไร</th></tr></thead>
+      <tbody>
+        <tr><td>ยังไม่ได้ส่งออก · (ชื่อเครื่อง) เพิ่งออกใบ W</td><td>อีกเครื่องเพิ่งใช้เลขนั้นไปก่อน</td><td>ใบเสนอราคา: โปรแกรมเปลี่ยนเป็นเลขถัดไปให้แล้ว กดส่งออกอีกครั้ง · บันทึก: แก้เลขตามที่บอกแล้วกดส่งออก</td></tr>
+        <tr><td>… ออกไปแล้วกับใบ …</td><td>เลขที่พิมพ์เป็นของเอกสารใบอื่น</td><td>ใช้เลขถัดไปที่หน้าต่างบอก</td></tr>
+        <tr><td>… ต่ำกว่าเลขถัดไป และยังไม่มีบันทึกว่าใบนี้เคยส่งออกเลขนี้</td><td>เปิดบันทึกเก่า (ก่อนมีข้อมูลกลาง) แล้วส่งออก</td><td>พิมพ์ใบเดิมซ้ำ กด <strong>OK</strong> · ถ้าเป็นเอกสารใหม่ กด <strong>ยกเลิก</strong> แล้วใช้เลขที่บอก</td></tr>
+        <tr><td>เล่ม … ยังไม่มีเลขเริ่มในข้อมูลกลาง</td><td>เป็นใบแรกของเล่มนั้นในระบบใหม่ ทุกเครื่องจะนับต่อจากเลขนี้</td><td>เทียบกับเล่มจริงก่อน ตรงแล้วกด <strong>OK</strong> · ไม่ตรง กด <strong>ยกเลิก</strong> แก้เลขแล้วส่งออกอีกครั้ง</td></tr>
+        <tr><td>ติดต่อข้อมูลกลางไม่ได้</td><td>อินเทอร์เน็ตหลุด</td><td>ต่ออินเทอร์เน็ตแล้วกดส่งออกอีกครั้ง</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <div class="label">ควรรู้เพิ่ม</div>
+    <ul class="plain">
+      <li><strong>พิมพ์เอกสารเดิมซ้ำได้</strong> เปิดใบเดิมแล้วส่งออกอีกครั้ง ใช้เลขเดิม ไม่จองเลขใหม่</li>
+      <li><strong>ลบใบเสนอราคาได้</strong> เลือกใบในช่อง "ใบที่ส่งออกแล้ว" แล้วกด "ลบใบนี้" ทุกเครื่องจะไม่เห็นใบนั้น เลขที่ของใบนั้นกลับมาเป็นเลขว่าง ใช้ใหม่ได้ ถ้าใบนั้นออกบันทึกไปแล้ว โปรแกรมเตือนก่อน (ลบผิด ขอให้ผู้ดูแลกู้คืนจาก Sheet ได้)</li>
+      <li><strong>ออกใบเลขที่ข้ามไป (เลขว่าง) หรือทับใบเดิม</strong> เลขที่ยังไม่มีใบ เช่น W008-70 อยู่ท้ายช่อง "ใบที่ส่งออกแล้ว" (พิมพ์ <code>ว่าง</code> เพื่อดูเฉพาะเลขว่าง) เลือกแล้วกด "เปิดมาแก้ไข" ติ๊กรายการของบริษัทเดียว แล้วกดส่งออก หรือพิมพ์เลขนั้นในช่องเลขใบแรกก็ได้ ถ้าเลขนั้นมีใบอยู่แล้ว โปรแกรมแสดงรายการเดิมและถามก่อนทับ ใช้เลขเก่าได้ทีละ 1 ใบ เลขถัดไปไม่เปลี่ยน</li>
+      <li><strong>หาใบเก่าในช่อง "ใบที่ส่งออกแล้ว"</strong> คลิกที่ช่องแล้วพิมพ์ เช่น เลขที่ W ชื่อบริษัท hospcode ชื่อยา เลข ภย. / ขย. / ย. หรือวันที่ (18 พ.ย.) พิมพ์หลายคำเว้นวรรคได้ เช่น <code>zuellig 70</code> จะเหลือเฉพาะใบที่มีครบทุกคำ</li>
+      <li><strong>ใบที่มีป้าย "ออกซ้ำ"</strong> คือใบเลขเดียวกันที่เคยทำจาก 2 เครื่องก่อนมีข้อมูลกลาง เก็บไว้ทั้ง 2 ใบ ไม่มีอะไรหาย</li>
+      <li><strong>ไม่ต้องกู้คืนไฟล์สำรองเพื่อย้ายงานข้ามเครื่องแล้ว</strong> ตอนเชื่อมต่ออยู่ ปุ่มกู้คืนข้อมูลจะไม่ทำงาน กันไม่ให้ไฟล์เก่าทับงานของเครื่องอื่น ปุ่มสำรองข้อมูลยังใช้ได้</li>
+      <li>เลขที่ข้ามได้ ไม่จำเป็นต้องครบทุกเลข เช่น สร้างไฟล์ไม่สำเร็จหลังจองเลข เลขนั้นข้ามไป</li>
+    </ul>
+  </div>
+  <div class="note warn">
+    <div class="label">ห้าม</div>
+    <ul class="plain">
+      <li><strong>ห้ามแก้ใน Google Sheet ด้วยมือ</strong> โปรแกรมเป็นคนเขียน ถ้าแก้เอง เลขที่หรือใบอาจไม่ตรงกับทุกเครื่อง เปิดดูได้อย่างเดียว</li>
+      <li><strong>ห้ามส่งรหัสเข้าถึงในกลุ่ม LINE</strong> ใครมีที่อยู่กับรหัสก็เข้าข้อมูลกลางได้ ถ้ารหัสหลุด บอกน้องแป้งให้เปลี่ยนรหัส แล้วทุกเครื่องใส่รหัสใหม่</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="chap" id="ry">
+  <div class="num"></div>
+  <h2>ออกใบตรวจรับ รย. / รยว.</h2>
+  <div class="stack">
+    <p>ใบตรวจรับออกหลังจากของมาส่งและรับเข้า HIS แล้ว โปรแกรมดึงรายการ จำนวนเงิน ผู้จำหน่าย และเลขที่เอกสารส่งของจากไฟล์ PO_inven ให้ คนออกใบกรอกเพิ่มแค่เลขที่ วันที่ เลข ขย. และเลือกกรรมการ ไม่ต้องมีใบเสนอราคาในโปรแกรมก่อน ใบ ย. ที่ทำนอกโปรแกรมก็ออกใบตรวจรับได้</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>ใบตรวจรับ</th><th>ต่อจาก</th><th>ใช้กับ</th></tr></thead>
+      <tbody>
+        <tr><td>รย.</td><td>ย.</td><td>ยา (ใบเสนอราคา W / WB)</td></tr>
+        <tr><td>รยว.</td><td>ยว.</td><td>เวชภัณฑ์มิใช่ยา วัสดุ (WM) และเภสัชเคมีภัณฑ์ (WC)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>1 ใบตรวจรับ = 1 ใบ ย. = ของที่มาส่ง 1 ครั้ง (ย. 1 ใบส่งของครั้งเดียว) เลขที่รันตามปี พ.ศ. เริ่ม 0001 ใหม่ทุก 1 มกราคม เหมือน ภย.</p>
+
+  <h3>ก่อนออกใบแรก (ทำครั้งเดียว)</h3>
+  <div class="pair">
+    <div>
+      <h3>รายชื่อกรรมการ</h3>
+      <p>กด <strong>ออกบันทึก ภย. / ขย. / ย.</strong> ที่ใบไหนก็ได้ → <strong>ตั้งค่ารายชื่อ</strong> ติ๊กหน้าที่ <strong>ประธานกรรมการตรวจรับ</strong> และ <strong>กรรมการตรวจรับ</strong> ให้คนที่ทำหน้าที่นี้ ช่องเลือกในใบตรวจรับแสดงเฉพาะคนที่ติ๊กไว้</p>
+    </div>
+    <div>
+      <h3>ตราครุฑ</h3>
+      <p>ใช้ตราเดียวกับบันทึก ภย. ถ้าเครื่องนี้ยังไม่เคยออกบันทึก ลากไฟล์บันทึกข้อความ (.docx) เก่า 1 ไฟล์มาวางที่ช่องนำเข้าครั้งเดียว</p>
+    </div>
+  </div>
+
+  <h3>ขั้นตอน</h3>
+  <ol class="steps">
+    <li><div>ลากไฟล์ <strong>PO_inven</strong> ล่าสุดจาก HIS มาวาง (ต้องเป็นไฟล์ที่ export หลังรับของครั้งนั้นเข้า HIS แล้ว)</div></li>
+    <li><div>กด <strong>ทำใบเสนอราคา</strong> เลื่อนลงล่างสุดของกล่อง กด <strong>ออกบันทึกตรวจรับ รย. / รยว. (Word)</strong></div></li>
+    <li><div><strong>ขั้น 1 เลือกการรับ:</strong> พิมพ์ในช่องค้นหา เช่น ชื่อบริษัท เลขที่เอกสารส่งของ เลขที่รับใน HIS หรือชื่อยา แล้วกด <strong>เลือก</strong> หน้าแสดง 100 ครั้งล่าสุด ครั้งที่เก่ากว่านั้นใช้ค้นหา</div></li>
+    <li><div><strong>ขั้น 2 รายการ:</strong> ติ๊กออกรายการที่ไม่ได้อยู่ใน ย. ใบนี้ (ปกติไม่ต้องติ๊กออก)</div></li>
+    <li><div><strong>ขั้น 3 ข้อมูลในบันทึก:</strong> ดูชนิดเอกสาร รย. หรือ รยว. (โปรแกรมเลือกให้ตามรายการ) เลขที่ขึ้นเลขถัดไปให้แล้ว ใส่<strong>วันที่</strong> ถ้า ขย. ใบนั้นออกจากโปรแกรม เลือกในช่อง <strong>ดึงจากบันทึกในโปรแกรม</strong> ได้เลขที่ วันที่ และกรรมการชุดเดียวกับ ขย. ถ้าไม่ได้ออกจากโปรแกรม พิมพ์เลขที่และวันที่ ขย. เอง แล้วใส่ <strong>เอกสารลงวันที่</strong> (วันที่บนใบส่งของ)</div></li>
+    <li><div><strong>ขั้น 4 กรรมการ:</strong> ตั้งต้นเป็นชุดที่ใช้ล่าสุด เปลี่ยนคนได้ ต้องครบ 3 คนและไม่ซ้ำกัน คนแรกเป็นประธาน</div></li>
+    <li><div>อ่านบรรทัดสรุปใต้กรรมการ (จำนวนรายการ จำนวนเงิน ตัวหนังสือ) ไม่มีข้อความสีแดงแล้วกด <strong>ส่งออก รย. (.docx)</strong> ไฟล์ชื่อแบบ <code>รย.0001-(ย.0024) ชื่อยา.docx</code> เปิดใน Word ตรวจแล้วพิมพ์</div></li>
+  </ol>
+
+  <h3>ช่องไหนมาจากไหน</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>ช่อง</th><th>มาจาก</th></tr></thead>
+      <tbody>
+        <tr><td>รายการ จำนวนเงิน ผู้จำหน่าย เลขที่เอกสาร วันที่ตรวจรับ</td><td>PO_inven ของการรับครั้งนั้น (แก้ในช่องได้ ถ้าชื่อบริษัทมีเลขบิลติดมา ลบออกได้)</td></tr>
+        <tr><td>เลขที่ รย. / รยว.</td><td>เลขถัดไปของเล่ม พิมพ์ทับได้</td></tr>
+        <tr><td>เลขที่และวันที่ ขย. / ขว.</td><td>เลือกจากบันทึกในโปรแกรม หรือพิมพ์เอง</td></tr>
+        <tr><td>วันที่ใบตรวจรับ วันที่เอกสารส่งของ</td><td>พิมพ์เอง</td></tr>
+        <tr><td>เรื่อง หมวด</td><td>ตั้งต้นให้แล้ว แก้ได้</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>ข้อความสีแดงในบรรทัดสรุป</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>ข้อความ</th><th>ทำอะไร</th></tr></thead>
+      <tbody>
+        <tr><td>ยังไม่ได้กรอกเลขที่ / วันที่ ขย.</td><td>เลือกจากบันทึกในโปรแกรม หรือพิมพ์เอง</td></tr>
+        <tr><td>ยังเลือกกรรมการตรวจรับไม่ครบ 3 คน · กรรมการตรวจรับซ้ำกัน</td><td>เลือกให้ครบ 3 คนที่ไม่ซ้ำ ถ้าไม่มีชื่อในช่อง ไปติ๊กหน้าที่ในตั้งค่ารายชื่อ</td></tr>
+        <tr><td>การรับครั้งนี้มีทั้งยาและเวชภัณฑ์มิใช่ยา</td><td>ดูว่าควรเป็น รย. หรือ รยว. แล้วติ๊กออกรายการที่อยู่ ย. อีกใบ</td></tr>
+        <tr><td>ยังไม่มีตราครุฑ</td><td>ลากบันทึกข้อความ .docx เก่า 1 ไฟล์มาวาง</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>ข้อความสีแดงเป็นคำเตือน ไม่ได้ห้ามส่งออก ส่งออกไปก่อนแล้วเติมในไฟล์ Word ก็ได้</p>
+
+  <div class="note">
+    <div class="label">ควรรู้เพิ่ม</div>
+    <ul class="plain">
+      <li><strong>ไม่เจอการรับที่ต้องการ</strong> ลาก PO_inven ที่ export ใหม่กว่ามาวาง ถ้าหน้าบอกว่า "ยังไม่มีเลขที่รับ" ให้ลาก PO_inven เข้ามาอีกครั้ง</li>
+      <li><strong>รายการที่ออกแล้ว</strong> ขึ้นว่า <strong>ออกแล้ว รย.เลขที่</strong> ในช่องสถานะ ก่อนออกใบใหม่ให้ดูช่องนี้ โปรแกรมไม่ห้ามออกซ้ำ</li>
+      <li><strong>พิมพ์ใบเดิมซ้ำ</strong> กดเลือกการรับครั้งเดิม ค่าที่กรอกไว้ยังอยู่ กดส่งออกได้เลขเดิม</li>
+      <li><strong>เครื่องที่เชื่อมต่อข้อมูลกลางแล้ว</strong> ใช้เล่ม รย. / รยว. เล่มเดียวกันทุกเครื่อง โปรแกรมจองเลขก่อนสร้างไฟล์ ถ้ามีหน้าต่างเตือน ดูวิธีแก้ในบท <a href="#shared">ข้อมูลกลาง</a></li>
+    </ul>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="chap" id="creditor">
+  <div class="num"></div>
+  <h2>รายงานเจ้าหนี้การค้า (Excel) · ใบปะหน้าตั้งหนี้ส่งการเงิน</h2>
+  <p>หลังออก รย. / รยว. แล้ว รวมการรับหลายครั้งเป็นรายงานเดียว 1 แถวต่อ 1 ใบตรวจรับ จำนวนเงินเท่ากับใน รย.</p>
+  <ol class="steps">
+    <li><div>ในตาราง <strong>ขั้น 1 เลือกการรับ</strong> ติ๊กช่อง <strong>เจ้าหนี้</strong> หน้าแถวที่ขึ้น <strong>ออกแล้ว รย.…</strong> (แถวที่ยังไม่ออก รย. ติ๊กไม่ได้) ติ๊ก <strong>เฉพาะที่ออก รย. แล้ว ยังไม่ได้ทำรายงานเจ้าหนี้</strong> ให้เหลือเฉพาะแถวที่รอทำ</div></li>
+    <li><div>ใต้ตารางขึ้นกล่อง <strong>รายงานเจ้าหนี้การค้า</strong> ตรวจวันที่รายงาน เลขที่เอกสาร เลขชุด ภ- แหล่งเงิน (เงินบำรุง / เงินงบประมาณ) หมวดพัสดุ และผู้ส่ง</div></li>
+    <li><div>แก้ชื่อรายการยาให้สั้นได้ และใส่ค่าปรับของแถวที่มี</div></li>
+    <li><div>กด <strong>ส่งออกรายงานเจ้าหนี้ (.xlsx)</strong> ได้ไฟล์ชื่อแบบเดิม เช่น <em>รายงานเจ้าหนี้การค้า.การเงิน -2.3.69 (4ภ.70).xlsx</em> แถวที่อยู่ในรายงานขึ้นเลขรายงานท้ายแถว</div></li>
+  </ol>
+  <div class="note">
+    <div class="label">ควรรู้เพิ่ม</div>
+    <ul class="plain">
+      <li><strong>รายงานแรก</strong> พิมพ์เลขที่เอกสารและเลข ภ- ถัดจากเล่มจริงเอง (เช่น 0091/2569) รายงานต่อไปโปรแกรมรันต่อให้ทั้งสองเลข แก้เองได้ทุกครั้ง · เลข ภ- เริ่ม 0001 ใหม่เมื่อวันที่รายงานขึ้นปี พ.ศ. ใหม่ (1 ม.ค.)</li>
+      <li><strong>รายงานละไม่เกิน 15 ใบ</strong> ตามแบบเดิม มีมากกว่านั้นทำเป็นรายงานใหม่</li>
+      <li><strong>บิลมาทีหลัง</strong> ติ๊กการรับที่เพิ่งออก รย. แล้วกด <strong>เพิ่มที่ติ๊ก</strong> ในแถวของรายงานที่ออกแล้ว แถวใหม่ต่อท้าย เลขเดิม ได้ไฟล์ใหม่ทั้งรายงาน</li>
+      <li><strong>ยา (รย.) กับ เวชภัณฑ์มิใช่ยา + เคมี (รยว.)</strong> ทำรายงานแยกใบ ติ๊กปนกันโปรแกรมไม่ส่งออก</li>
+      <li><strong>ผู้ส่ง</strong> เพิ่มที่ ออกบันทึก ภย. / ขย. / ย. → ตั้งค่ารายชื่อ ติ๊กหน้าที่ <strong>ผู้ส่งรายงานเจ้าหนี้</strong></li>
+      <li><strong>ส่งออกซ้ำ</strong> รายงานที่ออกแล้วอยู่ในตารางท้ายกล่อง กด ส่งออกซ้ำ ได้ไฟล์เลขเดิม · <strong>ยกเลิกรายงาน</strong> ทำให้การรับในรายงานนั้นกลับมาติ๊กใหม่ได้ ถ้าจะออกใหม่ด้วยเลขเดิม พิมพ์เลข ภ- และเลขที่เอกสารเดิมเอง</li>
+      <li><strong>เครื่องที่เชื่อมต่อข้อมูลกลางแล้ว</strong> เลข ภ- ใช้เล่มเดียวกันทุกเครื่อง และรายงานที่ออกจากเครื่องอื่นขึ้นท้ายแถวเหมือนกัน</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer>คู่มือผู้ใช้ ระบบจัดซื้อยาและเวชภัณฑ์ · พฤศจิกายน 2569<br>พัฒนาขึ้นเฉพาะสำหรับ กลุ่มงานเภสัชกรรม โรงพยาบาลราชวิถี 2<br>Designed &amp; Developed by ภญ.ธมลวรรณ จันทร์แก้ว · © 2569 (2026) สงวนลิขสิทธิ์</footer>
+</div>
+
+<script>
+(function () {
+  // Copy buttons: copy the text of the <pre> named by data-copy
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = document.getElementById(btn.getAttribute('data-copy'));
+      var text = pre.textContent;
+      function done() {
+        btn.textContent = 'คัดลอกแล้ว';
+        setTimeout(function () { btn.textContent = 'คัดลอก'; }, 1600);
+      }
+      function fallback() {
+        var r = document.createRange();
+        r.selectNodeContents(pre);
+        var s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+        btn.textContent = 'กด Ctrl+C';
+      }
+      try {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } catch (e) { fallback(); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
