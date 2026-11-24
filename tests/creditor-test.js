@@ -98,6 +98,10 @@ let fails = 0; const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m)
     const v2 = a => { const x = ws2.getCell(a).value; return x && x.formula ? '=' + x.formula : x; };
     ok(v2('I10') === 'รย.0013/2569' && v2('G10') === 10 && v2('C11') === 3 && v2('G11') === '=SUM(G8:G10)', 'added row and total in the file');
   }
+  /* at most 15 deliveries per report, like his Excel form (24 Nov 2026) */
+  const K = I.get('MEMO_KIND').drug, hOk = { no:'0200/2569', doc:'30', date:'2026-11-24', sender:'s1' };
+  const fake = n => Array.from({ length:n }, (_, i) => ({ k:K, total:1, fine:'', ry:'รย.' + i }));
+  ok(!I.get('crWarn')(fake(15), hOk).block.some(m => /ไม่เกิน 15/.test(m)) && I.get('crWarn')(fake(16), hOk).block.some(m => /ไม่เกิน 15 ใบ \(ติ๊กไว้ 16\)/.test(m)), '15 per report allowed, 16 refused');
   /* budget file name */
   ok(I.get('crFileName')({ fund:'budget', date:'2026-09-30', doc:'52', no:'0118/2569' }) === 'รายงานเจ้าหนี้การค้า. (งบประมาณ) 30.9.69 (52ภ.118).xlsx', 'budget file name');
   /* cancel */
