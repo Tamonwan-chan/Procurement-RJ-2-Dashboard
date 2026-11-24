@@ -4257,6 +4257,7 @@
     return { no:no, k:k, memo:r.kNo ? k.k + '.' + r.kNo : '', company:r.company || '', bill:r.bill || '', ry:k.r + '.' + r.rNo, rNo:r.rNo,
       total:g ? ryTotal(g, r) : (r.total == null ? null : r.total), items:names.join(', '), fine:'' };
   }
+  function crSum(rows){ return Math.round(rows.reduce(function(a, x){ return a + (x.total || 0); }, 0) * 100) / 100; }
   function crPicked(){
     return Object.keys(crState.pick).filter(function(n){ return crCan(memoSet.ry && memoSet.ry[n]); }).map(crRow).sort(function(a, b){
       return shNoCmp(a.rNo, b.rNo) || (a.no < b.no ? -1 : 1);
@@ -4292,11 +4293,11 @@
   }
   function crPanelHtml(){
     if(!memoSet) return '';
-    var rows = crPicked(), reps = crReports();
+    var rows = crPicked(), reps = crReports(), total = crSum(rows);
     if(!rows.length && !reps.length) return '<div class="table-note" style="margin:6px 0 0">รายงานเจ้าหนี้การค้า: ติ๊กช่องหน้าแถวของการรับที่ออก รย. / รยว. แล้ว เพื่อทำรายงานส่งการเงิน</div>';
     var html = '<div class="memo-step">รายงานเจ้าหนี้การค้า (Excel) — ใบปะหน้าตั้งหนี้ส่งการเงิน</div>';
     if(rows.length){
-      var h = crHead(rows), w = crWarn(rows, h), total = rows.reduce(function(a, x){ return a + (x.total || 0); }, 0);
+      var h = crHead(rows), w = crWarn(rows, h);
       function F(label, key, attrs){ return '<label class="q-field">' + label + ' <input class="q-in" data-cf="' + key + '" value="' + esc(h[key] == null ? '' : h[key]) + '"' + (attrs || '') + '></label>'; }
       html += '<div class="table-tools">' + F('วันที่รายงาน', 'date', ' type="date"') + F('เลขที่เอกสาร', 'doc', ' style="width:70px" placeholder="25"') + F('เลขชุด ภ-', 'no', ' style="width:110px" placeholder="0091/2569"') +
           '<label class="q-field">แหล่งเงิน <select class="search field-select" data-cf="fund">' + Object.keys(CR_FUND).map(function(f){ return '<option value="' + f + '"' + (h.fund === f ? ' selected' : '') + '>' + CR_FUND[f] + '</option>'; }).join('') + '</select></label></div>' +
@@ -4311,7 +4312,7 @@
             '<td><input class="q-in" data-cfine="' + esc(x.no) + '" value="' + esc(x.fine) + '" style="width:80px" inputmode="decimal" aria-label="ค่าปรับ"></td>' +
             '<td class="mono" style="white-space:nowrap">' + esc(x.ry) + '</td></tr>';
         }).join('') + '</tbody></table></div>' +
-        '<div class="table-note" style="margin:8px 0 0">' + rows.length + ' ใบ (รายงานละไม่เกิน ' + CR_MAX + ') รวมทั้งสิ้น ฿' + fmt2(Math.round(total * 100) / 100) +
+        '<div class="table-note" style="margin:8px 0 0">' + rows.length + ' ใบ (รายงานละไม่เกิน ' + CR_MAX + ') รวมทั้งสิ้น ฿' + fmt2(total) +
           (w.block.length || w.soft.length ? '<br><b class="pt-up">' + w.block.concat(w.soft).map(esc).join(' · ') + '</b>' : '') + (crState.msg ? shMsgHtml(crState.msg) : '') + '</div>' +
         '<div class="table-tools" style="margin:10px 0 0"><button type="button" class="btn-solid" data-cact="export">ส่งออกรายงานเจ้าหนี้ (.xlsx)</button>' +
           '<button type="button" class="btn-ghost" data-cact="clear">ล้างที่ติ๊ก</button></div>';
@@ -4320,10 +4321,13 @@
       html += '<div class="table-note" style="margin:12px 0 4px"><b>รายงานที่ออกแล้ว</b> (ส่งออกซ้ำได้ เลขเดิม' + (rows.length ? ' · บิลมาทีหลัง: กด เพิ่มที่ติ๊ก ในแถวรายงานเดิม แทนการออกรายงานใหม่' : '') + ')</div>' +
         '<div class="table-scroll" style="max-height:200px"><table style="min-width:760px"><thead><tr><th>รายงาน</th><th>เลขชุด</th><th>วันที่</th><th>แหล่งเงิน</th><th>จำนวน</th><th class="mono">ยอดเงิน</th><th></th></tr></thead><tbody>' +
         reps.map(function(x){
-          var sum = x.nos.reduce(function(a, n){ var t = crRow(n).total; return a + (t || 0); }, 0);
+          var sum = crSum(x.nos.map(crRow)), n2 = x.nos.length + rows.length, over = n2 > CR_MAX;
+          /* ติ๊กอยู่: บรรทัดที่ 2 บอกจำนวนใบและยอดเงินหลังกดเพิ่มที่ติ๊ก (พี่โอม 24 พ.ย. 69 ข้อ 2.45 "เมื่อกดเพิ่ม มีจำนวนเงิน total ด้วย") */
+          function after(v){ return rows.length ? '<div class="table-note' + (over ? ' pt-up' : '') + '" style="margin:2px 0 0;white-space:nowrap">→ ' + v + '</div>' : ''; }
           return '<tr><td style="white-space:nowrap"><b>' + esc(crLabel(x)) + '</b></td><td class="mono">ภ-' + esc(x.no) + '</td><td style="white-space:nowrap">' + esc(memoDateTh(x.date)) + '</td><td>' + esc(CR_FUND[x.fund] || '') + '</td>' +
-            '<td>' + x.nos.length + ' ใบ</td><td class="mono">' + fmt2(Math.round(sum * 100) / 100) + '</td>' +
-            '<td style="white-space:nowrap">' + (rows.length ? '<button type="button" class="btn-ghost" data-cact="add" data-cno="' + esc(x.no) + '" title="เพิ่มการรับที่ติ๊กอยู่เข้ารายงานนี้ เลขเดิม แล้วส่งออกไฟล์ใหม่">เพิ่มที่ติ๊ก (' + rows.length + ')</button> ' : '') +
+            '<td style="white-space:nowrap">' + x.nos.length + ' ใบ' + after(n2 + ' ใบ' + (over ? ' เกิน ' + CR_MAX : '')) + '</td>' +
+            '<td class="mono">' + fmt2(sum) + after(fmt2(crSum([{ total:sum }, { total:total }]))) + '</td>' +
+            '<td style="white-space:nowrap">' + (rows.length ? '<button type="button" class="btn-ghost" data-cact="add" data-cno="' + esc(x.no) + '" title="เพิ่มการรับที่ติ๊กอยู่เข้ารายงานนี้ เลขเดิม แล้วส่งออกไฟล์ใหม่ (บรรทัด → คือจำนวนใบและยอดเงินหลังเพิ่ม)">เพิ่มที่ติ๊ก (' + rows.length + ' ใบ ฿' + fmt2(total) + ')</button> ' : '') +
               '<button type="button" class="btn-ghost" data-cact="again" data-cno="' + esc(x.no) + '">ส่งออกซ้ำ</button> ' +
             '<button type="button" class="btn-ghost" data-cact="cancel" data-cno="' + esc(x.no) + '">ยกเลิกรายงาน</button></td></tr>';
         }).join('') + '</tbody></table></div>';
@@ -4424,7 +4428,11 @@
     rows.forEach(function(r){ if(r.total == null) block.push('การรับ ' + r.no + ' ไม่มีใน PO_inven ที่นำเข้า (ไม่รู้ยอดเงิน)'); });
     rows.forEach(function(r){ if(String(r.fine).trim() && !isFinite(Number(String(r.fine).replace(/,/g, '')))) block.push('ค่าปรับของ ' + r.ry + ' ไม่ใช่ตัวเลข'); });
     if(block.length){ crState.msg = 'ยังไม่ได้เพิ่ม: ' + block.join(' · '); crPanel(); return; }
-    if(!window.confirm('เพิ่มการรับ ' + rows.length + ' ครั้งที่ติ๊ก เข้ารายงาน ' + crLabel(x) + ' (ภ-' + x.no + ')?\n\nเลขที่ วันที่ แหล่งเงิน และผู้ส่งคงเดิม แถวใหม่ต่อท้าย แล้วส่งออกไฟล์ใหม่ทั้งรายงาน')) return;
+    var had = crSum(x.nos.map(crRow)), add = crSum(rows), n2 = x.nos.length + rows.length;
+    if(!window.confirm('เพิ่มการรับ ' + rows.length + ' ครั้งที่ติ๊ก เข้ารายงาน ' + crLabel(x) + ' (ภ-' + x.no + ')?\n\n' +
+        'รายงานเดิม ' + x.nos.length + ' ใบ ฿' + fmt2(had) + '\nที่ติ๊กเพิ่ม ' + rows.length + ' ใบ ฿' + fmt2(add) + '\nหลังเพิ่ม ' + n2 + ' ใบ ฿' + fmt2(crSum([{ total:had }, { total:add }])) +
+        (n2 < CR_MAX ? ' (เพิ่มได้อีก ' + (CR_MAX - n2) + ' ใบ)' : ' (ครบ ' + CR_MAX + ' ใบ)') +
+        '\n\nเลขที่ วันที่ แหล่งเงิน และผู้ส่งคงเดิม แถวใหม่ต่อท้าย แล้วส่งออกไฟล์ใหม่ทั้งรายงาน')) return;
     var at = new Date().toISOString(), base = 0;
     x.nos.forEach(function(n){ var o = memoSet.ry[n].cr.order || 0; if(o + 1 > base) base = o + 1; });
     rows.forEach(function(r, i){
