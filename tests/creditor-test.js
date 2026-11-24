@@ -88,7 +88,12 @@ let fails = 0; const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m)
   d.querySelector('[data-cact="add"]').click();
   ok(!saved.length && /ยังไม่ได้เพิ่ม/.test(d.getElementById('cr-panel').textContent) && !ms2.ry.P004.cr, 'adding a รยว. to a รย. report is refused');
   const un3 = box.querySelector('[data-cr="P003"]'); un3.checked = false; un3.dispatchEvent(new w.Event('change', { bubbles:true }));
+  /* money before adding (his request 24 Nov 2026, Q&A 2.45): button, the → line in the report row, and the confirm */
+  const addBtn = d.querySelector('[data-cact="add"]'), repRow = addBtn.closest('tr').textContent;
+  ok(/เพิ่มที่ติ๊ก \(1 ใบ ฿10\.00\)/.test(addBtn.textContent) && /2 ใบ→ 3 ใบ/.test(repRow) && /2,249\.50→ 2,259\.50/.test(repRow), 'add button and report row show the money after adding');
+  let asked = ''; w.confirm = m => { asked = m; return true; };
   d.querySelector('[data-cact="add"]').click();
+  ok(/รายงานเดิม 2 ใบ ฿2,249\.50\nที่ติ๊กเพิ่ม 1 ใบ ฿10\.00\nหลังเพิ่ม 3 ใบ ฿2,259\.50 \(เพิ่มได้อีก 12 ใบ\)/.test(asked), 'confirm shows the totals');
   for(let i = 0; i < 50 && !saved.length; i++) await new Promise(r => setTimeout(r, 50));
   ok(ms2.ry.P004.cr && ms2.ry.P004.cr.no === '0091/2569' && ms2.ry.P004.cr.doc === '25' && ms2.ry.P004.cr.order === 2, 'added delivery joins the report at the end');
   ok(saved.length === 1 && saved[0].name === 'รายงานเจ้าหนี้การค้า.การเงิน -19.11.69 (25ภ.91).xlsx' && ms2.next['ภ'] === '0092/2569', 'whole report re-exported, same number, counter unchanged');
