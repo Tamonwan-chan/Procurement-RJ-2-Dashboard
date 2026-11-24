@@ -4125,8 +4125,10 @@
   /* ---------------- รายงานเจ้าหนี้การค้า (Excel) · v3.0 #55 ----------------
      พี่โอม 18 พ.ย. 69: หลังออก รย. แล้วต้องทำสรุป มีใบนำส่งเป็นใบปะหน้าตั้งหนี้ ส่งการเงิน · ติ๊กการรับในรายการ PO_inven ของหน้าตรวจรับ → ส่งออก Excel → เลขรายงานอยู่ท้ายแถว
      แบบตามตัวอย่าง "รายงานเจ้าหนี้การค้า.การเงิน" (เงินบำรุง) และ "(งบประมาณ)": 1 แถว = การรับ 1 ครั้ง = 1 รย. · จำนวนเงิน = ยอดใน รย.
-     ค่าตั้งต้นตามคำถามข้อ 38–44 (ส่ง 19 พ.ย. 69 รอคำตอบ): เล่ม ภ- ของกลุ่มงาน โปรแกรมรันต่อ · ครั้งแรกพิมพ์เลขเอง ไม่เริ่มใหม่เอง (ท้ายเลขเป็น พ.ศ. ของวันที่รายงาน)
-       · เงินบำรุงกับงบประมาณใช้เลขชุดเดียวกัน · รย. กับ รยว. แยกใบ · ค่าปรับกรอกก่อนส่งออก · เลือกแหล่งเงินต่อรายงาน ตั้งต้นเงินบำรุง
+     พี่โอมตอบข้อ 38–43 (24 พ.ย. 69): เล่ม ภ- ของกลุ่มงานเภสัชเอง โปรแกรมรันและแก้ได้ · ครั้งแรกพิมพ์เลขเอง · ภ- รันตาม พ.ศ. (เริ่มใหม่ 1 ม.ค.)
+       · เงินบำรุงกับงบประมาณใช้เลขชุดเดียวกัน · ยา กับ เวชภัณฑ์มิใช่ยา + เคมี (รย. / รยว.) แยกใบ · ค่าปรับกรอกก่อนส่งออก
+       · "run เลขไว้ก่อน Add บิลทีหลัง หรือสร้างซ้ำ ได้" = เพิ่มการรับเข้ารายงานที่ออกแล้วได้ (crAdd) · ยกเลิกแล้วออกใหม่เลขเดิมได้
+       ยังรอ: แหล่งเงินเลือกต่อรายงาน ตั้งต้นเงินบำรุง (ข้อ 44) · เลขที่เอกสารยังรันต่อ ไม่เริ่มใหม่เอง (ข้อ 47)
      เก็บ: รายงานติดไว้กับบันทึก รย. ของแต่ละการรับ (memoSet.ry[minpno].cr) จึงใช้ร่วมผ่านแท็บตรวจรับเดิมในข้อมูลกลาง ไม่ต้องแก้ Apps Script
        · เลข ภ- จองในชุด 'ภ' · เลขที่เอกสาร = เลขสูงสุดในรายงานที่มี + 1 */
   var CR_SERIES = 'ภ', CR_FUND = { keep:'เงินบำรุง', budget:'เงินงบประมาณ' }, CR_FONT = 'TH SarabunPSK';
@@ -4136,12 +4138,12 @@
   function crLabel(c){ return c.doc + 'ภ.' + crNum(c.no); }
   function crCat(k){ return k === MEMO_KIND.non ? 'วัสดุเวชภัณฑ์ไม่ใช่ยา' : 'วัสดุยาและเวชภัณฑ์'; }
   function crDate(){ return crState.date || todayIso(); }
-  /* เลข ภ- ถัดไป: ข้อมูลกลางเป็นหลัก · ปีท้ายเลขเลื่อนตาม พ.ศ. ของวันที่รายงาน แต่เลขรันต่อ (ยังไม่รู้ว่าเล่มเริ่มใหม่เมื่อไร ข้อ 40) */
+  /* เลข ภ- ถัดไป: ข้อมูลกลางเป็นหลัก · รันตาม พ.ศ. ของวันที่รายงาน เริ่ม 0001 ใหม่ 1 ม.ค. แบบ ภย. (พี่โอม 24 พ.ย. 69 ข้อ 40 "ภ- เป็นปี พ.ศ.") */
   function crNextNo(iso){
     var v = shOn() && SH.meta.counters[CR_SERIES] || memoSet.next && memoSet.next[CR_SERIES] || '';
     if(!v){ var top = crReports()[0]; if(top) v = nextNo(top.no); }   /* ยังไม่มีเลขถัดไปในเครื่อง (รายงานซิงก์มาจากเครื่องอื่น) */
-    var m = /^(\d+)\/(\d{4})$/.exec(v);
-    return m ? m[1] + '/' + Math.max(Number(m[2]), memoBE(iso)) : '';
+    var m = /^(\d+)\/(\d{4})$/.exec(v), be = memoBE(iso);
+    return !m ? '' : Number(m[2]) < be ? '0001/' + be : v;
   }
   function crReports(){
     var by = {}, list = [];
@@ -4220,13 +4222,14 @@
           '<button type="button" class="btn-ghost" data-cact="clear">ล้างที่ติ๊ก</button></div>';
     } else if(crState.msg) html += '<div class="table-note" style="margin:6px 0 0">' + shMsgHtml(crState.msg).replace(/^<br>/, '') + '</div>';
     if(reps.length){
-      html += '<div class="table-note" style="margin:12px 0 4px"><b>รายงานที่ออกแล้ว</b> (ส่งออกซ้ำได้ เลขเดิม)</div>' +
+      html += '<div class="table-note" style="margin:12px 0 4px"><b>รายงานที่ออกแล้ว</b> (ส่งออกซ้ำได้ เลขเดิม' + (rows.length ? ' · บิลมาทีหลัง: กด เพิ่มที่ติ๊ก ในแถวรายงานเดิม แทนการออกรายงานใหม่' : '') + ')</div>' +
         '<div class="table-scroll" style="max-height:200px"><table style="min-width:760px"><thead><tr><th>รายงาน</th><th>เลขชุด</th><th>วันที่</th><th>แหล่งเงิน</th><th>จำนวน</th><th class="mono">ยอดเงิน</th><th></th></tr></thead><tbody>' +
         reps.map(function(x){
           var sum = x.nos.reduce(function(a, n){ var t = crRow(n).total; return a + (t || 0); }, 0);
           return '<tr><td style="white-space:nowrap"><b>' + esc(crLabel(x)) + '</b></td><td class="mono">ภ-' + esc(x.no) + '</td><td style="white-space:nowrap">' + esc(memoDateTh(x.date)) + '</td><td>' + esc(CR_FUND[x.fund] || '') + '</td>' +
             '<td>' + x.nos.length + ' ใบ</td><td class="mono">' + fmt2(Math.round(sum * 100) / 100) + '</td>' +
-            '<td style="white-space:nowrap"><button type="button" class="btn-ghost" data-cact="again" data-cno="' + esc(x.no) + '">ส่งออกซ้ำ</button> ' +
+            '<td style="white-space:nowrap">' + (rows.length ? '<button type="button" class="btn-ghost" data-cact="add" data-cno="' + esc(x.no) + '" title="เพิ่มการรับที่ติ๊กอยู่เข้ารายงานนี้ เลขเดิม แล้วส่งออกไฟล์ใหม่">เพิ่มที่ติ๊ก (' + rows.length + ')</button> ' : '') +
+              '<button type="button" class="btn-ghost" data-cact="again" data-cno="' + esc(x.no) + '">ส่งออกซ้ำ</button> ' +
             '<button type="button" class="btn-ghost" data-cact="cancel" data-cno="' + esc(x.no) + '">ยกเลิกรายงาน</button></td></tr>';
         }).join('') + '</tbody></table></div>';
     }
@@ -4316,9 +4319,28 @@
     if(miss.length){ crState.msg = 'ยังไม่ได้ส่งออก: ไม่รู้ยอดเงินของการรับ ' + miss.map(function(b){ return b.no; }).join(', ') + ' — ลาก PO_inven ที่มีการรับนี้'; crPanel(); return; }
     crSave({ no:x.no, doc:x.doc, date:x.date, fund:x.fund, cat:x.cat || crCat(rows[0].k), sender:x.sender }, rows, false);
   }
+  /* บิลมาทีหลัง: เพิ่มการรับที่ติ๊กเข้ารายงานที่ออกแล้ว (เลข ภ- เลขที่เอกสาร วันที่ แหล่งเงิน เดิม) ต่อท้ายแถวเดิม แล้วส่งออกไฟล์ใหม่ทั้งรายงาน
+     พี่โอม 24 พ.ย. 69 (ข้อ 41): "ใช้แผนที่คุย run เลขไว้ก่อน Add บิลทีหลัง หรือสร้างซ้ำ ได้" */
+  function crAdd(no){
+    var x = crReports().filter(function(r){ return r.no === no; })[0], rows = crPicked(); if(!x || !rows.length) return;
+    var k = crRow(x.nos[0]).k, block = [];
+    if(rows.some(function(r){ return r.k !== k; })) block.push('รายงาน ' + crLabel(x) + ' เป็นรายงาน ' + k.r + ' — ติ๊กเฉพาะการรับที่ออก ' + k.r + ' (แยกใบตามหมวดพัสดุ)');
+    rows.forEach(function(r){ if(r.total == null) block.push('การรับ ' + r.no + ' ไม่มีใน PO_inven ที่นำเข้า (ไม่รู้ยอดเงิน)'); });
+    rows.forEach(function(r){ if(String(r.fine).trim() && !isFinite(Number(String(r.fine).replace(/,/g, '')))) block.push('ค่าปรับของ ' + r.ry + ' ไม่ใช่ตัวเลข'); });
+    if(block.length){ crState.msg = 'ยังไม่ได้เพิ่ม: ' + block.join(' · '); crPanel(); return; }
+    if(!window.confirm('เพิ่มการรับ ' + rows.length + ' ครั้งที่ติ๊ก เข้ารายงาน ' + crLabel(x) + ' (ภ-' + x.no + ')?\n\nเลขที่ วันที่ แหล่งเงิน และผู้ส่งคงเดิม แถวใหม่ต่อท้าย แล้วส่งออกไฟล์ใหม่ทั้งรายงาน')) return;
+    var at = new Date().toISOString(), base = 0;
+    x.nos.forEach(function(n){ var o = memoSet.ry[n].cr.order || 0; if(o + 1 > base) base = o + 1; });
+    rows.forEach(function(r, i){
+      memoSet.ry[r.no].cr = { no:x.no, doc:x.doc, date:x.date, fund:x.fund, cat:x.cat, sender:x.sender, items:r.items, fine:String(r.fine || ''), order:base + i, at:at, by:SH.by || '' };
+    });
+    memoSaveSet();
+    crState.pick = {}; crState.fine = {}; crState.items = {}; crState.no = ''; crState.doc = ''; crState.cat = ''; crState.noAuto = false;
+    crAgain(no);
+  }
   function crCancel(no){
     var x = crReports().filter(function(r){ return r.no === no; })[0]; if(!x) return;
-    if(!window.confirm('ยกเลิกรายงาน ' + crLabel(x) + ' (ภ-' + x.no + ')?\n\nการรับ ' + x.nos.length + ' ครั้งในรายงานนี้จะกลับมาติ๊กทำรายงานใหม่ได้\nเลข ภ-' + x.no + ' ไม่นำกลับมาใช้ (รายงานใหม่ใช้เลขถัดไป)')) return;
+    if(!window.confirm('ยกเลิกรายงาน ' + crLabel(x) + ' (ภ-' + x.no + ')?\n\nการรับ ' + x.nos.length + ' ครั้งในรายงานนี้จะกลับมาติ๊กทำรายงานใหม่ได้\nเลขถัดไปไม่ย้อนกลับเอง ถ้าจะออกรายงานใหม่ด้วยเลขเดิม พิมพ์ ' + x.no + ' ในช่องเลขชุด ภ- และ ' + x.doc + ' ในช่องเลขที่เอกสาร')) return;
     x.nos.forEach(function(n){ delete memoSet.ry[n].cr; });
     memoSaveSet();
     crState.msg = 'ยกเลิกรายงาน ' + crLabel(x) + ' แล้ว'; renderRy();
@@ -4349,6 +4371,7 @@
       if(a === 'export') crExport();
       else if(a === 'clear'){ crState.pick = {}; crState.msg = ''; renderRy(); }
       else if(a === 'again') crAgain(b.getAttribute('data-cno'));
+      else if(a === 'add') crAdd(b.getAttribute('data-cno'));
       else if(a === 'cancel') crCancel(b.getAttribute('data-cno'));
     });
   })();

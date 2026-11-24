@@ -79,10 +79,29 @@ let fails = 0; const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m)
   saved.length = 0; d.querySelector('[data-cact="again"]').click();
   for(let i = 0; i < 50 && !saved.length; i++) await new Promise(r => setTimeout(r, 50));
   ok(saved.length === 1 && saved[0].name === 'รายงานเจ้าหนี้การค้า.การเงิน -19.11.69 (25ภ.91).xlsx' && I.get('memoSet').next['ภ'] === '0092/2569', 'reprint keeps number and counter');
+  /* ภ- restarts on 1 Jan (by พ.ศ., his answer to question 40) */
+  ok(I.get('crNextNo')('2026-12-30') === '0092/2569' && I.get('crNextNo')('2027-01-04') === '0001/2570', 'ภ- restarts at 0001 in the new พ.ศ.');
+  /* bill comes later: add a ticked delivery to the issued report (question 41) */
+  const ms2 = I.get('memoSet'); ms2.ry.P004 = rec('P004', '0013/2569', '0032/2570'); I.get('renderRy')();
+  tick('P004'); tick('P003');
+  w.confirm = () => true; saved.length = 0;
+  d.querySelector('[data-cact="add"]').click();
+  ok(!saved.length && /ยังไม่ได้เพิ่ม/.test(d.getElementById('cr-panel').textContent) && !ms2.ry.P004.cr, 'adding a รยว. to a รย. report is refused');
+  const un3 = box.querySelector('[data-cr="P003"]'); un3.checked = false; un3.dispatchEvent(new w.Event('change', { bubbles:true }));
+  d.querySelector('[data-cact="add"]').click();
+  for(let i = 0; i < 50 && !saved.length; i++) await new Promise(r => setTimeout(r, 50));
+  ok(ms2.ry.P004.cr && ms2.ry.P004.cr.no === '0091/2569' && ms2.ry.P004.cr.doc === '25' && ms2.ry.P004.cr.order === 2, 'added delivery joins the report at the end');
+  ok(saved.length === 1 && saved[0].name === 'รายงานเจ้าหนี้การค้า.การเงิน -19.11.69 (25ภ.91).xlsx' && ms2.next['ภ'] === '0092/2569', 'whole report re-exported, same number, counter unchanged');
+  if(saved.length){
+    const b2 = Buffer.from(await new Promise((res, rej) => { const fr = new w.FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsArrayBuffer(saved[0].blob); }));
+    const wb2 = new ExcelJS.Workbook(); await wb2.xlsx.load(b2); const ws2 = wb2.worksheets[0];
+    const v2 = a => { const x = ws2.getCell(a).value; return x && x.formula ? '=' + x.formula : x; };
+    ok(v2('I10') === 'รย.0013/2569' && v2('G10') === 10 && v2('C11') === 3 && v2('G11') === '=SUM(G8:G10)', 'added row and total in the file');
+  }
   /* budget file name */
   ok(I.get('crFileName')({ fund:'budget', date:'2026-09-30', doc:'52', no:'0118/2569' }) === 'รายงานเจ้าหนี้การค้า. (งบประมาณ) 30.9.69 (52ภ.118).xlsx', 'budget file name');
   /* cancel */
   w.confirm = () => true; d.querySelector('[data-cact="cancel"]').click();
-  ok(!I.get('memoSet').ry.P001.cr && !I.get('memoSet').ry.P002.cr, 'cancel frees both deliveries');
+  ok(!I.get('memoSet').ry.P001.cr && !I.get('memoSet').ry.P002.cr && !I.get('memoSet').ry.P004.cr, 'cancel frees every delivery in the report');
   console.log(fails ? fails + ' failed' : 'all passed'); process.exit(fails ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
