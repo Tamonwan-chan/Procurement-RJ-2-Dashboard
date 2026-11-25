@@ -34,6 +34,7 @@ Show her a table first: his point (short, in Thai) | category | issue / Q&A item
 
 ## 4. Draft the LINE reply
 Write a short reply she can copy into LINE. Put it in a code block so it copies cleanly.
+- First decide where it goes, using "Where each LINE message goes" in CLAUDE.md: the project group, พี่โอม privately, or one person privately. Say it above the code block ("ส่งที่: …") and write the draft for that audience (group: "สวัสดีค่ะพี่ ๆ ทุกคน", tag the person it is for). If one message mixes both, split it: questions to him privately, the release / fix notice to the group.
 - Thai, from her to him: call him พี่, she calls herself หนู (never แป้ง or her name), and use ค่ะ / คะ only, never ครับ.
 - Plain text for LINE: no markdown (no `**`, `#` or tables), at most one emoji per section, short lines.
 - Order:
