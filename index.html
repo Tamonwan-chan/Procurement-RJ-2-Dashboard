@@ -792,7 +792,7 @@
 
   /* VERSION: รุ่นที่ขึ้นหน้าจริง แสดงใต้ชื่อโปรแกรมและท้ายหน้า
      แก้ทุกครั้งที่ติด tag ออกรุ่นใหม่บน master (เช่น v2.0.1) ให้ตรงกับ tag */
-  var APP_VERSION = { tag:'v3.0-beta.7', date:'25 พ.ย. 2569' };
+  var APP_VERSION = { tag:'v3.0-beta.8', date:'25 พ.ย. 2569' };
 
   /* CREDIT: ห้ามลบหรือแก้ไข */
   var CREDIT = {
@@ -3995,7 +3995,20 @@
     return { key:drug * 2 >= g.rows.length ? 'drug' : 'non', mixed:drug > 0 && drug < g.rows.length };
   }
   function ryKind(d){ return d.kind === 'non' ? MEMO_KIND.non : MEMO_KIND.drug; }
-  function ryRows(g, d){ return g.rows.filter(function(r, i){ return !d.skip[i]; }); }
+  /* 1 รายการ = 1 meditem (พี่โอม 25 พ.ย. 69 · #57): บริษัทส่งยาเดียวกันหลาย lot / วันหมดอายุ = HIS มีหลายแถว → รวมเป็นรายการเดียว จำนวนและมูลค่าบวกกัน
+     เดิมนับแถว (ergotamine 2 lot = 2 รายการ จึงขึ้น 8 รายการ แทน 7 ตาม ขย.) · ติ๊กออกตามรายการ (skipId) · skip เดิมเป็นเลขแถว ของที่บันทึกไว้แล้วยังใช้ได้ */
+  function ryKeyOf(r){ return r.id ? 'id:' + r.id : 'nm:' + r.name; }
+  function ryMerge(rows){
+    var by = {}, out = [];
+    rows.forEach(function(r){
+      var k = ryKeyOf(r), x = by[k];
+      if(!x){ x = by[k] = { key:k, id:r.id, name:r.name, pack:r.pack, qty:0, value:0, lots:0 }; out.push(x); }
+      x.qty += +r.qty || 0; x.value += r.value || 0; x.lots++;
+    });
+    out.forEach(function(x){ x.value = Math.round(x.value * 100) / 100; });
+    return out;
+  }
+  function ryRows(g, d){ var sk = d.skip || {}, si = d.skipId || {}; return ryMerge(g.rows.filter(function(r, i){ return !sk[i] && !si[ryKeyOf(r)]; })); }
   function ryTotal(g, d){ return Math.round(ryRows(g, d).reduce(function(a, r){ return a + (r.value || 0); }, 0) * 100) / 100; }
   /* เก็บบันทึก รย. ที่แก้ · รายงานเจ้าหนี้ (cr) ยึดของที่เก็บไว้ ไม่ใช่สำเนาบนหน้าจอ (ทำรายงานหลังเปิดการรับนี้ไว้ หรือเครื่องอื่นซิงก์มา) */
   function ryStore(d){
@@ -4011,7 +4024,7 @@
     else {
       var iso = ryIso(g.date), key = ryKindKey(g).key, k = key === 'non' ? MEMO_KIND.non : MEMO_KIND.drug;
       ryState.d = { no:no, kind:key, rNo:memoNextNo(k.r, memoBE(iso)), rDate:'', kNo:'', kDate:'', company:g.company, bill:g.inv || '', billDate:'', inspect:iso,
-        subj:'รายงานผลการตรวจรับยาและเวชภัณฑ์', cat:'หมวดค่าวัสดุ', committee:memoSeats((memoSet.pick || {}).committee), skip:{}, done:false };
+        subj:'รายงานผลการตรวจรับยาและเวชภัณฑ์', cat:'หมวดค่าวัสดุ', committee:memoSeats((memoSet.pick || {}).committee), skip:{}, skipId:{}, done:false };
     }
     ryState.msg = ''; renderRy();
   }
@@ -4048,7 +4061,7 @@
         '<td style="white-space:nowrap">' + (s && s.done ? '<b>ออกแล้ว ' + esc(ryKind(s).r + '.' + s.rNo) + '</b>' : '') + '</td>' +
         '<td><button type="button" class="btn-ghost" data-rp="' + esc(g.no) + '">' + (g.no === cur ? 'เลือกอยู่' : 'เลือก') + '</button></td>' +
         '<td style="white-space:nowrap">' + esc(memoDateTh(ryIso(g.date))) + '</td><td class="mono">' + esc(g.no) + '</td><td>' + esc(g.company) + '</td><td class="mono">' + esc(g.inv) + '</td>' +
-        '<td>' + g.rows.length + ' · ' + esc(names[0]) + (names.length > 1 ? ' …' : '') + '</td><td class="mono">' + fmt2(g.rows.reduce(function(a, r){ return a + (r.value || 0); }, 0)) + '</td>' +
+        '<td>' + ryMerge(g.rows).length + ' · ' + esc(names[0]) + (names.length > 1 ? ' …' : '') + '</td><td class="mono">' + fmt2(g.rows.reduce(function(a, r){ return a + (r.value || 0); }, 0)) + '</td>' +
         '<td style="white-space:nowrap">' + (s && s.cr ? '<b>รายงาน ' + esc(crLabel(s.cr)) + '</b>' : '') + '</td></tr>';
     }).join('');
     return '<table style="min-width:1100px"><thead><tr><th title="ติ๊กทำรายงานเจ้าหนี้">เจ้าหนี้</th><th>สถานะ</th><th></th><th>วันที่รับ</th><th>เลขที่รับ</th><th>ผู้จำหน่าย</th><th>เลขที่เอกสาร</th><th>รายการ</th><th class="mono">มูลค่า</th><th>รายงานเจ้าหนี้</th></tr></thead><tbody>' +
@@ -4077,7 +4090,10 @@
       var hist = (quoteHist && quoteHist.docs || []).filter(function(x){ return x.memo && x.memo.kNo && memoKindOf(x) === k; });
       html += '<div class="memo-step">2. รายการที่รับ (ติ๊กออกได้ ถ้าไม่ได้อยู่ใน ' + k.y + '. ใบนี้)</div>' +
         '<div class="table-scroll" style="max-height:220px"><table style="min-width:700px"><thead><tr><th></th><th>รายการ</th><th class="mono">จำนวนรับ</th><th class="mono">มูลค่า</th></tr></thead><tbody>' +
-        g.rows.map(function(r, i){ return '<tr><td><input type="checkbox" data-rt="' + i + '"' + (d.skip[i] ? '' : ' checked') + ' aria-label="เลือกรายการ"></td><td>' + esc(r.name) + '</td><td class="mono">' + fmt1(r.qty) + (r.pack ? ' <small>(' + fmt1(r.pack) + ')</small>' : '') + '</td><td class="mono">' + fmt2(r.value || 0) + '</td></tr>'; }).join('') +
+        ryMerge(g.rows).map(function(r){
+          var on = !(d.skipId || {})[r.key] && g.rows.some(function(x, i){ return ryKeyOf(x) === r.key && !(d.skip || {})[i]; });
+          return '<tr><td><input type="checkbox" data-rt="' + esc(r.key) + '"' + (on ? ' checked' : '') + ' aria-label="เลือกรายการ"></td><td>' + esc(r.name) + (r.lots > 1 ? ' <small class="table-note">(' + r.lots + ' lot รวมเป็น 1 รายการ)</small>' : '') + '</td><td class="mono">' + fmt1(r.qty) + (r.pack ? ' <small>(' + fmt1(r.pack) + ')</small>' : '') + '</td><td class="mono">' + fmt2(r.value || 0) + '</td></tr>';
+        }).join('') +
         '</tbody></table></div>' +
         '<div class="memo-step">3. ข้อมูลในบันทึก (แก้ได้ทุกช่อง)</div>' +
         '<div class="table-tools"><label class="q-field">ชนิดเอกสาร <select class="search field-select" data-rf="kind"><option value="drug"' + (d.kind !== 'non' ? ' selected' : '') + '>รย. (ต่อจาก ย.)</option><option value="non"' + (d.kind === 'non' ? ' selected' : '') + '>รยว. (ต่อจาก ยว.)</option></select></label>' +
@@ -4192,7 +4208,8 @@
         if(ryKind(d) !== was && !d.done) d.rNo = memoNextNo(ryKind(d).r, memoBE(d.inspect));
         keep(); renderRy();
       } else if(t.hasAttribute('data-rt')){
-        if(t.checked) delete d.skip[t.getAttribute('data-rt')]; else d.skip[t.getAttribute('data-rt')] = 1;
+        var rk = t.getAttribute('data-rt'), gg = ryGroup(d.no); d.skipId = d.skipId || {}; d.skip = d.skip || {};
+        if(t.checked){ delete d.skipId[rk]; if(gg) gg.rows.forEach(function(x, i){ if(ryKeyOf(x) === rk) delete d.skip[i]; }); } else d.skipId[rk] = 1;
         keep(); sum();
       } else if(t.hasAttribute('data-rw')){
         d.committee[Number(t.getAttribute('data-rw'))] = t.value; ryState.msg = ''; keep(); sum();
