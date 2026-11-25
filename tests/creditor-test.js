@@ -109,6 +109,14 @@ let fails = 0; const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m)
   ok(!I.get('crWarn')(fake(15), hOk).block.some(m => /ไม่เกิน 15/.test(m)) && I.get('crWarn')(fake(16), hOk).block.some(m => /ไม่เกิน 15 ใบ \(ติ๊กไว้ 16\)/.test(m)), '15 per report allowed, 16 refused');
   /* budget file name */
   ok(I.get('crFileName')({ fund:'budget', date:'2026-09-30', doc:'52', no:'0118/2569' }) === 'รายงานเจ้าหนี้การค้า. (งบประมาณ) 30.9.69 (52ภ.118).xlsx', 'budget file name');
+  /* document number (front part) restarts at 1 with the new พ.ศ. on 1 Jan, like ภ- (question 47, 25 Nov 2026) */
+  ok(I.get('crNextDoc')('2026-12-31') === '26' && I.get('crNextDoc')('2027-01-02') === '1', 'document number: 26 in 2569, back to 1 on 1 Jan 2570');
+  /* funding source follows the ticked รย. (question 44): all budget = budget, otherwise เงินบำรุง; a mix or a mismatch is flagged */
+  const cs2 = I.get('crState'); cs2.fundSet = false;
+  ok(I.get('crHead')([{ k:K, fund:'budget' }, { k:K, fund:'budget' }]).fund === 'budget' && I.get('crHead')([{ k:K, fund:'keep' }, { k:K, fund:'budget' }]).fund === 'keep', 'report fund defaults from the ticked รย.');
+  const wMix = I.get('crWarn')([{ k:K, total:1, fine:'', ry:'a', fund:'keep' }, { k:K, total:1, fine:'', ry:'b', fund:'budget' }], Object.assign({ fund:'keep' }, hOk));
+  const wOff = I.get('crWarn')([{ k:K, total:1, fine:'', ry:'a', fund:'budget' }], Object.assign({ fund:'keep' }, hOk));
+  ok(wMix.soft.some(m => /ทั้งเงินบำรุงและเงินงบประมาณ/.test(m)) && wOff.soft.some(m => /ไม่ตรงกับใน รย\./.test(m)), 'mixed or mismatched funds flagged');
   /* cancel */
   w.confirm = () => true; d.querySelector('[data-cact="cancel"]').click();
   ok(!I.get('memoSet').ry.P001.cr && !I.get('memoSet').ry.P002.cr && !I.get('memoSet').ry.P004.cr, 'cancel frees every delivery in the report');

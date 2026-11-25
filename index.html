@@ -3562,7 +3562,8 @@
       memoItemTable(d, k, t, MEMO_K_TOP) +
       /* ข้อ 3–4 อยู่คนละหน้ากับตาราง (หมายเหตุพี่โอมใน ขย.0450) */
       wPara(wRun('3. ราคากลางของพัสดุที่จะซื้อ จำนวน ' + fmt2(t.ref) + ' บาท (' + bahtText(t.ref) + ')'), { first:720, jc:'thaiDistribute', pageBreak:true }) +
-      wPara(wRun('4. วงเงิน จำนวน ' + fmt2(t.total) + ' บาท (' + bahtText(t.total) + ') เงินบำรุง' + memoSet.org.hosp + ' ปีงบประมาณ ' + fy), NUM) +
+      /* แหล่งเงิน (พี่โอมตอบข้อ 44 · 25 พ.ย. 69): งบประมาณ = "ด้วยเงินงบประมาณ ปีงบประมาณ 2569" ตามภาพ ขย. ของพี่โอม · ย. / ยว. ไม่มีข้อความแหล่งเงิน */
+      wPara(wRun('4. วงเงิน จำนวน ' + fmt2(t.total) + ' บาท (' + bahtText(t.total) + ') ' + (d.fund === 'budget' ? 'ด้วยเงินงบประมาณ' : 'เงินบำรุง' + memoSet.org.hosp) + ' ปีงบประมาณ ' + fy), NUM) +
       wPara(wRun('5. กำหนดเวลาที่ต้องการใช้พัสดุ ' + (d.days || 5) + ' วันทำการ โดยนับถัดจากวันที่ผู้ขายได้รับหนังสือสั่งซื้อ'), NUM) +
       wPara(wRun('6. วิธีจะซื้อโดยเฉพาะเจาะจง ตามความในมาตรา ๕๖(๒)(ข) แห่งพระราชบัญญัติการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. ๒๕๖๐ และกฎกระทรวงกำหนดวงเงินการจัดซื้อจัดจ้างพัสดุโดยวิธีเฉพาะเจาะจง ' +
         'วงเงินการจัดซื้อจัดจ้างที่ไม่ทำข้อตกลงเป็นหนังสือ และวงเงินการจัดซื้อจัดจ้างในการแต่งตั้งผู้ตรวจรับพัสดุ พ.ศ.2560 เมื่อวันที่ 23 สิงหาคม 2560 ข้อ 1 การจัดซื้อจัดจ้างสินค้า งานบริการ หรืองานก่อสร้างที่มีการผลิต ' +
@@ -3667,7 +3668,7 @@
       pNo:s.pNo || memoNextNo(k.p, memoBE(today)), pDate:s.pDate || today,
       planRef:s.planRef != null ? s.planRef : memoSet.planRef[memoFY(s.pDate || today)] || '',
       kNo:s.kNo || memoNextNo(k.k, memoFY(today)), kDate:s.kDate || '', yDate:s.yDate || '',
-      bill:s.bill || '', billDate:s.billDate || '', days:s.days || 5, layout:s.layout || memoLayoutOf(doc.company), amt:s.amt || null,
+      bill:s.bill || '', billDate:s.billDate || '', days:s.days || 5, layout:s.layout || memoLayoutOf(doc.company), amt:s.amt || null, fund:s.fund || 'keep',
       committee:memoSeats(s.committee || pick.committee), officer:s.officer || pick.officer || '', head:s.head || pick.head || '',
       supHead:s.supHead || (s.pNo && s.head) || pick.supHead || '',     /* บันทึกเดิม: หัวหน้ากลุ่มงานคนเดิมลงนาม ขย. ไปแล้ว */
       exec:s.exec || pick.exec || '', director:s.director || pick.director || '',
@@ -3847,7 +3848,8 @@
       '<div class="memo-step">2. ' + k.p + '. / ' + k.k + '. / ' + k.y + '. — เลขที่ วันที่ และหนังสืออ้างอิง</div>' +
       '<div class="table-tools">' + F(k.p + '. เลขที่', 'pNo', ' style="width:100px"') + F('วันที่', 'pDate', ' type="date"') +
         '<label class="q-field">หนังสืออ้างอิงแผน (ต่อจาก "ตามหนังสือ' + esc(set.org.hosp) + '") <input class="q-in" data-f="planRef" value="' + esc(d.planRef) + '" style="width:520px" placeholder="เช่น แจ้งร่างแผน… ที่ ว.52/2569 ลงวันที่ 6 ตุลาคม 2569"></label></div>' +
-      '<div class="table-tools">' + F(k.k + '. / ' + k.y + '. เลขที่', 'kNo', ' style="width:100px"') + F(k.k + '. วันที่', 'kDate', ' type="date"') + '</div>' +
+      '<div class="table-tools">' + F(k.k + '. / ' + k.y + '. เลขที่', 'kNo', ' style="width:100px"') + F(k.k + '. วันที่', 'kDate', ' type="date"') +
+        '<label class="q-field">แหล่งเงิน (' + k.k + '. ข้อ 4) <select class="search field-select" data-f="fund">' + Object.keys(CR_FUND).map(function(f){ return '<option value="' + f + '"' + (d.fund === f ? ' selected' : '') + '>' + CR_FUND[f] + '</option>'; }).join('') + '</select></label></div>' +
       '<div class="table-tools">' + F(k.y + '. (หนังสือสั่งซื้อ) วันที่', 'yDate', ' type="date"') +
         F('เลขที่ใบเสนอราคา / บิลของบริษัท', 'bill', ' style="width:140px"') + F('ลงวันที่', 'billDate', ' type="date"') + F('กำหนดส่ง (วันทำการ)', 'days', ' style="width:50px" inputmode="numeric"') + '</div>' +
       '<div class="memo-step">3. รายการ (ยอดคงเหลือจากคลังยา · อัตราการใช้จาก userate · ราคากลางจาก DATA Template · ราคาซื้อครั้งสุดท้ายจาก PO_inven — แก้ได้ทุกช่อง)</div>' +
@@ -4010,7 +4012,7 @@
     else {
       var iso = ryIso(g.date), key = ryKindKey(g).key, k = key === 'non' ? MEMO_KIND.non : MEMO_KIND.drug;
       ryState.d = { no:no, kind:key, rNo:memoNextNo(k.r, memoBE(iso)), rDate:'', kNo:'', kDate:'', company:g.company, bill:g.inv || '', billDate:'', inspect:iso,
-        subj:'รายงานผลการตรวจรับยาและเวชภัณฑ์', cat:'หมวดค่าวัสดุ', committee:memoSeats((memoSet.pick || {}).committee), skip:{}, done:false };
+        subj:'รายงานผลการตรวจรับยาและเวชภัณฑ์', cat:'หมวดค่าวัสดุ', fund:'keep', committee:memoSeats((memoSet.pick || {}).committee), skip:{}, done:false };
     }
     ryState.msg = ''; renderRy();
   }
@@ -4085,7 +4087,9 @@
           (hist.length ? '<label class="q-field">ดึงจากบันทึกในโปรแกรม <select class="search field-select" data-rhist><option value="">— พิมพ์เอง —</option>' + hist.map(function(x){ return '<option value="' + esc(qKey(x)) + '">' + esc(k.k + '.' + x.memo.kNo + ' · ' + x.company + (x.dup ? ' · ' + x.dup : '')) + '</option>'; }).join('') + '</select></label>' : '') +
           F(k.k + '. เลขที่', 'kNo', ' style="width:100px" placeholder="0627/2569"') + F(k.k + '. ลงวันที่', 'kDate', ' type="date"') + '</div>' +
         '<div class="table-tools">' + F('ผู้จำหน่าย', 'company', ' style="width:320px"') + F('เอกสารเลขที่', 'bill', ' style="width:150px"') + F('เอกสารลงวันที่', 'billDate', ' type="date"') + F('วันที่ตรวจรับ', 'inspect', ' type="date"') + '</div>' +
-        '<div class="table-tools">' + F('เรื่อง', 'subj', ' style="width:300px"') + F('หมวด', 'cat', ' style="width:120px"') + '</div>' +
+        '<div class="table-tools">' + F('เรื่อง', 'subj', ' style="width:300px"') + F('หมวด', 'cat', ' style="width:120px"') +
+          /* แหล่งเงินของ รย. เลือกแยกจาก ภย. / ขย. / ย. (พี่โอม 25 พ.ย. 69 ข้อ 44: เงินงบประมาณบางทีมาทีหลัง ไม่ต้องย้อนแก้บันทึกขอซื้อ) · ตั้งต้นเงินบำรุง */
+          '<label class="q-field">แหล่งเงิน <select class="search field-select" data-rf="fund">' + Object.keys(CR_FUND).map(function(f){ return '<option value="' + f + '"' + ((d.fund || 'keep') === f ? ' selected' : '') + '>' + CR_FUND[f] + '</option>'; }).join('') + '</select></label></div>' +
         '<div class="memo-step">4. กรรมการตรวจรับ (ตั้งต้นจากชุดที่ใช้ล่าสุด เปลี่ยนคนได้)</div>' +
         '<div class="table-tools"><label class="q-field">ประธานกรรมการ <select class="search field-select" data-rw="0">' + memoOpts('chair', d.committee[0]) + '</select></label>' +
           '<label class="q-field">กรรมการ <select class="search field-select" data-rw="1">' + memoOpts('committee', d.committee[1]) + '</select></label>' +
@@ -4125,7 +4129,7 @@
       P('                    ...../....../......') +
       P('หัวหน้างานผู้ลงบัญชี.......................................');
     var body = memoHead(memoSet.org.lineR || RY_LINE, k.r + '.' + d.rNo, memoDateTh(d.rDate), d.subj, d.cat) +
-      wPara(wRun('ตามบันทึก' + memoSet.org.dept + 'ที่ ' + k.k + '.' + (d.kNo || '.............') + ' ลงวันที่ ' + (memoDateTh(d.kDate) || '.............') + ' ได้อนุมัติให้ผู้มีนามท้ายบันทึกนี้เป็นกรรมการตรวจรับ' + k.what + ' จำนวน ' + rows.length + ' รายการ ด้วยงบเงินบำรุง' + hosp +
+      wPara(wRun('ตามบันทึก' + memoSet.org.dept + 'ที่ ' + k.k + '.' + (d.kNo || '.............') + ' ลงวันที่ ' + (memoDateTh(d.kDate) || '.............') + ' ได้อนุมัติให้ผู้มีนามท้ายบันทึกนี้เป็นกรรมการตรวจรับ' + k.what + ' จำนวน ' + rows.length + ' รายการ ' + (d.fund === 'budget' ? 'ด้วยเงินงบประมาณ' : 'ด้วยงบเงินบำรุง' + hosp) +
         ' ปีงบประมาณ ' + fy + ' หมวดงบดำเนินการ ค่าวัสดุ เป็นจำนวนเงิน ' + fmt2(t) + ' บาท (' + bahtText(t) + ') เพื่อไว้ใช้ในราชการ' + hosp + ' ซึ่ง' + d.company + ' เป็นผู้จำหน่าย และได้นำส่งตามเอกสาร เลขที่ ' + (d.bill || '.............') +
         ' ลงวันที่ ' + (memoDateTh(d.billDate) || '.............') + ' ณ ' + hosp), { before:120, first:1418, jc:'thaiDistribute' }) +
       wPara(wRun('คณะกรรมการฯ ได้ทำการตรวจรับพัสดุดังกล่าวแล้ว ปรากฏว่า ถูกต้องครบถ้วนทุกประการ เมื่อวันที่  ' + memoDateTh(d.inspect) + ' จึงได้ลงลายมือไว้เป็นหลักฐาน ดังนี้'), { before:120, first:1418, jc:'thaiDistribute' }) +
@@ -4197,7 +4201,7 @@
         d.committee[Number(t.getAttribute('data-rw'))] = t.value; ryState.msg = ''; keep(); sum();
       } else if(t.hasAttribute('data-rhist') && t.value){
         var doc = qFind(t.value), m = doc && doc.memo;
-        if(m){ d.kNo = m.kNo || ''; d.kDate = m.kDate || ''; if(m.committee && m.committee.filter(Boolean).length) d.committee = memoSeats(m.committee); keep(); renderRy(); }
+        if(m){ d.kNo = m.kNo || ''; d.kDate = m.kDate || ''; if(m.fund === 'budget') d.fund = 'budget'; if(m.committee && m.committee.filter(Boolean).length) d.committee = memoSeats(m.committee); keep(); renderRy(); }
       }
     });
     box.addEventListener('click', function(e){
@@ -4220,13 +4224,14 @@
      พี่โอมตอบข้อ 38–43 (24 พ.ย. 69): เล่ม ภ- ของกลุ่มงานเภสัชเอง โปรแกรมรันและแก้ได้ · ครั้งแรกพิมพ์เลขเอง · ภ- รันตาม พ.ศ. (เริ่มใหม่ 1 ม.ค.)
        · เงินบำรุงกับงบประมาณใช้เลขชุดเดียวกัน · ยา กับ เวชภัณฑ์มิใช่ยา + เคมี (รย. / รยว.) แยกใบ · ค่าปรับกรอกก่อนส่งออก
        · "run เลขไว้ก่อน Add บิลทีหลัง หรือสร้างซ้ำ ได้" = เพิ่มการรับเข้ารายงานที่ออกแล้วได้ (crAdd) · ยกเลิกแล้วออกใหม่เลขเดิมได้
-       ยังรอ: แหล่งเงินเลือกต่อรายงาน ตั้งต้นเงินบำรุง (ข้อ 44) · เลขที่เอกสารยังรันต่อ ไม่เริ่มใหม่เอง (ข้อ 47)
+     พี่โอมตอบข้อ 47 และ 44 (25 พ.ย. 69): เลขที่เอกสาร (ตัวหน้า) เริ่ม 1 ใหม่ตาม พ.ศ. (1 ม.ค.) พร้อม ภ- · แหล่งเงินเลือกใน รย. แยกจาก ภย. / ขย. / ย. ตั้งต้นเงินบำรุง
+       → แหล่งเงินของรายงานตั้งต้นตาม รย. ที่ติ๊ก (ทุกใบเงินงบประมาณ = งบประมาณ) เปลี่ยนได้
      เก็บ: รายงานติดไว้กับบันทึก รย. ของแต่ละการรับ (memoSet.ry[minpno].cr) จึงใช้ร่วมผ่านแท็บตรวจรับเดิมในข้อมูลกลาง ไม่ต้องแก้ Apps Script
        · เลข ภ- จองในชุด 'ภ' · เลขที่เอกสาร = เลขสูงสุดในรายงานที่มี + 1 */
   /* รายงานละไม่เกิน 15 ใบ ตามแบบ Excel ของพี่โอม (ตัวอย่าง 4ภ.70 มี 15 แถว · "Max สุด 15 เลขบันทึก" 24 พ.ย. 69 · ข้อ 2.44) */
   var CR_MAX = 15;
   var CR_SERIES = 'ภ', CR_FUND = { keep:'เงินบำรุง', budget:'เงินงบประมาณ' }, CR_FONT = 'TH SarabunPSK';
-  var crState = { pick:{}, only:false, date:'', no:'', doc:'', fund:'keep', cat:'', sender:null, fine:{}, items:{}, msg:'' };
+  var crState = { pick:{}, only:false, date:'', no:'', doc:'', fund:'keep', fundSet:false, cat:'', sender:null, fine:{}, items:{}, msg:'' };
   function crCan(s){ return !!(s && s.done && !s.cr); }
   function crNum(no){ return Number(String(no || '').split('/')[0]) || String(no || ''); }
   function crLabel(c){ return c.doc + 'ภ.' + crNum(c.no); }
@@ -4249,13 +4254,19 @@
     list.forEach(function(x){ x.nos.sort(function(a, b){ return (memoSet.ry[a].cr.order || 0) - (memoSet.ry[b].cr.order || 0); }); });
     return list.sort(function(a, b){ return shNoCmp(b.no, a.no) || 0; });
   }
-  function crNextDoc(){ var mx = 0; crReports().forEach(function(x){ if(Number(x.doc) > mx) mx = Number(x.doc); }); return mx ? String(mx + 1) : ''; }
+  /* เลขที่เอกสาร (ตัวหน้า): สูงสุดในรายงานที่วันที่อยู่ พ.ศ. เดียวกัน + 1 · ขึ้น พ.ศ. ใหม่ = 1 (พี่โอมตอบข้อ 47 · 25 พ.ย. 69 "ปี พ.ศ. (1 ม.ค. พร้อม ภ-)")
+     ยังไม่มีรายงานในเครื่องเลย = ว่าง ให้พิมพ์เองครั้งแรก */
+  function crNextDoc(iso){
+    var be = memoBE(iso || crDate()), mx = 0, any = false;
+    crReports().forEach(function(x){ any = true; if(memoBE(x.date) === be && Number(x.doc) > mx) mx = Number(x.doc); });
+    return mx ? String(mx + 1) : any ? '1' : '';
+  }
   /* แถวในรายงาน: ยอดและชื่อรายการจาก PO_inven ที่นำเข้าอยู่ (ตาม รย.) ถ้าไม่มีแล้ว ใช้ที่เก็บไว้ตอนออก รย. */
   function crRow(no){
     var r = memoSet.ry[no], k = ryKind(r), g = ryGroup(no);
     var names = g ? ryRows(g, r).map(function(x){ return x.name; }) : (r.items || []);
     return { no:no, k:k, memo:r.kNo ? k.k + '.' + r.kNo : '', company:r.company || '', bill:r.bill || '', ry:k.r + '.' + r.rNo, rNo:r.rNo,
-      total:g ? ryTotal(g, r) : (r.total == null ? null : r.total), items:names.join(', '), fine:'' };
+      total:g ? ryTotal(g, r) : (r.total == null ? null : r.total), items:names.join(', '), fine:'', fund:r.fund === 'budget' ? 'budget' : 'keep' };
   }
   function crSum(rows){ return Math.round(rows.reduce(function(a, x){ return a + (x.total || 0); }, 0) * 100) / 100; }
   function crPicked(){
@@ -4270,7 +4281,8 @@
   function crHead(rows){
     var iso = crDate(), k = rows[0] ? rows[0].k : MEMO_KIND.drug;
     if(!crState.no){ crState.no = crNextNo(iso); crState.noAuto = true; }
-    if(!crState.doc) crState.doc = crNextDoc();
+    if(!crState.doc){ crState.doc = crNextDoc(iso); crState.docAuto = true; }
+    if(!crState.fundSet) crState.fund = rows.length && rows.every(function(x){ return x.fund === 'budget'; }) ? 'budget' : 'keep';   /* ตาม รย. ที่ติ๊ก จนกว่าจะเลือกเอง */
     if(crState.sender === null){   /* ผู้ส่งล่าสุด · ถ้ายังไม่เคยเลือกและมีผู้ส่งคนเดียว ใช้คนนั้น */
       var only = (memoSet.people || []).filter(function(p){ return p.roles && p.roles.crSend; });
       crState.sender = (memoSet.pick || {}).crSend || (only.length === 1 ? only[0].id : '');
@@ -4285,7 +4297,9 @@
     rows.forEach(function(x){ if(x.total == null) block.push('การรับ ' + x.no + ' ไม่มีใน PO_inven ที่นำเข้า (ไม่รู้ยอดเงิน) — ลาก PO_inven ที่มีการรับนี้ หรือออก ' + x.ry + ' ซ้ำ 1 ครั้ง'); });
     if(!/^\d+\/\d{4}$/.test(h.no)) block.push('เลขชุด ภ- ควรเป็นรูปแบบ 0071/2569' + (crNextNo(h.date) ? '' : ' (ครั้งแรก พิมพ์เลขถัดจากเล่มจริง แล้วโปรแกรมรันต่อให้)'));
     else if(crReports().some(function(x){ return x.no === h.no; })) block.push('ภ-' + h.no + ' ออกไปแล้วกับรายงานอื่น');
-    if(!/^\d+$/.test(h.doc)) block.push('เลขที่เอกสารควรเป็นตัวเลข' + (crNextDoc() ? '' : ' (ครั้งแรก พิมพ์เลขถัดจากรายงานล่าสุด)'));
+    if(!/^\d+$/.test(h.doc)) block.push('เลขที่เอกสารควรเป็นตัวเลข' + (crNextDoc(h.date) ? '' : ' (ครั้งแรก พิมพ์เลขถัดจากรายงานล่าสุด)'));
+    if(rows.some(function(x){ return x.fund !== rows[0].fund; })) soft.push('รย. ที่ติ๊กมีทั้งเงินบำรุงและเงินงบประมาณ');
+    else if(rows.length && rows[0].fund !== h.fund) soft.push('แหล่งเงินของรายงาน (' + CR_FUND[h.fund] + ') ไม่ตรงกับใน รย. (' + CR_FUND[rows[0].fund] + ')');
     if(!h.date) block.push('ยังไม่ได้ใส่วันที่รายงาน');
     if(!h.sender) soft.push('ยังไม่ได้เลือกผู้ส่ง (ชื่อใต้เส้นผู้ส่งจะว่าง)');
     rows.forEach(function(x){ if(String(x.fine).trim() && !isFinite(Number(String(x.fine).replace(/,/g, '')))) block.push('ค่าปรับของ ' + x.ry + ' ไม่ใช่ตัวเลข'); });
@@ -4395,7 +4409,7 @@
         memoBump(CR_SERIES, h.no);
         memoSet.pick = memoSet.pick || {}; if(h.sender) memoSet.pick.crSend = h.sender;
         memoSaveSet();
-        crState.pick = {}; crState.fine = {}; crState.items = {}; crState.no = ''; crState.doc = ''; crState.cat = ''; crState.noAuto = false;
+        crState.pick = {}; crState.fine = {}; crState.items = {}; crState.no = ''; crState.doc = ''; crState.cat = ''; crState.noAuto = false; crState.docAuto = false; crState.fundSet = false;
       }
       crState.msg = 'ส่งออกแล้ว: ' + name + (isNew ? ' · เลขถัดไป ภ-' + crNextNo(crDate()) : '');
       renderRy();
@@ -4439,7 +4453,7 @@
       memoSet.ry[r.no].cr = { no:x.no, doc:x.doc, date:x.date, fund:x.fund, cat:x.cat, sender:x.sender, items:r.items, fine:String(r.fine || ''), order:base + i, at:at, by:SH.by || '' };
     });
     memoSaveSet();
-    crState.pick = {}; crState.fine = {}; crState.items = {}; crState.no = ''; crState.doc = ''; crState.cat = ''; crState.noAuto = false;
+    crState.pick = {}; crState.fine = {}; crState.items = {}; crState.no = ''; crState.doc = ''; crState.cat = ''; crState.noAuto = false; crState.docAuto = false; crState.fundSet = false;
     crAgain(no);
   }
   function crCancel(no){
@@ -4458,6 +4472,7 @@
       var f = t.getAttribute('data-cf'); if(!f || t.tagName === 'SELECT') return;
       crState[f] = t.value; crState.msg = '';
       if(f === 'no') crState.noAuto = false;
+      if(f === 'doc') crState.docAuto = false;
     });
     box.addEventListener('change', function(e){
       var t = e.target;
@@ -4467,6 +4482,8 @@
       var f = t.getAttribute('data-cf'); if(!f) return;
       crState[f] = t.value; crState.msg = '';
       if(f === 'date' && crState.noAuto) crState.no = '';   /* เลขที่เติมให้ ปีท้ายเลขตามวันที่ใหม่ · เลขที่พิมพ์เองคงไว้ */
+      if(f === 'date' && crState.docAuto) crState.doc = '';   /* เลขที่เอกสารเริ่ม 1 ใหม่ถ้าวันที่ข้าม พ.ศ. */
+      if(f === 'fund') crState.fundSet = true;
       crPanel();
     });
     box.addEventListener('click', function(e){

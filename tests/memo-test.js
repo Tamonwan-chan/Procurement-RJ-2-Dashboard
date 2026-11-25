@@ -149,6 +149,12 @@ h.load({ inside:true }).then(function(p){
   jobs.push(Promise.resolve().then(function(){ return blobBytes(w, I.get('buildMemoR')(g, ry)); })
     .then(function(buf){ GOT.R = { m:'R', files:unzip(buf) }; }, function(e){ GOT.R = { err:e }; }));
 
+  /* funding source (question 44, 25 Nov 2026): ขย. item 4 and the รย. body say เงินงบประมาณ when picked; default stays เงินบำรุง */
+  var FUND = {}, kb = memoData('other'); kb.fund = 'budget';
+  var rb = JSON.parse(JSON.stringify(ry)); rb.fund = 'budget';
+  jobs.push(Promise.resolve().then(function(){ return Promise.all([blobBytes(w, I.get('buildMemoK')({ no:'W009-70', series:'W', company:'บริษัท ทดสอบ จำกัด', lines:[] }, kb)), blobBytes(w, I.get('buildMemoR')(g, rb))]); })
+    .then(function(bufs){ FUND.k = unzip(bufs[0]); FUND.r = unzip(bufs[1]); }, function(e){ FUND.err = e; }));
+
   /* totals typed on the screen (question 48): an ex-VAT typed, VAT follows; a stale entry (items changed) falls back to the calculated values */
   var amtD = memoData('dksh'), amtAuto = I.get('memoTotalsAuto')(amtD), AMT = {};
   amtD.amt = { base:I.get('memoAmtBase')(amtAuto), ex:'20,561.00' };
@@ -176,6 +182,8 @@ h.load({ inside:true }).then(function(p){
         checkHead(P, (r.kind === 'drug' ? 'ขย' : 'ขว') + '.0005/2570', /วันที่ {7}28 {3}ตุลาคม {3}2569\t/);
         var t = d.tables[0]; checkItemTable(t, r.layout);
         ok(t.rows.some(function(row){ return row.h && row.cells.every(function(c){ return c.noTop && c.text === ''; }); }), 'blank filler row (no top line) runs the table to the page end');
+        var f4 = find(P, /^4\. วงเงิน/);
+        ok(f4 && /\) เงินบำรุงโรงพยาบาล\S.* ปีงบประมาณ 2570$/.test(f4.text), 'item 4: เงินบำรุง by default');
         var buy = find(P, /^ซื้อจาก /); eq(buy && buy.left, 960, '"ซื้อจาก" lines up with the text after "2. "');
         ok(!!find(P.filter(function(x){ return x.pageBreak; }), /^3\. ราคากลาง/), 'item 3 starts a new page');
         checkCommittee(P);
@@ -209,11 +217,19 @@ h.load({ inside:true }).then(function(p){
         checkHead(P, 'รย.0007/2569', /วันที่ {7}16 {3}พฤศจิกายน {3}2569\t/);
         var body = find(P, /^ตามบันทึก/);
         ok(body && body.text.indexOf('ขย.0005/2570') >= 0 && body.text.indexOf('1,500.00') >= 0, 'refers to ขย. and totals only the ticked rows');
+        ok(body && / รายการ ด้วยงบเงินบำรุงโรงพยาบาล\S.* ปีงบประมาณ 2570 หมวดงบดำเนินการ/.test(body.text), 'เงินบำรุง by default');
         ok(/\(นางสาวทดสอบหนึ่ง {4}นามสกุลหนึ่ง\)/.test(d.xml.replace(/<[^>]+>/g, '')), 'chair name in the signatures');
         eq(d.tables[0].ind, -431, 'payment box indent');
         ok(d.tables[0].rows.every(function(row){ return row.cells.every(function(c){ return c.v === 'top'; }); }), 'payment box cells aligned to the top');
       }
     });
+    scope = 'funding source';
+    if(FUND.err) ok(false, 'build threw: ' + (FUND.err.stack || FUND.err));
+    else {
+      var k4 = find(parse(w, FUND.k).paras, /^4\. วงเงิน/), rBody = find(parse(w, FUND.r).paras, /^ตามบันทึก/);
+      ok(k4 && /\) ด้วยเงินงบประมาณ ปีงบประมาณ 2570$/.test(k4.text) && k4.text.indexOf('เงินบำรุง') < 0, 'ขย. item 4: "ด้วยเงินงบประมาณ ปีงบประมาณ …" like his sample');
+      ok(rBody && / รายการ ด้วยเงินงบประมาณ ปีงบประมาณ 2570 หมวดงบดำเนินการ/.test(rBody.text) && rBody.text.indexOf('เงินบำรุง') < 0, 'รย. body: ด้วยเงินงบประมาณ');
+    }
     scope = 'typed totals';
     eq(amtAuto.ex, 20560.75, 'DKSH ex-VAT = total ÷ 1.07 like the W sheet (his choice ข, question 48)');
     ok(AMT.t.ex === 20561 && AMT.t.vat === 1439 && AMT.t.total === 22000 && AMT.t.edited, 'typed ex-VAT used, VAT follows, total unchanged');
