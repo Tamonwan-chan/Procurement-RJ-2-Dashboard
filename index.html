@@ -423,6 +423,10 @@
     .side.open{ display:block; position:fixed; left:12px; bottom:58px; top:12px; width:min(300px, calc(100vw - 24px)); overflow:auto; z-index:40; box-shadow:var(--shadow); }
   }
   @media (prefers-reduced-motion: reduce){ .nav-flash{ animation:none; outline:2px solid var(--accent); } }
+  /* แยกหน้าตามเมนู (คุณธมลวรรณ 25 พ.ย. 69): แสดงเฉพาะส่วนของหน้าที่เลือก · ชื่อโปรแกรมและแถบแจ้งข้อผิดพลาดอยู่ทุกหน้า */
+  .content.paged > [data-view]:not(.view-on){ display:none !important; }
+  .content.paged #quote-close, .content.paged #ry-box [data-ract="close"]{ display:none; }
+  .content.paged > .quote-box{ margin-bottom:16px; }
 </style>
 
 <div id="tooltip"></div>
@@ -469,17 +473,17 @@
       <div class="sub">คลังยา/เวชภัณฑ์และการจัดซื้อห้องยา · <span id="app-version" title="รุ่นของโปรแกรมที่เปิดอยู่ ถ้าไม่ตรงกับที่แจ้งไว้ กด Ctrl + F5"></span> · <!-- ลิงก์คู่มือผู้ใช้ (คุณธมลวรรณ 24 พ.ย. 69) --><a class="manual-link" href="manual/index.html" target="_blank" rel="noopener" title="วิธีใช้: ข้อมูลกลาง · ใบตรวจรับ รย. / รยว. · รายงานเจ้าหนี้ (เปิดแท็บใหม่)">คู่มือใช้โปรแกรม</a></div>
     </div>
   </div>
-  <div class="mock-badge" id="mode-badge"><span class="dot"></span>ยังไม่มีข้อมูล — ลากไฟล์จาก HIS มาวางด้านล่าง</div>
+  <div class="mock-badge" id="mode-badge"><span class="dot"></span>ยังไม่มีข้อมูล — ลากไฟล์จาก HIS มาวางในหน้านี้</div>
 </div>
 
-<div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือกไฟล์">
+<div class="dropzone" id="dropzone" data-view="data" tabindex="0" role="button" aria-label="ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือกไฟล์">
   <div class="dz-title">ลากไฟล์ Excel ที่ export จาก HIS มาวางที่นี่ (เลือกได้หลายไฟล์พร้อมกัน) หรือคลิกเพื่อเลือกไฟล์</div>
   <div class="dz-hint">Meditem · DrugCatNow · gpsc · inventory · ห้องจ่ายยา ชั้น G · ห้องจ่ายยา ชั้น 1 · list — โปรแกรมดูจากหัวคอลัมน์ ไม่ต้องตั้งชื่อไฟล์ให้ตรง ไฟล์ที่ไม่ได้นำเข้าใหม่จะใช้ข้อมูลครั้งล่าสุดที่บันทึกไว้</div>
   <input type="file" id="file-input" accept=".xlsx,.xls,.docx,.zip" multiple>
 </div>
 <div class="errorbar" id="errorbar"></div>
-<div class="importnote" id="importnote" hidden></div>
-<div class="filestatus" id="filestatus">
+<div class="importnote" id="importnote" data-view="data" hidden></div>
+<div class="filestatus" id="filestatus" data-view="data">
   <div class="fs-head">
     <span class="fs-title"><button type="button" class="fs-toggle" id="fs-toggle" aria-expanded="true" aria-controls="fs-body"><span class="fs-caret" aria-hidden="true">▾</span>ข้อมูลที่ใช้อยู่ (นำเข้าครั้งล่าสุดของแต่ละไฟล์)</button><span class="fs-missing-count" id="fs-missing"></span></span>
     <span class="fs-actions">
@@ -512,7 +516,7 @@
   </div>
 </div>
 
-<div class="filters">
+<div class="filters" data-view="rate item rep kpi top10 edned value gpu plantop po disp">
   <div class="f-label">มุมมองห้องยา</div>
   <div class="chips" id="room-chips"></div>
   <div class="f-label">ทะเบียน</div>
@@ -521,7 +525,7 @@
   <div class="chips" id="acct-chips"></div>
 </div>
 
-<div class="kpi-row">
+<div class="kpi-row" data-view="top10 edned value">
   <div class="kpi">
     <div class="label">รายการยาทั้งหมด (มีสต็อก &gt; 0)</div>
     <div class="value num" id="kpi-items">–</div>
@@ -539,7 +543,7 @@
   </div>
 </div>
 
-<section class="panel" id="rep-panel">
+<section class="panel" id="rep-panel" data-view="rep">
   <header>
     <h2>รายงานสถิติคลังยาและเวชภัณฑ์มิใช่ยา</h2>
     <span class="hint">ภาพรวมทุกปีงบ หรือเลือกปีงบ · กรองตามทะเบียนและประเภทบัญชี</span>
@@ -565,7 +569,7 @@
   <div class="table-note" id="rep-count"></div>
 </section>
 
-<section class="panel" id="top10-panel">
+<section class="panel" id="top10-panel" data-view="top10">
   <header>
     <h2>คงคลังยา — 10 อันดับที่มีจำนวนสต็อกมากที่สุด</h2>
     <span class="hint">ตอบสนองตัวกรองด้านบน</span>
@@ -575,7 +579,7 @@
   <div class="barlist" id="chart-top"></div>
 </section>
 
-<section class="panel" id="edned-panel">
+<section class="panel" id="edned-panel" data-view="edned">
   <header>
     <h2 data-collapse="edned">สัดส่วนบัญชียา ED / NED</h2>
     <span class="hint">นับต่อ 100 รายการ · นับรายการละ 1 ครั้ง</span>
@@ -593,7 +597,7 @@
   <div class="barlist" id="chart-acct"></div>
 </section>
 
-<section class="panel" id="value-panel">
+<section class="panel" id="value-panel" data-view="value">
   <header>
     <h2 data-collapse="value">มูลค่าคงคลังพัสดุ</h2>
     <span class="hint">ตอบสนองตัวกรองด้านบน</span>
@@ -620,7 +624,7 @@
   <div class="table-note" id="gps-note"></div>
 </section>
 
-<section class="panel" id="gpu-panel">
+<section class="panel" id="gpu-panel" data-view="gpu">
   <header>
     <h2 data-collapse="gpu">มูลค่ารวมตาม GPU</h2>
     <span class="hint">จากไฟล์ PO_inven · กรองตามทะเบียนและประเภทบัญชี</span>
@@ -632,7 +636,7 @@
   <div class="table-note" id="gpu-note"></div>
 </section>
 
-<section class="panel" id="plantop-panel">
+<section class="panel" id="plantop-panel" data-view="plantop">
   <header>
     <h2 id="plantop-title">10 อันดับมูลค่าแผนจัดซื้อสูงสุด</h2>
     <div class="plan-head-right"><span class="budget-flag" id="plantop-flag" hidden></span><span class="hint" id="plantop-hint">จากไฟล์ planfin · กรองตามทะเบียนและประเภทบัญชี</span></div>
@@ -658,7 +662,7 @@
   <div class="table-note" id="plantop-count"></div>
 </section>
 
-<section class="panel" id="rate-panel">
+<section class="panel" id="rate-panel" data-view="rate">
   <header>
     <h2>อัตราการใช้ยา</h2>
     <span class="hint">จากไฟล์ list (แจ้งความต้องการซื้อ) · กรองตามทะเบียนและประเภทบัญชี</span>
@@ -672,7 +676,18 @@
     <div class="chips" id="rate-status"></div>
     <button type="button" class="btn-solid" id="btn-quote">ทำใบเสนอราคา</button>
   </div>
-  <div class="quote-box" id="quote-box" hidden>
+  <div class="rate-detail" id="rate-detail" hidden></div>
+  <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
+  <div class="table-scroll" style="max-height:460px">
+    <table style="min-width:1660px">
+      <thead><tr id="rate-head"></tr></thead>
+      <tbody id="rate-table"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- หน้าเอกสาร (เมนูด้านซ้าย 25 พ.ย. 69): ย้ายออกมาจากส่วนอัตราการใช้ยา ให้แต่ละหน้าแสดงเฉพาะงานนั้น -->
+  <div class="quote-box" id="quote-box" data-view="quote" hidden>
     <div class="rd-top"><div>
       <div class="rd-name">ทำใบขอใบเสนอราคา</div>
       <div class="table-note" id="quote-tpl" style="margin:2px 0 0"></div>
@@ -706,19 +721,12 @@
       <button type="button" class="btn-solid" id="quote-ry">ออกบันทึกตรวจรับ รย. / รยว. (Word)</button>
     </div>
   </div>
-  <div class="quote-box" id="memo-box" hidden></div>
-  <div class="quote-box" id="ry-box" hidden></div>
-  <div class="rate-detail" id="rate-detail" hidden></div>
-  <div class="table-note" id="rate-count" style="margin:0 0 8px"></div>
-  <div class="table-scroll" style="max-height:460px">
-    <table style="min-width:1660px">
-      <thead><tr id="rate-head"></tr></thead>
-      <tbody id="rate-table"></tbody>
-    </table>
-  </div>
-</section>
+  <!-- หน้าบันทึก: เลือกใบเสนอราคาที่ส่งออกแล้ว (แถว "ใบที่ส่งออกแล้ว" ย้ายมาจากกล่องใบเสนอราคาตอนเปิดหน้านี้) -->
+  <div class="quote-box" id="memo-pick" data-view="memo"><div class="rd-name">ออกบันทึก ภย. / ภว. → ขย. / ขว. → ย. / ยว. (Word)</div><div class="table-note" style="margin:2px 0 0">เลือกใบเสนอราคาที่ส่งออกแล้ว (พิมพ์ W… / ภย.… / ขย.… / บริษัท / ชื่อยา) แล้วกด ออกบันทึก ภย. / ขย. / ย.</div><div id="memo-pick-slot"></div></div>
+  <div class="quote-box" id="memo-box" data-view="memo" hidden></div>
+  <div class="quote-box" id="ry-box" data-view="ry" hidden></div>
 
-<section class="panel" id="po-panel">
+<section class="panel" id="po-panel" data-view="po">
   <header>
     <h2>รับจากการสั่งซื้อเข้าคลัง</h2>
     <span class="hint">จากไฟล์ PO_inven · กรองตามทะเบียนและประเภทบัญชี</span>
@@ -741,7 +749,7 @@
   <div class="table-note" id="po-count"></div>
 </section>
 
-<section class="panel" id="disp-panel">
+<section class="panel" id="disp-panel" data-view="disp">
   <header>
     <h2 data-collapse="disp">การจ่ายยาจากคลัง</h2>
     <span class="hint" id="disp-hint">จากไฟล์ dispen_inven · กรองตามทะเบียนและประเภทบัญชี</span>
@@ -770,7 +778,7 @@
   <div class="table-note" id="disp-count"></div>
 </section>
 
-<section class="panel" id="kpi-panel">
+<section class="panel" id="kpi-panel" data-view="kpi">
   <header>
     <h2>เดือนสำรองคงคลัง</h2>
     <span class="hint">KPI THIP ≤ 1.33 · ไม่ขึ้นกับตัวกรอง</span>
@@ -792,7 +800,7 @@
   </div>
 </section>
 
-<section class="panel" id="item-panel">
+<section class="panel" id="item-panel" data-view="item">
   <header>
     <h2>รายการยา</h2>
     <span class="hint">เรียงตาม hospcode · ตามตัวกรองด้านบน</span>
@@ -1585,7 +1593,7 @@
       badge.innerHTML = '<span class="dot"></span>ข้อมูลจริงจากไฟล์ HIS ที่นำเข้า';
     } else {
       badge.classList.remove('real');
-      badge.innerHTML = '<span class="dot"></span>ยังไม่มีข้อมูล — ลากไฟล์จาก HIS มาวางด้านล่าง';
+      badge.innerHTML = '<span class="dot"></span>ยังไม่มีข้อมูล — ลากไฟล์จาก HIS มาวางในหน้านี้';
     }
     var fresh = state.fresh || [];
     document.getElementById('file-slots').innerHTML = FILE_SLOTS.map(function(s){
@@ -2914,7 +2922,7 @@
 
   function exportQuotes(){
     var tpl = state.datasets.quoteTpl, msg = document.getElementById('quote-summary');
-    if(!tpl){ msg.textContent = 'ยังไม่มี DATA Template — ลากไฟล์ DATA Template.xlsx มาวางที่ช่องนำเข้าด้านบนก่อน (ทำครั้งเดียว ระบบจำไว้ในเครื่องนี้)'; return; }
+    if(!tpl){ msg.textContent = 'ยังไม่มี DATA Template — ลากไฟล์ DATA Template.xlsx มาวางในหน้าโปรแกรม (หน้าไหนก็ได้ หรือที่ช่องนำเข้าในหน้า ข้อมูล)ก่อน (ทำครั้งเดียว ระบบจำไว้ในเครื่องนี้)'; return; }
     var g = quoteGroups();
     if(!g.sheets.length){ msg.textContent = 'ยังไม่ได้เลือกรายการยา'; return; }
     var missing = [];
@@ -3772,7 +3780,7 @@
     if(!d.supHead) w.push('ยังไม่ได้เลือกหัวหน้าเจ้าหน้าที่พัสดุ (ลงนาม ขย. / ขว. / ย. / ยว.)');
     if(!d.head) w.push('ยังไม่ได้เลือกหัวหน้ากลุ่มงานเภสัชกรรม (ลงนาม ภย. / ภว.)');
     if(d.kDate && d.pDate && d.kDate <= d.pDate) w.push('วันที่ ขย. / ขว. ควรอยู่หลังวันที่ ภย. / ภว.');
-    if(!memoSet.garuda) w.push('ยังไม่มีตราครุฑ — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าด้านบน');
+    if(!memoSet.garuda) w.push('ยังไม่มีตราครุฑ — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางในหน้าโปรแกรม (หน้าไหนก็ได้ หรือที่ช่องนำเข้าในหน้า ข้อมูล)');
     if(!d.planRef) w.push('ยังไม่ได้ใส่หนังสืออ้างอิงแผน');
     return w;
   }
@@ -3910,7 +3918,7 @@
           '<label class="q-field">ส่วนราชการ (รย. / รยว.) <input class="q-in" data-org="lineR" value="' + esc(set.org.lineR || RY_LINE) + '" style="width:420px"></label>' +
           '<label class="q-field">ชื่อโรงพยาบาล <input class="q-in" data-org="hosp" value="' + esc(set.org.hosp) + '" style="width:220px"></label>' +
           '<label class="q-field">กลุ่มงาน <input class="q-in" data-org="dept" value="' + esc(set.org.dept) + '" style="width:160px"></label></div>' +
-        '<div class="table-note" style="margin:8px 0 0">ตราครุฑ: ' + (set.garuda ? 'มีแล้ว (จาก ' + esc(set.garuda.file || 'ไฟล์ Word') + ')' : 'ยังไม่มี — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าไฟล์ด้านบน') + '</div></div>' : '') +
+        '<div class="table-note" style="margin:8px 0 0">ตราครุฑ: ' + (set.garuda ? 'มีแล้ว (จาก ' + esc(set.garuda.file || 'ไฟล์ Word') + ')' : 'ยังไม่มี — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางในหน้าโปรแกรม (หน้าไหนก็ได้)') + '</div></div>' : '') +
       '<div class="table-tools" style="margin:8px 0 0">' + who + '</div>' +
       '<div class="memo-step">2. ' + k.p + '. / ' + k.k + '. / ' + k.y + '. — เลขที่ วันที่ และหนังสืออ้างอิง</div>' +
       '<div class="table-tools">' + F(k.p + '. เลขที่', 'pNo', ' style="width:100px"') + F('วันที่', 'pDate', ' type="date"') +
@@ -4107,7 +4115,7 @@
     else if(d.committee[0] === d.committee[1] || d.committee[0] === d.committee[2] || d.committee[1] === d.committee[2]) w.push('กรรมการตรวจรับซ้ำกัน');
     if(!ryRows(g, d).length) w.push('ยังไม่ได้เลือกรายการ');
     if(ryKindKey(g).mixed) w.push('การรับครั้งนี้มีทั้งยาและเวชภัณฑ์มิใช่ยา ตรวจรายการที่ติ๊กและชนิดเอกสาร');
-    if(!memoSet.garuda) w.push('ยังไม่มีตราครุฑ — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางที่ช่องนำเข้าด้านบน');
+    if(!memoSet.garuda) w.push('ยังไม่มีตราครุฑ — ลากไฟล์บันทึกข้อความ (.docx) เดิม 1 ไฟล์ มาวางในหน้าโปรแกรม (หน้าไหนก็ได้ หรือที่ช่องนำเข้าในหน้า ข้อมูล)');
     return w;
   }
   function rySumHtml(g, d){
@@ -4708,7 +4716,7 @@
     document.getElementById('quote-bought-head').innerHTML = 'ซื้อแล้ว ปีงบ ' + (qpy ? qpy % 100 : 70) + '<br><small>จาก PO_inven · คงเหลือตามแผน</small>';
     document.getElementById('quote-tpl').textContent = tpl
       ? 'แบบฟอร์ม: ' + tpl.fileName + ' · ใบ "' + tpl.sheetName + '" · เก็บไว้ในเครื่องนี้เท่านั้น' + (refRows().length ? ' · ราคากลางจากใบ "' + refRows()[0].sheet + '" (' + fmt(refRows().length) + ' รายการ)' : ' · ไม่พบใบราคากลางใน Template')
-      : 'ยังไม่มี DATA Template — ลากไฟล์ DATA Template.xlsx มาวางที่ช่องนำเข้าด้านบน (ทำครั้งเดียว ระบบจำไว้ในเครื่องนี้)';
+      : 'ยังไม่มี DATA Template — ลากไฟล์ DATA Template.xlsx มาวางในหน้าโปรแกรม (หน้าไหนก็ได้ หรือที่ช่องนำเข้าในหน้า ข้อมูล) (ทำครั้งเดียว ระบบจำไว้ในเครื่องนี้)';
     var pool = state.items.filter(function(it){ return it.distribute || it.proc; });
     var comps = {}; pool.forEach(function(it){ var k = it.distribute || NO_COMPANY; comps[k] = (comps[k] || 0) + 1; });
     var names = Object.keys(comps).sort(function(a, b){ return a.localeCompare(b, 'th'); });
@@ -4953,7 +4961,8 @@
       : 'ติ๊กเลือกรายการ ตรวจจำนวนซื้อ (ตั้งต้น = planfin ปีงบนั้น ลบที่ซื้อแล้ว แก้ได้) แล้วกดส่งออก · แยกใบตามบริษัท (distribute) ใบละไม่เกิน ' + QUOTE_MAX + ' รายการ · เลขที่แยกชุด: ยา W / เวชภัณฑ์ที่มิใช่ยา วัสดุ อื่น ๆ WM / เภสัชเคมีภัณฑ์ WC') + (extra ? ' · ' + extra : '');
   }
 
-  document.getElementById('btn-quote').addEventListener('click', function(){ quoteState.open = !quoteState.open; renderQuote(); var qb = document.getElementById('quote-box'); if(quoteState.open && qb.scrollIntoView) qb.scrollIntoView({ block:'nearest' }); });
+  document.getElementById('btn-quote').addEventListener('click', function(){ if(navGo){ navGo('quote-W', true); return; }   /* เมนูด้านซ้าย: ไปหน้าใบเสนอราคา */
+    quoteState.open = !quoteState.open; renderQuote(); var qb = document.getElementById('quote-box'); if(quoteState.open && qb.scrollIntoView) qb.scrollIntoView({ block:'nearest' }); });
   document.getElementById('quote-close').addEventListener('click', function(){ quoteState.open = false; renderQuote(); });
   document.getElementById('quote-company').addEventListener('change', function(e){
     var has = Object.keys(quoteState.sel).length > 0;
@@ -6250,90 +6259,114 @@
       '<th class="mono">จำนวนรวม<br><small>กล่อง</small></th><th class="mono plan" id="plan-head">planfin<br><small>ปี 70 · ห้ามซื้อเกิน (กล่อง)</small></th><th class="mono">มูลค่า (บาท)</th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th>distribute</th><th>manufact</th>';
   })();
   /* ---------------- เมนูด้านซ้าย แบบ ข แยกตามชนิดเอกสาร (ข้อ 45 / 2.51 · กลุ่มโครงการเลือก 25 พ.ย. 69) ----------------
-     กดเมนู = เลื่อนไปส่วนนั้น เปิดกล่องที่ปิดอยู่ให้ (ใบเสนอราคา / รย. / ข้อมูลกลาง) แล้วกะพริบช่องที่เกี่ยวข้อง
-     ภย. / ขย. / ย. ออกจากหน้าบันทึกเดียวกัน: เปิดบันทึกอยู่ = ไปที่ช่องเลขที่ / ปุ่มส่งออกของเล่มนั้น · ยังไม่เปิด = ไปที่ "ใบที่ส่งออกแล้ว" ให้เลือกใบก่อน
-     ไฮไลต์ตามส่วนที่เลื่อนอยู่ (ส่วนในสุดที่คร่อมเส้นบนจอ) · ลำดับส่วนในหน้าไม่เปลี่ยน */
+     แยกหน้าตามเมนู (คุณธมลวรรณ 25 พ.ย. 69): กดเมนู = แสดงเฉพาะหน้านั้น ส่วนอื่นซ่อน แล้วไปที่ช่องที่เกี่ยวข้อง
+       หน้าของแต่ละส่วน = data-view ใน .content · ชื่อโปรแกรม แถบแจ้งข้อผิดพลาด และท้ายหน้าอยู่ทุกหน้า
+     ภย. / ขย. / ย. อยู่หน้าเดียวกัน (บันทึกเดียว): เปิดบันทึกอยู่ = ไปที่ช่องเลขที่ / ปุ่มส่งออกของเล่มนั้น · ยังไม่เปิด = เลือกใบเสนอราคาก่อน
+       แถว "ใบที่ส่งออกแล้ว" ย้ายไปอยู่หน้าบันทึกเมื่อเปิดหน้านั้น และกลับเข้ากล่องใบเสนอราคาเมื่อเปิดหน้าใบเสนอราคา
+     รย. กับรายงานเจ้าหนี้อยู่หน้าเดียวกัน (ติ๊กเจ้าหนี้ในตารางการรับของ รย.)
+     จำหน้าล่าสุดในเครื่องนี้ (localStorage) และในที่อยู่ (#quote …) · ปุ่มย้อนกลับของเบราว์เซอร์กลับหน้าก่อน
+     ลากไฟล์มาวางที่ไหนของหน้าก็ได้ ไปหน้าข้อมูลแล้วนำเข้า */
+  var navGo = null, navStart = function(){};
   (function(){
-    var nav = document.getElementById('side-nav'), tog = document.getElementById('side-toggle');
-    if(!nav) return;
+    var nav = document.getElementById('side-nav'), tog = document.getElementById('side-toggle'), content = document.querySelector('.layout > .content');
+    if(!nav || !content) return;
     function $(id){ return document.getElementById(id); }
     var calm = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    function shown(el){ return !!el && !el.hidden && el.getClientRects().length > 0; }
     function flash(el){ if(!el) return; el.classList.remove('nav-flash'); void el.offsetWidth; el.classList.add('nav-flash'); }
     function goTo(el, block){ if(el && el.scrollIntoView) el.scrollIntoView({ behavior:calm ? 'auto' : 'smooth', block:block || 'start' }); }
     function focusQuiet(el){ if(!el || !el.focus) return; try{ el.focus({ preventScroll:true }); }catch(e){ el.focus(); } }
     function quoteOpen(){ if(!quoteState.open){ quoteState.open = true; renderQuote(); } }
-    function ryOpen(){ if(!ryState.open || $('ry-box').hidden) $('quote-ry').click(); }
-    function memoOpenNow(){ return !!memoState.d && !$('memo-box').hidden; }
-    /* ใบเสนอราคาที่ส่งออกแล้ว: เลือกใบก่อนออกบันทึก */
-    function toHist(){
-      quoteOpen();
-      var combo = $('quote-hist').parentNode.querySelector('input');
-      goTo($('quote-memo').parentNode, 'center'); focusQuiet(combo); flash(combo); flash($('quote-memo'));
+    var ryBusy = false;
+    function ryOpen(){ if(!ryState.open || $('ry-box').hidden){ ryBusy = true; try{ $('quote-ry').click(); } finally { ryBusy = false; } } }
+    var histRow = $('quote-memo').parentNode, histHome = document.createComment('ใบที่ส่งออกแล้ว');
+    histRow.parentNode.insertBefore(histHome, histRow);
+    function histTo(memo){
+      if(memo){ if(histRow.parentNode !== $('memo-pick-slot')) $('memo-pick-slot').appendChild(histRow); }
+      else if(histRow.previousSibling !== histHome) histHome.parentNode.insertBefore(histRow, histHome.nextSibling);
+    }
+    function memoGo(sel){
+      if(!memoState.d || $('memo-box').hidden){ var c = $('quote-hist').parentNode.querySelector('input'); focusQuiet(c); flash(c); return; }
+      var el = $('memo-box').querySelector(sel);
+      if(el){ goTo(el, 'center'); focusQuiet(el); flash(el); }
     }
     var GO = {
-      top:     { act:function(){ goTo(document.querySelector('.masthead')); } },
-      'quote-W':  { reg:'quote-box', act:function(){ quoteOpen(); goTo($('quote-box')); flash($('quote-no-W')); } },
-      'quote-WM': { reg:'quote-box', act:function(){ quoteOpen(); goTo($('quote-box')); flash($('quote-no-WM')); } },
-      'quote-WC': { reg:'quote-box', act:function(){ quoteOpen(); goTo($('quote-box')); flash($('quote-no-WC')); } },
-      'memo-p': { reg:'memo-box', act:function(){ memoGo('[data-f="pNo"]'); } },
-      'memo-k': { reg:'memo-box', act:function(){ memoGo('[data-f="kNo"]'); } },
-      'memo-y': { reg:'memo-box', act:function(){ memoGo('[data-act="exp-y"]'); } },
-      ry:      { reg:'ry-box', act:function(){ ryOpen(); goTo($('ry-box')); } },
-      cr:      { reg:'cr-panel', act:function(){ ryOpen(); goTo($('cr-panel')); } },
-      rate:    { reg:'rate-panel' }, item:{ reg:'item-panel' }, rep:{ reg:'rep-panel' }, kpi:{ reg:'kpi-panel' },
-      top10:   { reg:'top10-panel' }, edned:{ reg:'edned-panel' }, value:{ reg:'value-panel' },
-      gpu:     { reg:'gpu-panel' }, plantop:{ reg:'plantop-panel' }, po:{ reg:'po-panel' }, disp:{ reg:'disp-panel' },
-      'import': { reg:'dropzone', act:function(){ goTo($('dropzone'), 'center'); focusQuiet($('dropzone')); flash($('dropzone')); } },
-      shared:  { reg:'shared-box', act:function(){ if($('shared-box').hidden) $('btn-shared').click(); goTo($('filestatus')); } },
-      backup:  { reg:'filestatus', act:function(){ goTo($('filestatus')); flash($('btn-backup')); } }
+      top:        { act:function(){ if(window.scrollTo) window.scrollTo(0, 0); } },
+      'quote-W':  { page:'quote', act:function(){ flash($('quote-no-W')); } },
+      'quote-WM': { page:'quote', act:function(){ flash($('quote-no-WM')); } },
+      'quote-WC': { page:'quote', act:function(){ flash($('quote-no-WC')); } },
+      'memo-p':   { page:'memo', act:function(){ memoGo('[data-f="pNo"]'); } },
+      'memo-k':   { page:'memo', act:function(){ memoGo('[data-f="kNo"]'); } },
+      'memo-y':   { page:'memo', act:function(){ memoGo('[data-act="exp-y"]'); } },
+      ry:         { page:'ry' },
+      cr:         { page:'ry', act:function(){ goTo($('cr-panel')); } },
+      rate:{ page:'rate' }, item:{ page:'item' }, rep:{ page:'rep' }, kpi:{ page:'kpi' }, top10:{ page:'top10' }, edned:{ page:'edned' },
+      value:{ page:'value' }, gpu:{ page:'gpu' }, plantop:{ page:'plantop' }, po:{ page:'po' }, disp:{ page:'disp' },
+      'import':   { page:'data', act:function(){ focusQuiet($('dropzone')); flash($('dropzone')); } },
+      shared:     { page:'data', act:function(){ if($('shared-box').hidden) $('btn-shared').click(); goTo($('shared-box'), 'center'); } },
+      backup:     { page:'data', act:function(){ flash($('btn-backup')); } }
     };
-    function memoGo(sel){
-      if(!memoOpenNow()){ toHist(); return; }
-      var el = $('memo-box').querySelector(sel);
-      goTo(el || $('memo-box'), el ? 'center' : 'start');
-      if(el){ focusQuiet(el); flash(el); }
-    }
-    var pinned = null, firstKey = {}, regs = [];
-    Array.prototype.forEach.call(nav.querySelectorAll('[data-go]'), function(b){
-      var r = GO[b.getAttribute('data-go')] && GO[b.getAttribute('data-go')].reg;
-      if(r && !firstKey[r]){ firstKey[r] = b.getAttribute('data-go'); regs.push(r); }
-    });
+    var FIRST = {}, LS = 'rj2-page', cur = null, DEF = 'data';
+    Object.keys(GO).forEach(function(k){ var p = GO[k].page; if(p && !FIRST[p]) FIRST[p] = k; });
     function mark(key){
       Array.prototype.forEach.call(nav.querySelectorAll('.on'), function(x){ x.classList.remove('on'); });
       var b = key && nav.querySelector('[data-go="' + key + '"]'); if(!b) return;
       b.classList.add('on');
       if(!b.classList.contains('si')) b.parentNode.classList.add('on');
     }
-    function spy(){
-      var line = Math.min(160, (window.innerHeight || 800) * 0.3), best = null, bestTop = -Infinity;
-      regs.forEach(function(id){
-        var el = $(id); if(!shown(el)) return;
-        var r = el.getBoundingClientRect();
-        if(r.top <= line && r.bottom > line && r.top > bestTop){ best = id; bestTop = r.top; }
+    /* full = เปิดกล่องของหน้านั้นด้วย (ใบเสนอราคา / รย.) · ตอนโหลดหน้ายังไม่เปิดจนกว่าข้อมูลในเครื่องโหลดเสร็จ (navStart) */
+    function enter(page, full){
+      content.classList.add('paged');
+      Array.prototype.forEach.call(content.children, function(el){
+        var v = el.getAttribute('data-view'); if(v == null) return;
+        el.classList.toggle('view-on', (' ' + v + ' ').indexOf(' ' + page + ' ') >= 0);
       });
-      mark(best ? (pinned && GO[pinned].reg === best ? pinned : firstKey[best]) : null);
+      if(full){
+        if(page === 'quote') quoteOpen();
+        if(page === 'ry') ryOpen();
+      }
+      if(page === 'quote' || page === 'memo') histTo(page === 'memo');
+      if(page !== cur && window.scrollTo) window.scrollTo(0, 0);
+      cur = page;
+      try{ localStorage.setItem(LS, page); }catch(e){}
     }
-    var spyTimer;
-    function spySoon(){ clearTimeout(spyTimer); spyTimer = setTimeout(spy, 150); }
-    window.addEventListener('scroll', spySoon, { passive:true });
-    window.addEventListener('resize', spySoon);
     function narrow(){ return tog && getComputedStyle(tog).display !== 'none'; }
     function navShow(on){ nav.classList.toggle('open', on); if(tog) tog.setAttribute('aria-expanded', String(on)); }
-    nav.addEventListener('click', function(e){
-      var b = e.target.closest('[data-go]'); if(!b) return;
-      var key = b.getAttribute('data-go'), g = GO[key]; if(!g) return;
-      pinned = key;
-      if(g.act) g.act(); else goTo($(g.reg));
+    /* quiet = เปลี่ยนหน้าเฉย ๆ ไม่กะพริบช่อง (ปุ่มเดิมในหน้า) */
+    function go(key, quiet){
+      var g = GO[key]; if(!g) return;
+      if(g.page){
+        enter(g.page, true); mark(key);
+        if(location.hash !== '#' + g.page){ try{ history.pushState(null, '', '#' + g.page); }catch(e){ location.hash = g.page; } }
+      }
+      if(g.act && !quiet) g.act();
       if(narrow()) navShow(false);
-      mark(key); spySoon();   /* ไฮไลต์ใหม่เมื่อเลื่อนเสร็จ (เลื่อนอยู่ = เลื่อนเวลาไปเรื่อย ๆ) */
-    });
+    }
+    navGo = go;
+    function pageFromUrl(){ var p = (location.hash || '').slice(1); return FIRST[p] ? p : null; }
+    function startPage(){ var p = pageFromUrl(); if(!p){ try{ p = localStorage.getItem(LS); }catch(e){} } return FIRST[p] ? p : DEF; }
+    function back(){ var p = pageFromUrl(); if(p && p !== cur){ enter(p, true); mark(FIRST[p]); } }
+    nav.addEventListener('click', function(e){ var b = e.target.closest('[data-go]'); if(b) go(b.getAttribute('data-go')); });
+    window.addEventListener('popstate', back);
+    window.addEventListener('hashchange', back);
     if(tog) tog.addEventListener('click', function(){ navShow(!nav.classList.contains('open')); });
     document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && nav.classList.contains('open')){ navShow(false); if(tog) tog.focus(); } });
+    /* ปุ่มเดิมในหน้า: เปิดมาแก้ไข · ออกบันทึก · ออก รย. (ปุ่มทำใบเสนอราคาเรียก navGo เอง) */
+    $('quote-reopen').addEventListener('click', function(){ if(cur !== 'quote') go('quote-W', true); });
+    $('quote-memo').addEventListener('click', function(){ if(memoState.d && !$('memo-box').hidden) go('memo-p'); });
+    $('quote-ry').addEventListener('click', function(){ if(!ryBusy) go('ry'); });
+    /* ลากไฟล์มาวางนอกช่องนำเข้า (ช่องอยู่หน้าข้อมูล): ไม่ให้เบราว์เซอร์เปิดไฟล์เอง ไปหน้าข้อมูลแล้วนำเข้าเหมือนวางในช่อง */
+    function hasFiles(e){ var t = e.dataTransfer && e.dataTransfer.types; return !!t && Array.prototype.indexOf.call(t, 'Files') >= 0; }
+    document.addEventListener('dragover', function(e){ if(hasFiles(e)) e.preventDefault(); });
+    document.addEventListener('drop', function(e){
+      if(!hasFiles(e) || $('dropzone').contains(e.target)) return;
+      e.preventDefault(); go('import', true); handleFiles(e.dataTransfer.files);
+    });
     /* ชื่อสั้นตามภาพ: ส่วนหน้าชื่อโรงพยาบาลของ BRAND (เปลี่ยนชื่อที่ BRAND ที่เดียว) */
     $('side-brand').textContent = BRAND.name.split(/\s+โรงพยาบาล/)[0];
     $('side-brand').title = BRAND.name + ' · กลับขึ้นบนสุด';
-    spySoon();
+    var first = startPage();
+    enter(first, false); mark(FIRST[first]);
+    navStart = function(){ enter(cur || first, true); };
   })();
 
   rebuild();
@@ -6346,6 +6379,7 @@
     if(state.datasets.inventory) stockHistRecord(state.datasets.inventory);
     renderAll();
     shUi(); shSync();   /* ข้อมูลกลาง (#44): ดึงของล่าสุดทุกครั้งที่เปิดหน้า */
-  }).catch(function(){ storageOk = false; updateSourceUI(); renderKpi(); });
+    navStart();   /* เมนูด้านซ้าย: เปิดกล่องของหน้าที่จำไว้ หลังโหลดข้อมูลในเครื่องแล้ว */
+  }).catch(function(){ storageOk = false; updateSourceUI(); renderKpi(); navStart(); });
 })();
 </script>
