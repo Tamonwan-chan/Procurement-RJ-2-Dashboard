@@ -391,9 +391,74 @@
   }
   #tooltip.show{ opacity:1; }
   @media (prefers-reduced-motion:reduce){ .fill{ transition:none; } }
+
+  /* เมนูด้านซ้าย แบบ ข (ข้อ 45 / 2.51): จอกว้างอยู่ข้างซ้ายตลอด · จอแคบซ่อนไว้ กดปุ่ม "เมนู" มุมซ้ายล่าง */
+  .side{ display:none; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 8px; font-size:13.5px; }
+  .side button{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; text-align:left; }
+  .side .side-brand{ display:block; width:100%; font-family:"Taviraj",serif; font-size:15.5px; font-weight:600; line-height:1.35; color:var(--ink); padding:2px 8px 8px; border-bottom:1px solid var(--border); margin-bottom:4px; }
+  .sg{ margin:4px 0 7px; }
+  .sg-t{ font-size:14px; font-weight:600; padding:3px 8px; display:flex; gap:8px; align-items:center; color:var(--ink); }
+  .sg-t i{ font-style:normal; flex:none; display:inline-grid; place-items:center; width:22px; height:22px; border-radius:6px; background:var(--accent-soft); color:var(--accent); font-size:12.5px; font-weight:600; }
+  .side .si{ display:block; width:100%; padding:2px 8px 2px 38px; border-radius:7px; color:var(--ink-muted); line-height:1.5; }
+  button.si:hover, .si.multi button:hover{ color:var(--ink); text-decoration:underline; }
+  .si small{ color:var(--ink-faint); }
+  .side .si.on{ background:var(--accent); color:var(--accent-ink); font-weight:500; }
+  .si.on small{ color:inherit; opacity:.8; }
+  .si.on button.on{ text-decoration:underline; font-weight:600; }
+  .si.on button:hover{ color:inherit; }
+  .side .si.soon{ color:var(--ink-faint); font-style:italic; cursor:default; }
+  .si.soon::after{ content:" (รอทำ)"; font-size:12px; }
+  .side button:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  .side-toggle{ display:none; position:fixed; left:12px; bottom:12px; z-index:40; font:inherit; font-size:14px; font-weight:600; padding:7px 14px; border-radius:20px;
+    border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); box-shadow:var(--shadow); cursor:pointer; }
+  .nav-flash{ animation:navFlash .45s ease-in-out 0s 4 alternate; }
+  @keyframes navFlash{ from{ box-shadow:0 0 0 0 transparent; } to{ box-shadow:0 0 0 4px var(--accent); } }
+  @media (min-width:1100px){
+    body{ max-width:1460px; }
+    .layout{ display:grid; grid-template-columns:250px minmax(0,1fr); gap:22px; align-items:start; }
+    .side{ display:block; position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; }
+  }
+  @media (max-width:1099.98px){
+    .side-toggle{ display:block; }
+    .side.open{ display:block; position:fixed; left:12px; bottom:58px; top:12px; width:min(300px, calc(100vw - 24px)); overflow:auto; z-index:40; box-shadow:var(--shadow); }
+  }
+  @media (prefers-reduced-motion: reduce){ .nav-flash{ animation:none; outline:2px solid var(--accent); } }
 </style>
 
 <div id="tooltip"></div>
+
+<!-- เมนูด้านซ้าย แบบ ข แยกตามชนิดเอกสาร (กลุ่มโครงการเลือกจากภาพ 3 แบบ 25 พ.ย. 69 · ข้อ 45 / 2.51)
+     กดเมนู = เลื่อนไปส่วนนั้นและเปิดกล่องที่ปิดอยู่ให้ · ลำดับส่วนในหน้าไม่เปลี่ยน · จอแคบ (< 1100px) เมนูซ่อน กดปุ่ม "เมนู" มุมซ้ายล่าง
+     "(รอทำ)" = งานใน ICEBOX ยังไม่ได้ทำ กดไม่ได้ -->
+<button type="button" class="side-toggle" id="side-toggle" aria-expanded="false" aria-controls="side-nav">☰ เมนู</button>
+<div class="layout">
+<nav class="side" id="side-nav" aria-label="เมนูหลัก">
+  <button type="button" class="side-brand" data-go="top" id="side-brand"></button>
+  <div class="sg"><div class="sg-t"><i aria-hidden="true">W</i>ใบเสนอราคา</div>
+    <button type="button" class="si" data-go="quote-W">W ยา</button>
+    <button type="button" class="si" data-go="quote-WM">WM เวชภัณฑ์มิใช่ยา / วัสดุ</button>
+    <button type="button" class="si" data-go="quote-WC">WC เภสัชเคมีภัณฑ์</button></div>
+  <div class="sg"><div class="sg-t"><i aria-hidden="true">ภ</i>บันทึกขอซื้อ / สั่งซื้อ</div>
+    <button type="button" class="si" data-go="memo-p">ภย. / ภว.</button>
+    <button type="button" class="si" data-go="memo-k">ขย. / ขว.</button>
+    <button type="button" class="si" data-go="memo-y">ย. / ยว. หนังสือสั่งซื้อ</button>
+    <span class="si soon" title="ยังไม่ได้ทำ (อยู่ในรายการรอทำ)">ชุดเกิน 100,000</span></div>
+  <div class="sg"><div class="sg-t"><i aria-hidden="true">ร</i>บันทึกตรวจรับ</div>
+    <button type="button" class="si" data-go="ry">รย. (ยา) / รยว. (มิใช่ยา)</button></div>
+  <div class="sg"><div class="sg-t"><i aria-hidden="true">฿</i>เอกสารการเงิน</div>
+    <button type="button" class="si" data-go="cr">รายงานเจ้าหนี้การค้า <small>ภ-</small></button>
+    <span class="si soon" title="ยังไม่ได้ทำ (อยู่ในรายการรอทำ)">เลข e-GP / GFMIS</span></div>
+  <div class="sg"><div class="sg-t"><i aria-hidden="true">≡</i>ข้อมูลยาและสถิติ</div>
+    <div class="si multi"><button type="button" data-go="rate">อัตราการใช้ยา</button> · <button type="button" data-go="item">รายการยา</button></div>
+    <div class="si multi"><button type="button" data-go="rep">รายงานสถิติ</button> · <button type="button" data-go="kpi">เดือนสำรอง</button></div>
+    <div class="si multi"><button type="button" data-go="top10">คงคลัง 10 อันดับ</button> · <button type="button" data-go="edned">ED / NED</button></div>
+    <div class="si multi"><button type="button" data-go="value">มูลค่าคงคลัง · GPSC</button></div>
+    <div class="si multi"><button type="button" data-go="gpu">GPU</button> · <button type="button" data-go="plantop">แผนจัดซื้อ 10 อันดับ</button></div>
+    <div class="si multi"><button type="button" data-go="po">รับเข้า</button> · <button type="button" data-go="disp">จ่ายจากคลัง</button></div></div>
+  <div class="sg"><div class="sg-t"><i aria-hidden="true">⇪</i>ข้อมูล</div>
+    <div class="si multi"><button type="button" data-go="import">นำเข้าไฟล์</button> · <button type="button" data-go="shared">ข้อมูลกลาง</button> · <button type="button" data-go="backup">สำรอง</button></div></div>
+</nav>
+<div class="content">
 
 <div class="masthead">
   <!-- BRAND: ชื่อและโลโก้ตั้งค่าที่ BRAND ในส่วน <script> -->
@@ -414,7 +479,7 @@
 </div>
 <div class="errorbar" id="errorbar"></div>
 <div class="importnote" id="importnote" hidden></div>
-<div class="filestatus">
+<div class="filestatus" id="filestatus">
   <div class="fs-head">
     <span class="fs-title"><button type="button" class="fs-toggle" id="fs-toggle" aria-expanded="true" aria-controls="fs-body"><span class="fs-caret" aria-hidden="true">▾</span>ข้อมูลที่ใช้อยู่ (นำเข้าครั้งล่าสุดของแต่ละไฟล์)</button><span class="fs-missing-count" id="fs-missing"></span></span>
     <span class="fs-actions">
@@ -500,7 +565,7 @@
   <div class="table-note" id="rep-count"></div>
 </section>
 
-<section class="panel">
+<section class="panel" id="top10-panel">
   <header>
     <h2>คงคลังยา — 10 อันดับที่มีจำนวนสต็อกมากที่สุด</h2>
     <span class="hint">ตอบสนองตัวกรองด้านบน</span>
@@ -510,7 +575,7 @@
   <div class="barlist" id="chart-top"></div>
 </section>
 
-<section class="panel">
+<section class="panel" id="edned-panel">
   <header>
     <h2 data-collapse="edned">สัดส่วนบัญชียา ED / NED</h2>
     <span class="hint">นับต่อ 100 รายการ · นับรายการละ 1 ครั้ง</span>
@@ -528,7 +593,7 @@
   <div class="barlist" id="chart-acct"></div>
 </section>
 
-<section class="panel">
+<section class="panel" id="value-panel">
   <header>
     <h2 data-collapse="value">มูลค่าคงคลังพัสดุ</h2>
     <span class="hint">ตอบสนองตัวกรองด้านบน</span>
@@ -555,7 +620,7 @@
   <div class="table-note" id="gps-note"></div>
 </section>
 
-<section class="panel">
+<section class="panel" id="gpu-panel">
   <header>
     <h2 data-collapse="gpu">มูลค่ารวมตาม GPU</h2>
     <span class="hint">จากไฟล์ PO_inven · กรองตามทะเบียนและประเภทบัญชี</span>
@@ -593,7 +658,7 @@
   <div class="table-note" id="plantop-count"></div>
 </section>
 
-<section class="panel">
+<section class="panel" id="rate-panel">
   <header>
     <h2>อัตราการใช้ยา</h2>
     <span class="hint">จากไฟล์ list (แจ้งความต้องการซื้อ) · กรองตามทะเบียนและประเภทบัญชี</span>
@@ -727,7 +792,7 @@
   </div>
 </section>
 
-<section class="panel">
+<section class="panel" id="item-panel">
   <header>
     <h2>รายการยา</h2>
     <span class="hint">เรียงตาม hospcode · ตามตัวกรองด้านบน</span>
@@ -766,6 +831,8 @@
   </div>
   <div class="table-note">ตัวเลขรวม<b style="color:var(--cat-2)">สีน้ำเงิน</b> = มีหลาย lot (คลังยาหรือห้องจ่ายยา) — คลิกเพื่อดูแต่ละ lot และวันหมดอายุ</div>
 </section>
+</div><!-- /.content -->
+</div><!-- /.layout -->
 
 <footer>
   <div><span id="footer-name">ระบบจัดซื้อยาและเวชภัณฑ์ โรงพยาบาลราชวิถี 2 (รังสิต)</span> · <span id="footer-version"></span> · <a class="manual-link" href="manual/index.html" target="_blank" rel="noopener" title="วิธีใช้: ข้อมูลกลาง · ใบตรวจรับ รย. / รยว. · รายงานเจ้าหนี้ (เปิดแท็บใหม่)">คู่มือใช้โปรแกรม</a> · ทำงานในเบราว์เซอร์ทั้งหมด ไฟล์ไม่ถูกส่งออกไปที่ไหน</div>
@@ -6182,6 +6249,93 @@
       FLOOR_LOCS.map(function(l){ return '<th class="mono">' + esc(l.short) + '<br><small>กล่อง</small></th>'; }).join('') +
       '<th class="mono">จำนวนรวม<br><small>กล่อง</small></th><th class="mono plan" id="plan-head">planfin<br><small>ปี 70 · ห้ามซื้อเกิน (กล่อง)</small></th><th class="mono">มูลค่า (บาท)</th><th>expdate<br><small>ใกล้หมดอายุสุด</small></th><th>distribute</th><th>manufact</th>';
   })();
+  /* ---------------- เมนูด้านซ้าย แบบ ข แยกตามชนิดเอกสาร (ข้อ 45 / 2.51 · กลุ่มโครงการเลือก 25 พ.ย. 69) ----------------
+     กดเมนู = เลื่อนไปส่วนนั้น เปิดกล่องที่ปิดอยู่ให้ (ใบเสนอราคา / รย. / ข้อมูลกลาง) แล้วกะพริบช่องที่เกี่ยวข้อง
+     ภย. / ขย. / ย. ออกจากหน้าบันทึกเดียวกัน: เปิดบันทึกอยู่ = ไปที่ช่องเลขที่ / ปุ่มส่งออกของเล่มนั้น · ยังไม่เปิด = ไปที่ "ใบที่ส่งออกแล้ว" ให้เลือกใบก่อน
+     ไฮไลต์ตามส่วนที่เลื่อนอยู่ (ส่วนในสุดที่คร่อมเส้นบนจอ) · ลำดับส่วนในหน้าไม่เปลี่ยน */
+  (function(){
+    var nav = document.getElementById('side-nav'), tog = document.getElementById('side-toggle');
+    if(!nav) return;
+    function $(id){ return document.getElementById(id); }
+    var calm = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    function shown(el){ return !!el && !el.hidden && el.getClientRects().length > 0; }
+    function flash(el){ if(!el) return; el.classList.remove('nav-flash'); void el.offsetWidth; el.classList.add('nav-flash'); }
+    function goTo(el, block){ if(el && el.scrollIntoView) el.scrollIntoView({ behavior:calm ? 'auto' : 'smooth', block:block || 'start' }); }
+    function focusQuiet(el){ if(!el || !el.focus) return; try{ el.focus({ preventScroll:true }); }catch(e){ el.focus(); } }
+    function quoteOpen(){ if(!quoteState.open){ quoteState.open = true; renderQuote(); } }
+    function ryOpen(){ if(!ryState.open || $('ry-box').hidden) $('quote-ry').click(); }
+    function memoOpenNow(){ return !!memoState.d && !$('memo-box').hidden; }
+    /* ใบเสนอราคาที่ส่งออกแล้ว: เลือกใบก่อนออกบันทึก */
+    function toHist(){
+      quoteOpen();
+      var combo = $('quote-hist').parentNode.querySelector('input');
+      goTo($('quote-memo').parentNode, 'center'); focusQuiet(combo); flash(combo); flash($('quote-memo'));
+    }
+    var GO = {
+      top:     { act:function(){ goTo(document.querySelector('.masthead')); } },
+      'quote-W':  { reg:'quote-box', act:function(){ quoteOpen(); goTo($('quote-box')); flash($('quote-no-W')); } },
+      'quote-WM': { reg:'quote-box', act:function(){ quoteOpen(); goTo($('quote-box')); flash($('quote-no-WM')); } },
+      'quote-WC': { reg:'quote-box', act:function(){ quoteOpen(); goTo($('quote-box')); flash($('quote-no-WC')); } },
+      'memo-p': { reg:'memo-box', act:function(){ memoGo('[data-f="pNo"]'); } },
+      'memo-k': { reg:'memo-box', act:function(){ memoGo('[data-f="kNo"]'); } },
+      'memo-y': { reg:'memo-box', act:function(){ memoGo('[data-act="exp-y"]'); } },
+      ry:      { reg:'ry-box', act:function(){ ryOpen(); goTo($('ry-box')); } },
+      cr:      { reg:'cr-panel', act:function(){ ryOpen(); goTo($('cr-panel')); } },
+      rate:    { reg:'rate-panel' }, item:{ reg:'item-panel' }, rep:{ reg:'rep-panel' }, kpi:{ reg:'kpi-panel' },
+      top10:   { reg:'top10-panel' }, edned:{ reg:'edned-panel' }, value:{ reg:'value-panel' },
+      gpu:     { reg:'gpu-panel' }, plantop:{ reg:'plantop-panel' }, po:{ reg:'po-panel' }, disp:{ reg:'disp-panel' },
+      'import': { reg:'dropzone', act:function(){ goTo($('dropzone'), 'center'); focusQuiet($('dropzone')); flash($('dropzone')); } },
+      shared:  { reg:'shared-box', act:function(){ if($('shared-box').hidden) $('btn-shared').click(); goTo($('filestatus')); } },
+      backup:  { reg:'filestatus', act:function(){ goTo($('filestatus')); flash($('btn-backup')); } }
+    };
+    function memoGo(sel){
+      if(!memoOpenNow()){ toHist(); return; }
+      var el = $('memo-box').querySelector(sel);
+      goTo(el || $('memo-box'), el ? 'center' : 'start');
+      if(el){ focusQuiet(el); flash(el); }
+    }
+    var pinned = null, firstKey = {}, regs = [];
+    Array.prototype.forEach.call(nav.querySelectorAll('[data-go]'), function(b){
+      var r = GO[b.getAttribute('data-go')] && GO[b.getAttribute('data-go')].reg;
+      if(r && !firstKey[r]){ firstKey[r] = b.getAttribute('data-go'); regs.push(r); }
+    });
+    function mark(key){
+      Array.prototype.forEach.call(nav.querySelectorAll('.on'), function(x){ x.classList.remove('on'); });
+      var b = key && nav.querySelector('[data-go="' + key + '"]'); if(!b) return;
+      b.classList.add('on');
+      if(!b.classList.contains('si')) b.parentNode.classList.add('on');
+    }
+    function spy(){
+      var line = Math.min(160, (window.innerHeight || 800) * 0.3), best = null, bestTop = -Infinity;
+      regs.forEach(function(id){
+        var el = $(id); if(!shown(el)) return;
+        var r = el.getBoundingClientRect();
+        if(r.top <= line && r.bottom > line && r.top > bestTop){ best = id; bestTop = r.top; }
+      });
+      mark(best ? (pinned && GO[pinned].reg === best ? pinned : firstKey[best]) : null);
+    }
+    var spyTimer;
+    function spySoon(){ clearTimeout(spyTimer); spyTimer = setTimeout(spy, 150); }
+    window.addEventListener('scroll', spySoon, { passive:true });
+    window.addEventListener('resize', spySoon);
+    function narrow(){ return tog && getComputedStyle(tog).display !== 'none'; }
+    function navShow(on){ nav.classList.toggle('open', on); if(tog) tog.setAttribute('aria-expanded', String(on)); }
+    nav.addEventListener('click', function(e){
+      var b = e.target.closest('[data-go]'); if(!b) return;
+      var key = b.getAttribute('data-go'), g = GO[key]; if(!g) return;
+      pinned = key;
+      if(g.act) g.act(); else goTo($(g.reg));
+      if(narrow()) navShow(false);
+      mark(key); spySoon();   /* ไฮไลต์ใหม่เมื่อเลื่อนเสร็จ (เลื่อนอยู่ = เลื่อนเวลาไปเรื่อย ๆ) */
+    });
+    if(tog) tog.addEventListener('click', function(){ navShow(!nav.classList.contains('open')); });
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && nav.classList.contains('open')){ navShow(false); if(tog) tog.focus(); } });
+    /* ชื่อสั้นตามภาพ: ส่วนหน้าชื่อโรงพยาบาลของ BRAND (เปลี่ยนชื่อที่ BRAND ที่เดียว) */
+    $('side-brand').textContent = BRAND.name.split(/\s+โรงพยาบาล/)[0];
+    $('side-brand').title = BRAND.name + ' · กลับขึ้นบนสุด';
+    spySoon();
+  })();
+
   rebuild();
   renderAll();
   dbAll().then(function(recs){
