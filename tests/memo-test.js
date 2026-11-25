@@ -223,6 +223,21 @@ h.load({ inside:true }).then(function(p){
       var rowsT = parse(w, AMT.files).tables[0].rows.map(function(r){ return r.cells.map(function(c){ return c.text; }).join('|'); });
       ok(rowsT.indexOf('มูลค่าที่ไม่รวมภาษี|20,561.00') >= 0 && rowsT.indexOf('ภาษีมูลค่าเพิ่ม 7%|1,439.00') >= 0 && rowsT.indexOf('รวมจำนวนเงินทั้งสิ้น|22,000.00') >= 0, 'typed totals printed in the ขย. table');
     }
+    /* "ใบที่ส่งออกแล้ว" search by memo number with the book name (#56, 25 Nov 2026) */
+    scope = 'history search';
+    I.set('quoteHist', { slot:'_quotes', next:{}, docs:[
+      { no:'W094-70', series:'W', company:'บริษัท เอ', date:'2026-11-20', lines:[{ id:'X1', name:'DRUG A' }], memo:{ kind:'drug', pNo:'0683/2569', kNo:'0032/2570', auto:{ p:false, k:false }, issued:{ p:{ no:'0683/2569' }, k:{ no:'0032/2570' } } } },
+      { no:'WM010-70', series:'WM', company:'บริษัท บี', date:'2026-11-21', lines:[{ id:'X2', name:'GLOVE' }], memo:{ kind:'non', pNo:'0040/2569', kNo:'0012/2570', auto:{ p:false, k:true } } },
+      { no:'W095-70', series:'W', company:'บริษัท ซี', date:'2026-11-22', lines:[{ id:'X3', name:'DRUG C' }], memo:{ kind:'drug', pNo:'0684/2569', kNo:'0033/2570', auto:{ p:true, k:true } } } ] });
+    I.get('quoteHistFill')();
+    var hs = p.document.getElementById('quote-hist'), hin = hs.parentNode.querySelector('input'), hl = hs.parentNode.querySelector('.combo-list');
+    function hq(s){ hin.value = s; hin.dispatchEvent(new w.Event('input', { bubbles:true })); return [].map.call(hl.querySelectorAll('[data-i]'), function(x){ return x.textContent.split(' · ')[0]; }).join(); }
+    ['ภย.0683', 'ภย0683', 'ภย 0683', 'ขย.0032', 'ย.0032'].forEach(function(s){ eq(hq(s), 'W094-70', s); });
+    eq(hq('ภว.0040'), 'WM010-70', 'ภว. typed by hand');
+    eq(hq('ขว.0012'), '', 'number filled in by the program, not exported: not matched');
+    eq(hq('0684'), '', 'auto numbers never exported: not matched');
+    ok(/ · ภย\.0683\/2569 · ขย\.0032\/2570$/.test(hs.options[0].textContent), 'memo numbers shown in the list');
+
     scope = 'page';
     ok(!p.errors.length, 'no script errors' + (p.errors.length ? ': ' + p.errors.join(' | ') : ''));
     console.log((fails ? 'FAILED ' + fails + ' of ' : 'passed all ') + (passes + fails) + ' checks on ' + Object.keys(GOT).length + ' documents');

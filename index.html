@@ -792,7 +792,7 @@
 
   /* VERSION: รุ่นที่ขึ้นหน้าจริง แสดงใต้ชื่อโปรแกรมและท้ายหน้า
      แก้ทุกครั้งที่ติด tag ออกรุ่นใหม่บน master (เช่น v2.0.1) ให้ตรงกับ tag */
-  var APP_VERSION = { tag:'v3.0-beta.6', date:'24 พ.ย. 2569' };
+  var APP_VERSION = { tag:'v3.0-beta.7', date:'25 พ.ย. 2569' };
 
   /* CREDIT: ห้ามลบหรือแก้ไข */
   var CREDIT = {
@@ -3893,6 +3893,7 @@
     memoSet.pick = { committee:d.committee.slice(), officer:d.officer, supHead:d.supHead, head:d.head, exec:d.exec, director:d.director };
     if(d.planRef) memoSet.planRef[memoFY(d.pDate)] = d.planRef;
     memoSaveSet(); memoKeep();
+    if(quoteCombos) quoteHistFill(true);   /* เลขบันทึกที่เพิ่งออกขึ้นในช่อง "ใบที่ส่งออกแล้ว" และค้นได้ทันที */
     memoState.msg = 'ส่งออกแล้ว: ' + name + ' · เลขถัดไป ' + k.p + '. ' + memoNextNo(k.p, memoBE(todayIso())) + ' / ' + k.k + '. ' + memoNextNo(k.k, memoFY(todayIso()));
     document.getElementById('memo-sum').innerHTML = memoSumHtml();
   }
@@ -4654,16 +4655,7 @@
     QUOTE_SERIES.forEach(function(s){ if(!quoteState.nos[s]) quoteState.nos[s] = savedNo(s); });
     if(!quoteState.date) quoteState.date = todayIso();
     QUOTE_SERIES.forEach(function(s){ document.getElementById('quote-no-' + s).value = quoteState.nos[s]; });
-    var docs = quoteHist && quoteHist.docs || [], gaps = quoteGaps(), ed = quoteState.editing;
-    var histOpts = docs.map(function(d){
-      return [qKey(d), d.no + (d.dup ? ' · ' + d.dup : '') + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '') + (d.src === 'file' ? ' · จากไฟล์' : '')];
-    });
-    if(gaps.length) histOpts = histOpts.concat([[COMBO_HEAD, 'เลขว่าง ' + gaps.length + ' เลข (ยังไม่มีใบ · เลือกแล้วกด เปิดมาแก้ไข เพื่อออกใบเลขนั้น)']],
-      gaps.map(function(no){ return [QUOTE_GAP + no, no + ' · เลขว่าง ยังไม่มีใบ']; }));
-    fillSelect('quote-hist', histOpts.length ? histOpts : [['', 'ยังไม่มีใบที่ส่งออก']], ed ? (ed.gap ? QUOTE_GAP + ed.no : ed.key || ed.no) : '');
-    quoteHistIdx = null; quoteCombos.forEach(function(c){ c.sync(); });
-    document.getElementById('quote-reopen').disabled = !histOpts.length;
-    document.getElementById('quote-delete').disabled = !docs.length;
+    quoteHistFill();
     document.getElementById('quote-cancel-edit').hidden = !quoteState.editing;
     document.getElementById('quote-date').value = quoteState.date;
     quoteSummary([quoteState.note, rows.length > LIMIT ? 'แสดง ' + LIMIT + ' จาก ' + fmt(rows.length) + ' รายการ — เลือกบริษัทหรือค้นหาเพื่อดูรายการอื่น' : ''].filter(Boolean).join(' · '));
@@ -4787,21 +4779,46 @@
   }
   /* คำค้นเพิ่มของบริษัท: ชื่อใน HIS เป็นภาษาไทย พิมพ์ zuellig / dksh ก็เจอ */
   function companyHint(name){ return { zuellig:'zuellig ซิลลิค', dksh:'dksh ดีเคเอสเอช ดีทแฮล์ม' }[memoLayoutOf(name)] || ''; }
-  /* ใบที่ส่งออกแล้ว (พี่โอม 18 พ.ย. 69 · ข้อมูลกลางมีร้อยกว่าใบ เลื่อนหายาก): พิมพ์เลขที่ / บริษัท / hospcode / ชื่อยา / เลข ภย. ขย. / วันที่ 2026-10-29 */
+  /* ใบที่ส่งออกแล้ว (พี่โอม 18 พ.ย. 69 · ข้อมูลกลางมีร้อยกว่าใบ เลื่อนหายาก): พิมพ์เลขที่ / บริษัท / hospcode / ชื่อยา / เลข ภย. ขย. / วันที่ 2026-10-29
+     แก้ 25 พ.ย. 69 (พี่โอม "ค้นบันทึก ภย. ขย. ได้มั้ย … ต้องย้อนหาจาก W"): ค้นเลขพร้อมชื่อเล่มได้ (ภย.0683 / ภย0683 / ขย.0032 / ย.0032)
+     · เลขบันทึกขึ้นในรายการด้วย · เลขที่โปรแกรมเติมให้แต่ยังไม่ได้ส่งออก ไม่นับ · รายการอัปเดตทันทีหลังส่งออกบันทึก */
   var quoteHistIdx = null;
+  function quoteMemoNos(d){
+    var m = d.memo, out = []; if(!m) return out;
+    var k = MEMO_KIND[m.kind || memoKindRule(d)] || MEMO_KIND.drug, iss = m.issued || {}, auto = m.auto || {};
+    function add(pre, no){ no = String(no || '').trim(); if(no && out.indexOf(pre + '.' + no) < 0) out.push(pre + '.' + no); }
+    add(k.p, iss.p ? iss.p.no : !auto.p && m.pNo);
+    add(k.k, iss.k ? iss.k.no : iss.y ? iss.y.no : !auto.k && m.kNo);
+    return out;
+  }
   function quoteHistHint(key){
     if(!quoteHistIdx){
       quoteHistIdx = {};
       (quoteHist && quoteHist.docs || []).forEach(function(d){
-        var m = d.memo || {}, iss = m.issued || {};
-        quoteHistIdx[qKey(d)] = [d.no, d.date, m.pNo, m.kNo].concat(['p', 'k', 'y'].map(function(w){ return iss[w] && iss[w].no; }),
+        var nos = quoteMemoNos(d), k = d.memo && (MEMO_KIND[d.memo.kind || memoKindRule(d)] || MEMO_KIND.drug);
+        if(k && nos.some(function(x){ return x.indexOf(k.k + '.') === 0; })) nos.push(k.y + '.' + nos.filter(function(x){ return x.indexOf(k.k + '.') === 0; })[0].slice(k.k.length + 1));   /* ย. ใช้เลขเดียวกับ ขย. */
+        quoteHistIdx[qKey(d)] = [d.no, d.date].concat(nos, nos.map(function(x){ return x.replace('.', ''); }),
           (d.lines || []).map(function(l){ return (l.id || '') + ' ' + (l.name || ''); })).filter(Boolean).join(' ');
       });
     }
     return quoteHistIdx[key] || '';
   }
+  function quoteHistFill(keep){
+    var docs = quoteHist && quoteHist.docs || [], gaps = quoteGaps(), ed = quoteState.editing;
+    var histOpts = docs.map(function(d){
+      var nos = quoteMemoNos(d);
+      return [qKey(d), d.no + (d.dup ? ' · ' + d.dup : '') + ' · ' + d.company + ' · ' + d.lines.length + ' รายการ · ' + isoShortTh(d.date) + (nos.length ? ' · ' + nos.join(' · ') : '') + (d.revisions > 1 ? ' · แก้ไขแล้ว ' + (d.revisions - 1) + ' ครั้ง' : '') + (d.src === 'file' ? ' · จากไฟล์' : '')];
+    });
+    if(gaps.length) histOpts = histOpts.concat([[COMBO_HEAD, 'เลขว่าง ' + gaps.length + ' เลข (ยังไม่มีใบ · เลือกแล้วกด เปิดมาแก้ไข เพื่อออกใบเลขนั้น)']],
+      gaps.map(function(no){ return [QUOTE_GAP + no, no + ' · เลขว่าง ยังไม่มีใบ']; }));
+    fillSelect('quote-hist', histOpts.length ? histOpts : [['', 'ยังไม่มีใบที่ส่งออก']], ed ? (ed.gap ? QUOTE_GAP + ed.no : ed.key || ed.no) : keep ? document.getElementById('quote-hist').value : '');
+    quoteHistIdx = null; quoteCombos.forEach(function(c){ c.sync(); });
+    document.getElementById('quote-reopen').disabled = !histOpts.length;
+    document.getElementById('quote-delete').disabled = !docs.length;
+  }
   var quoteCombos = [searchableSelect('quote-company', companyHint), searchableSelect('quote-mfr'), searchableSelect('quote-hist', quoteHistHint)];
   document.getElementById('quote-hist').parentNode.classList.add('combo-wide');
+  document.getElementById('quote-hist').parentNode.querySelector('input').placeholder = 'พิมพ์ W… / ภย.… / ขย.… / บริษัท / ชื่อยา';
   /* ล้างทั้งหน้าให้เริ่มใบใหม่ได้ทันที (พี่โอม 5 พ.ย. 69): รายการที่เลือก จำนวน / ราคาที่แก้ ตัวกรอง และคำค้น · เลขที่ใบและวันที่คงไว้ */
   function quoteReset(){
     clearTimeout(quoteTimer);
