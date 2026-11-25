@@ -154,6 +154,14 @@ h.load({ inside:true }).then(function(p){
   var rb = JSON.parse(JSON.stringify(ry)); rb.fund = 'budget';
   jobs.push(Promise.resolve().then(function(){ return Promise.all([blobBytes(w, I.get('buildMemoK')({ no:'W009-70', series:'W', company:'บริษัท ทดสอบ จำกัด', lines:[] }, kb)), blobBytes(w, I.get('buildMemoR')(g, rb))]); })
     .then(function(bufs){ FUND.k = unzip(bufs[0]); FUND.r = unzip(bufs[1]); }, function(e){ FUND.err = e; }));
+  /* one item delivered in two lots = one item, quantities and values added (#57, 25 Nov 2026) */
+  var LOT = {}, g2 = { no:'R002', date:20261125, company:'บริษัท ทดสอบ จำกัด', inv:'INV-8', rows:[
+    { id:'T0001', name:'TEST ITEM 1', qty:200, value:3600 }, { id:'T0001', name:'TEST ITEM 1', qty:100, value:1800 }, { id:'T0002', name:'TEST ITEM 2', qty:15, value:2475 }] };
+  var ry2 = JSON.parse(JSON.stringify(ry)); ry2.no = 'R002'; ry2.skip = {}; ry2.skipId = {};
+  LOT.rows = I.get('ryRows')(g2, ry2); LOT.total = I.get('ryTotal')(g2, ry2);
+  var ry3 = JSON.parse(JSON.stringify(ry2)); ry3.skipId = { 'id:T0001':1 }; LOT.skipped = I.get('ryRows')(g2, ry3);
+  jobs.push(Promise.resolve().then(function(){ return blobBytes(w, I.get('buildMemoR')(g2, ry2)); })
+    .then(function(buf){ LOT.files = unzip(buf); }, function(e){ LOT.err = e; }));
 
   /* totals typed on the screen (question 48): an ex-VAT typed, VAT follows; a stale entry (items changed) falls back to the calculated values */
   var amtD = memoData('dksh'), amtAuto = I.get('memoTotalsAuto')(amtD), AMT = {};
@@ -230,6 +238,13 @@ h.load({ inside:true }).then(function(p){
       ok(k4 && /\) ด้วยเงินงบประมาณ ปีงบประมาณ 2570$/.test(k4.text) && k4.text.indexOf('เงินบำรุง') < 0, 'ขย. item 4: "ด้วยเงินงบประมาณ ปีงบประมาณ …" like his sample');
       ok(rBody && / รายการ ด้วยเงินงบประมาณ ปีงบประมาณ 2570 หมวดงบดำเนินการ/.test(rBody.text) && rBody.text.indexOf('เงินบำรุง') < 0, 'รย. body: ด้วยเงินงบประมาณ');
     }
+    scope = 'lots';
+    eq(LOT.rows.length, 2, 'two lots of one item count as one item');
+    ok(LOT.rows[0].qty === 300 && LOT.rows[0].value === 5400 && LOT.rows[0].lots === 2, 'quantity and value added across lots');
+    eq(LOT.total, 7875, 'total unchanged');
+    ok(LOT.skipped.length === 1 && LOT.skipped[0].id === 'T0002', 'unticking the item drops both lots');
+    if(LOT.err) ok(false, 'build threw: ' + (LOT.err.stack || LOT.err));
+    else { var lb = find(parse(w, LOT.files).paras, /^ตามบันทึก/); ok(lb && / จำนวน 2 รายการ /.test(lb.text), 'รย. body says 2 รายการ'); }
     scope = 'typed totals';
     eq(amtAuto.ex, 20560.75, 'DKSH ex-VAT = total ÷ 1.07 like the W sheet (his choice ข, question 48)');
     ok(AMT.t.ex === 20561 && AMT.t.vat === 1439 && AMT.t.total === 22000 && AMT.t.edited, 'typed ex-VAT used, VAT follows, total unchanged');
